@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
 } from 'react';
 
 type AsideType = 'search' | 'cart' | 'mobile' | 'closed';
@@ -32,37 +33,59 @@ export function Aside({
   type: AsideType;
   heading: React.ReactNode;
 }) {
-  const {type: activeType, close} = useAside();
+  const { type: activeType, close } = useAside();
   const expanded = type === activeType;
+  const [exiting, setExiting] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!expanded && exiting) {
+      // If not expanded and already exiting, do nothing
+      return;
+    }
+    if (expanded) {
+      setExiting(false);
+    }
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [expanded]);
+
+  function handleClose() {
+    setExiting(true);
+    timeoutRef.current = setTimeout(() => {
+      setExiting(false);
+      close();
+    }, 500); // match CSS duration
+  }
 
   useEffect(() => {
     const abortController = new AbortController();
-
-    if (expanded) {
+    if (expanded && !exiting) {
       document.addEventListener(
         'keydown',
         function handler(event: KeyboardEvent) {
           if (event.key === 'Escape') {
-            close();
+            handleClose();
           }
         },
-        {signal: abortController.signal},
+        { signal: abortController.signal },
       );
     }
     return () => abortController.abort();
-  }, [close, expanded]);
+  }, [close, expanded, exiting]);
 
   return (
     <div
       aria-modal
-      className={`overlay ${expanded ? 'expanded' : ''}`}
+      className={`overlay${expanded ? ' expanded' : ''}${exiting ? ' exiting' : ''}`}
       role="dialog"
     >
-      <button className="close-outside" onClick={close} />
+      <button className="close-outside" onClick={handleClose} />
       <aside>
         <header>
           <h3>{heading}</h3>
-          <button className="close reset" onClick={close} aria-label="Close">
+          <button className="close reset" onClick={handleClose} aria-label="Close">
             &times;
           </button>
         </header>
@@ -74,7 +97,7 @@ export function Aside({
 
 const AsideContext = createContext<AsideContextValue | null>(null);
 
-Aside.Provider = function AsideProvider({children}: {children: ReactNode}) {
+Aside.Provider = function AsideProvider({ children }: { children: ReactNode }) {
   const [type, setType] = useState<AsideType>('closed');
 
   return (

@@ -39,9 +39,10 @@ aside {
   height: 100vh;
   width: min(var(--aside-width), 100vw);
   position: fixed;
-  right: calc(-1 * var(--aside-width));
+  right: 0;
   top: 0;
-  transition: transform 200ms ease-in-out;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 101;
 }
 
 aside header {
@@ -99,10 +100,11 @@ aside li {
   position: fixed;
   right: 0;
   top: 0;
-  transition: opacity 400ms ease-in-out;
-  transition: opacity 400ms;
+  transition:
+    opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   visibility: hidden;
-  z-index: 10;
+  z-index: 100;
 }
 
 .overlay .close-outside {
@@ -132,9 +134,26 @@ aside li {
   pointer-events: auto;
   visibility: visible;
 }
+
+.overlay.exiting {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 /* reveal aside */
+.overlay aside {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(100%);
+  z-index: 101;
+}
+
 .overlay.expanded aside {
-  transform: translateX(calc(var(--aside-width) * -1));
+  transform: translateX(0);
+}
+
+.overlay.exiting aside {
+  transform: translateX(100%);
 }
 
 button.reset {
@@ -209,7 +228,6 @@ button.reset:hover:not(:has(> *)) {
 .header-ctas > * {
   min-width: fit-content;
 }
-
 
 /*
 * --------------------------------------------------
@@ -519,4 +537,97 @@ button.reset:hover:not(:has(> *)) {
 
 .account-logout {
   display: inline-block;
+}
+
+/* HERO SECTION */
+
+/* HEADER LAYOUT & SCROLL EFFECT */
+.custom-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  z-index: 10;
+  background: transparent;
+  transition:
+    background 0.3s,
+    box-shadow 0.3s;
+  display: flex;
+  align-items: center;
+  height: var(--header-height);
+  padding: 0 2rem;
+  box-shadow: none;
+}
+.custom-header.scrolled {
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+}
+.header-left,
+.header-center,
+.header-right {
+  display: flex;
+  align-items: center;
+}
+.header-left {
+  flex: 1;
+  gap: 0.5rem;
+}
+.header-center {
+  flex: 1;
+  justify-content: center;
+}
+.header-right {
+  flex: 1;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.header-logo {
+  max-height: 30px;
+  max-width: 120px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  aspect-ratio: auto;
+  transition: filter 0.3s;
+  display: block;
+}
+@media (max-width: 600px) {
+  .header-logo {
+    max-height: 22px;
+    max-width: 90px;
+  }
+}
+.icon-btn {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.icon-btn:focus {
+  outline: 2px solid #000;
+}
+
+@media (max-width: 600px) {
+  .hero-overlay h1 {
+    font-size: 2rem;
+  }
+  .custom-header {
+    padding: 0 0.5rem;
+  }
+}
+
+html,
+body {
+  width: 100vw;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+    font-family: var(--font-manrope), Manrope, sans-serif;
+}
+.home {
+  margin: 0;
+  padding: 0;
 }
