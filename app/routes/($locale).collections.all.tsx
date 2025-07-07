@@ -5,7 +5,7 @@ import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
 import {ProductItem} from '~/components/ProductItem';
 
 export const meta: MetaFunction<typeof loader> = () => {
-  return [{title: `Hydrogen | Products`}];
+  return [{title: `SALTY | Products`}];
 };
 
 export async function loader(args: LoaderFunctionArgs) {

@@ -10,7 +10,7 @@ import { ProductItem } from '~/components/ProductItem';
 import { HeroSection } from '~/components/HeroSection';
 
 export const meta: MetaFunction = () => {
-  return [{ title: 'Hydrogen | Home' }];
+  return [{ title: 'SALTY | Home' }];
 };
 
 export async function loader(args: LoaderFunctionArgs) {

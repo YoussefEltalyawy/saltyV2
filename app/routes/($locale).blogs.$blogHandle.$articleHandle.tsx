@@ -4,7 +4,7 @@ import {Image} from '@shopify/hydrogen';
 import {redirectIfHandleIsLocalized} from '~/lib/redirect';
 
 export const meta: MetaFunction<typeof loader> = ({data}) => {
-  return [{title: `Hydrogen | ${data?.article.title ?? ''} article`}];
+  return [{title: `SALTY | ${data?.article.title ?? ''} article`}];
 };
 
 export async function loader(args: LoaderFunctionArgs) {
