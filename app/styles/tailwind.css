@@ -1,10 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+@import 'tailwindcss';
 /**
  * Configure Tailwind v4 in this file using CSS variables and directives:
  * https://tailwindcss.com/docs/v4-beta#css-first-configuration
  */
-
-@import 'tailwindcss';
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
 
 @theme {
   --font-manrope: 'Manrope', sans-serif;

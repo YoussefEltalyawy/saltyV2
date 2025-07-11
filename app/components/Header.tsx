@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { Await, NavLink, useAsyncValue } from 'react-router';
 import {
   type CartViewPayload,
@@ -7,7 +7,10 @@ import {
 } from '@shopify/hydrogen';
 import type { HeaderQuery, CartApiQueryFragment } from 'storefrontapi.generated';
 import { useAside } from '~/components/Aside';
+import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
 import { Menu, User, Search, ShoppingCart } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 
 interface HeaderProps {
   header: HeaderQuery;
@@ -26,17 +29,49 @@ export function Header({
 }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const { open } = useAside();
+  const { isHeaderVisible } = useHeaderAnimation();
+  const headerRef = useRef<HTMLElement>(null);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const centerRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
   const logoSrc = scrolled ? '/black-logo.png' : '/white-logo.png';
   const iconColor = scrolled ? '#000' : '#fff';
   const { shop, menu } = header;
+
+  // GSAP animation for header elements
+  useGSAP(() => {
+    if (!isHeaderVisible) {
+      // Initially hide header elements with blur
+      gsap.set([leftRef.current, centerRef.current, rightRef.current], {
+        filter: 'blur(10px)',
+        y: -20,
+      });
+    } else {
+      // Animate header elements in with blur to clear
+      gsap.to([leftRef.current, centerRef.current, rightRef.current], {
+        filter: 'blur(0px)',
+        y: 0,
+        duration: 0.6,
+        stagger: 0.3, // Increased stagger for more noticeable timing
+        ease: 'power2.out',
+      });
+    }
+  }, [isHeaderVisible]);
+
   return (
-    <header className={`header custom-header${scrolled ? ' scrolled' : ''}`}>
-      <div className="header-left">
+    <header
+      ref={headerRef}
+      className={`header custom-header${scrolled ? ' scrolled' : ''}`}
+      style={{ filter: isHeaderVisible ? 'blur(0px)' : 'blur(10px)' }}
+    >
+      <div ref={leftRef} className="header-left">
         <button className="icon-btn" aria-label="Menu" onClick={() => open('mobile')}>
           <Menu color={iconColor} size={24} />
         </button>
@@ -44,12 +79,12 @@ export function Header({
           <User color={iconColor} size={24} />
         </NavLink>
       </div>
-      <div className="header-center">
+      <div ref={centerRef} className="header-center">
         <NavLink prefetch="intent" to="/">
           <img src={logoSrc} alt="Logo" className="header-logo" />
         </NavLink>
       </div>
-      <div className="header-right">
+      <div ref={rightRef} className="header-right">
         <button className="icon-btn" aria-label="Search" onClick={() => open('search')}>
           <Search color={iconColor} size={24} />
         </button>
@@ -77,17 +112,6 @@ export function HeaderMenu({
 
   return (
     <nav className={className} role="navigation">
-      {viewport === 'mobile' && (
-        <NavLink
-          end
-          onClick={close}
-          prefetch="intent"
-          style={activeLinkStyle}
-          to="/"
-        >
-          Home
-        </NavLink>
-      )}
       {(menu || FALLBACK_HEADER_MENU).items.map((item) => {
         if (!item.url) return null;
 

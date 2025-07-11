@@ -1,3 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700&display=swap');
+html {
+  font-family: var(--font-manrope), Manrope, sans-serif;
+}
 :root {
   --aside-width: 400px;
   --cart-aside-summary-height-with-discount: 300px;
@@ -6,6 +10,7 @@
   --header-height: 64px;
   --color-dark: #000;
   --color-light: #fff;
+  --font-manrope: 'Manrope', sans-serif;
 }
 
 img {
@@ -39,9 +44,7 @@ aside {
   height: 100vh;
   width: min(var(--aside-width), 100vw);
   position: fixed;
-  right: 0;
   top: 0;
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 101;
 }
 
@@ -141,19 +144,26 @@ aside li {
   visibility: hidden;
 }
 
-/* reveal aside */
+/* Remove right-side slide and transition for aside, let GSAP handle it */
+aside {
+  background: var(--color-light);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.3);
+  height: 100vh;
+  width: min(var(--aside-width), 100vw);
+  position: fixed;
+  top: 0;
+  z-index: 101;
+}
+
+/* Remove overlay aside transform/transition for slide */
 .overlay aside {
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  transform: translateX(100%);
   z-index: 101;
 }
 
 .overlay.expanded aside {
-  transform: translateX(0);
 }
 
 .overlay.exiting aside {
-  transform: translateX(100%);
 }
 
 button.reset {
@@ -625,9 +635,12 @@ body {
   overflow-x: hidden;
   margin: 0;
   padding: 0;
-    font-family: var(--font-manrope), Manrope, sans-serif;
+  font-family: var(--font-manrope), Manrope, sans-serif;
 }
 .home {
   margin: 0;
   padding: 0;
+}
+* {
+  font-family: var(--font-manrope), Manrope, sans-serif !important;
 }
