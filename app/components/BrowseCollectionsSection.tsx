@@ -43,14 +43,14 @@ export function BrowseCollectionsSection() {
       const currentScrollY = window.scrollY;
       const direction = currentScrollY > lastScrollY.current ? 'down' : 'up';
       const sectionTop = sectionRef.current?.offsetTop || 0;
-      const threshold = 50;
+      const threshold = 10; // Reduced from 200 to 80 for easier triggering
 
       if (direction === 'down' && currentScrollY > threshold && currentScrollY < sectionTop) {
         isScrollingRef.current = true;
         gsap.to(window, {
           scrollTo: sectionTop,
-          duration: 1.5, // Increased duration for smoother feel
-          ease: 'power2.inOut', // Gentler easing for natural motion
+          duration: 0.8, // Faster duration for more responsive feel
+          ease: 'power1.out', // Smoother easing for mobile
           onComplete: () => {
             isScrollingRef.current = false;
           },
@@ -59,8 +59,8 @@ export function BrowseCollectionsSection() {
         isScrollingRef.current = true;
         gsap.to(window, {
           scrollTo: 0,
-          duration: 1.5, // Matching duration for consistency
-          ease: 'power2.inOut',
+          duration: 0.8, // Matching duration for consistency
+          ease: 'power1.out', // Smoother easing for mobile
           onComplete: () => {
             isScrollingRef.current = false;
           },
@@ -83,7 +83,7 @@ export function BrowseCollectionsSection() {
       ref={sectionRef}
       className="w-full bg-black text-white rounded-t-2xl md:rounded-t-2xl flex flex-col items-start justify-start px-6 relative"
       style={{
-        minHeight: '87vh',
+        minHeight: '86vh',
         marginTop: 'calc(-1 * var(--section-peek))',
         paddingTop: '1.5rem', // Ensures content starts below header
         paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
