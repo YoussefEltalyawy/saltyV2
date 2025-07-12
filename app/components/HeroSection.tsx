@@ -40,23 +40,23 @@ export function HeroSection() {
       if (isMobile) {
         // For very small mobile devices (iPhone SE, etc.)
         if (viewportHeight < 700) {
-          return '7rem'; // Increased from 5rem
+          return '6.5rem'; // Reduced for less space
         }
         // For standard mobile devices
         if (viewportHeight < 800) {
-          return '6rem'; // Increased from 4rem
+          return '6rem'; // Reduced for less space
         }
         // For larger mobile devices
-        return '5rem'; // Increased from 3rem
+        return '5.5rem'; // Reduced for less space
       }
 
       // For desktop devices
       if (viewportHeight < 1024) {
-        return '4rem'; // Increased from 3rem
+        return '5rem'; // Reduced for less space
       }
 
       // For larger screens
-      return '3rem'; // Increased from 2rem
+      return '4.5rem'; // Reduced for less space
     };
 
     // Set the static margin only once

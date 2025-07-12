@@ -8,6 +8,7 @@ import type {
 } from 'storefrontapi.generated';
 import { ProductItem } from '~/components/ProductItem';
 import { HeroSection } from '~/components/HeroSection';
+import { BrowseCollectionsSection } from '~/components/BrowseCollectionsSection';
 
 export const meta: MetaFunction = () => {
   return [{ title: 'SALTY | Home' }];
@@ -64,8 +65,9 @@ export default function Homepage() {
   return (
     <div className="home">
       <HeroSection />
-      <FeaturedCollection collection={data.featuredCollection} />
-      <RecommendedProducts products={data.recommendedProducts} />
+      <BrowseCollectionsSection />
+      {/* <FeaturedCollection collection={data.featuredCollection} />
+      <RecommendedProducts products={data.recommendedProducts} /> */}
     </div>
   );
 }
