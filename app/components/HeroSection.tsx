@@ -14,8 +14,7 @@ export function HeroSection() {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [overlayInteractive, setOverlayInteractive] = useState(true);
-  const [viewportHeight, setViewportHeight] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
+  const [staticBottomMargin, setStaticBottomMargin] = useState('2rem'); // Store static margin
   const { setHeaderVisible, isHeaderVisible } = useHeaderAnimation();
   const overlayRef = useRef<HTMLDivElement>(null);
   const lottieRef = useRef<any>(null);
@@ -23,50 +22,46 @@ export function HeroSection() {
   const keepRef = useRef<HTMLSpanElement>(null);
   const itRef = useRef<HTMLSpanElement>(null);
   const saltyRef = useRef<HTMLSpanElement>(null);
-  const exploreBtnRef = useRef<HTMLAnchorElement>(null); // Add ref for Explore button
+  const exploreBtnRef = useRef<HTMLAnchorElement>(null);
 
   // Fetch S25 collection data
   const s25Fetcher = useFetcher<FeaturedCollectionFragment>();
   const [s25Collection, setS25Collection] = useState<FeaturedCollectionFragment | null>(null);
 
-  // Detect viewport height and mobile browser UI
+  // Set static bottom margin once on mount
   useEffect(() => {
-    const updateViewportHeight = () => {
-      setViewportHeight(window.innerHeight);
-    };
-
-    const detectMobile = () => {
-      // Check if it's a mobile device
+    const calculateStaticBottomMargin = () => {
+      const viewportHeight = window.innerHeight;
       const userAgent = navigator.userAgent.toLowerCase();
       const isMobileDevice = /iphone|ipad|ipod|android|blackberry|windows phone/g.test(userAgent);
       const isSmallScreen = window.innerWidth <= 768;
-      setIsMobile(isMobileDevice || isSmallScreen);
+      const isMobile = isMobileDevice || isSmallScreen;
+
+      if (isMobile) {
+        // For very small mobile devices (iPhone SE, etc.)
+        if (viewportHeight < 700) {
+          return '7rem'; // Increased from 5rem
+        }
+        // For standard mobile devices
+        if (viewportHeight < 800) {
+          return '6rem'; // Increased from 4rem
+        }
+        // For larger mobile devices
+        return '5rem'; // Increased from 3rem
+      }
+
+      // For desktop devices
+      if (viewportHeight < 1024) {
+        return '4rem'; // Increased from 3rem
+      }
+
+      // For larger screens
+      return '3rem'; // Increased from 2rem
     };
 
-    // Initial measurements
-    updateViewportHeight();
-    detectMobile();
-
-    // Listen for resize events
-    window.addEventListener('resize', () => {
-      updateViewportHeight();
-      detectMobile();
-    });
-
-    // Listen for orientation changes on mobile
-    window.addEventListener('orientationchange', () => {
-      // Small delay to ensure the orientation change is complete
-      setTimeout(() => {
-        updateViewportHeight();
-        detectMobile();
-      }, 100);
-    });
-
-    return () => {
-      window.removeEventListener('resize', updateViewportHeight);
-      window.removeEventListener('orientationchange', updateViewportHeight);
-    };
-  }, []);
+    // Set the static margin only once
+    setStaticBottomMargin(calculateStaticBottomMargin());
+  }, []); // Empty dependency array - only run once on mount
 
   useEffect(() => {
     setIsMounted(true);
@@ -83,35 +78,6 @@ export function HeroSection() {
       setS25Collection(s25Fetcher.data);
     }
   }, [s25Fetcher.data]);
-
-  // Calculate dynamic bottom margin based on viewport and device type
-  const getDynamicBottomMargin = () => {
-    if (viewportHeight === 0) return '2rem'; // Default fallback
-
-    // For mobile devices, use larger margins to account for browser UI
-    if (isMobile) {
-      // For very small mobile devices (iPhone SE, etc.)
-      if (viewportHeight < 700) {
-        return '5rem';
-      }
-
-      // For standard mobile devices
-      if (viewportHeight < 800) {
-        return '4rem';
-      }
-
-      // For larger mobile devices
-      return '3rem';
-    }
-
-    // For desktop devices
-    if (viewportHeight < 1024) {
-      return '3rem';
-    }
-
-    // For larger screens, use standard margin
-    return '2rem';
-  };
 
   // GSAP slide up when Lottie finishes
   const handleLottieComplete = useCallback(() => {
@@ -228,10 +194,10 @@ export function HeroSection() {
       {/* Add S25 Collection button at the bottom of hero */}
       <div
         className="absolute left-0 w-full flex justify- z-1 pointer-events-none"
-        style={{ bottom: getDynamicBottomMargin() }}
+        style={{ bottom: staticBottomMargin }} // Use static margin
       >
         <a
-          ref={exploreBtnRef} // Add ref here
+          ref={exploreBtnRef}
           href="/collections/s25-collection"
           className="flex items-center justify-between w-[90vw] max-w-md mx-auto shadow-lg py-2.5 px-6 text-xl font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-white pointer-events-auto rounded-xl overflow-hidden"
           style={{
