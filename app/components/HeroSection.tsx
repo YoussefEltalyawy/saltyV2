@@ -37,31 +37,26 @@ export function HeroSection() {
       const isSmallScreen = window.innerWidth <= 768;
       const isMobile = isMobileDevice || isSmallScreen;
 
-      // Special case for very short viewports (e.g., iOS Safari with bottom bar)
-      if (viewportHeight < 650) {
-        return '11rem'; // Lift up even more to avoid being covered
-      }
-
       if (isMobile) {
         // For very small mobile devices (iPhone SE, etc.)
         if (viewportHeight < 700) {
-          return '6.5rem';
+          return '7rem'; // Increased from 5rem
         }
         // For standard mobile devices
         if (viewportHeight < 800) {
-          return '6rem';
+          return '6rem'; // Increased from 4rem
         }
         // For larger mobile devices
-        return '5.5rem';
+        return '5rem'; // Increased from 3rem
       }
 
       // For desktop devices
       if (viewportHeight < 1024) {
-        return '5rem';
+        return '4rem'; // Increased from 3rem
       }
 
       // For larger screens
-      return '4.5rem';
+      return '3rem'; // Increased from 2rem
     };
 
     // Set the static margin only once
@@ -198,8 +193,8 @@ export function HeroSection() {
       </div>
       {/* Add S25 Collection button at the bottom of hero */}
       <div
-        className="absolute left-0 w-full flex justify- z-1 pointer-events-none"
-        style={{ bottom: staticBottomMargin }} // Use static margin
+        className="absolute left-0 w-full flex justify- pointer-events-none"
+        style={{ bottom: staticBottomMargin, zIndex: 10 }} // Use static margin and higher z-index
       >
         <a
           ref={exploreBtnRef}
