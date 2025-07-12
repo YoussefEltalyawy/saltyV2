@@ -14,6 +14,8 @@ export function HeroSection() {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [overlayInteractive, setOverlayInteractive] = useState(true);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const { setHeaderVisible, isHeaderVisible } = useHeaderAnimation();
   const overlayRef = useRef<HTMLDivElement>(null);
   const lottieRef = useRef<any>(null);
@@ -26,6 +28,45 @@ export function HeroSection() {
   // Fetch S25 collection data
   const s25Fetcher = useFetcher<FeaturedCollectionFragment>();
   const [s25Collection, setS25Collection] = useState<FeaturedCollectionFragment | null>(null);
+
+  // Detect viewport height and mobile browser UI
+  useEffect(() => {
+    const updateViewportHeight = () => {
+      setViewportHeight(window.innerHeight);
+    };
+
+    const detectMobile = () => {
+      // Check if it's a mobile device
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileDevice = /iphone|ipad|ipod|android|blackberry|windows phone/g.test(userAgent);
+      const isSmallScreen = window.innerWidth <= 768;
+      setIsMobile(isMobileDevice || isSmallScreen);
+    };
+
+    // Initial measurements
+    updateViewportHeight();
+    detectMobile();
+
+    // Listen for resize events
+    window.addEventListener('resize', () => {
+      updateViewportHeight();
+      detectMobile();
+    });
+
+    // Listen for orientation changes on mobile
+    window.addEventListener('orientationchange', () => {
+      // Small delay to ensure the orientation change is complete
+      setTimeout(() => {
+        updateViewportHeight();
+        detectMobile();
+      }, 100);
+    });
+
+    return () => {
+      window.removeEventListener('resize', updateViewportHeight);
+      window.removeEventListener('orientationchange', updateViewportHeight);
+    };
+  }, []);
 
   useEffect(() => {
     setIsMounted(true);
@@ -42,6 +83,35 @@ export function HeroSection() {
       setS25Collection(s25Fetcher.data);
     }
   }, [s25Fetcher.data]);
+
+  // Calculate dynamic bottom margin based on viewport and device type
+  const getDynamicBottomMargin = () => {
+    if (viewportHeight === 0) return '2rem'; // Default fallback
+
+    // For mobile devices, use larger margins to account for browser UI
+    if (isMobile) {
+      // For very small mobile devices (iPhone SE, etc.)
+      if (viewportHeight < 700) {
+        return '5rem';
+      }
+
+      // For standard mobile devices
+      if (viewportHeight < 800) {
+        return '4rem';
+      }
+
+      // For larger mobile devices
+      return '3rem';
+    }
+
+    // For desktop devices
+    if (viewportHeight < 1024) {
+      return '3rem';
+    }
+
+    // For larger screens, use standard margin
+    return '2rem';
+  };
 
   // GSAP slide up when Lottie finishes
   const handleLottieComplete = useCallback(() => {
@@ -156,7 +226,10 @@ export function HeroSection() {
         </h1>
       </div>
       {/* Add S25 Collection button at the bottom of hero */}
-      <div className="absolute bottom-8 left-0 w-full flex justify- z-10 pointer-events-none">
+      <div
+        className="absolute left-0 w-full flex justify- z-1 pointer-events-none"
+        style={{ bottom: getDynamicBottomMargin() }}
+      >
         <a
           ref={exploreBtnRef} // Add ref here
           href="/collections/s25-collection"
@@ -177,8 +250,8 @@ export function HeroSection() {
               }}
             />
           )}
-          <span className="text-center text-xl relative z-10 text-white font-manrope font-normal">Explore S25 Collection</span>
-          <span className="ml-4 flex items-center justify-center w-8 h-8 rounded-full relative z-10 backdrop-blur-sm bg-white/10 border border-white/40 shadow-inner">
+          <span className="text-center text-xl relative  text-white font-manrope font-normal">Explore S25 Collection</span>
+          <span className="ml-4 flex items-center justify-center w-8 h-8 rounded-full relative  backdrop-blur-sm bg-white/10 border border-white/40 shadow-inner">
             <svg width="16" height="16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
           </span>
         </a>
