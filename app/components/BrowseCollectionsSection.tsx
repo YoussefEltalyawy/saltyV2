@@ -183,7 +183,7 @@ function CollectionsList({menu}: {menu: FooterQuery['menu']}) {
           <NavLink 
             key={item.id}
             to={url}
-            className="text-lg font-medium hover:text-gray-300 transition-colors"
+            className="text-2xl font-normal hover:text-gray-300 transition-colors"
           >
             {item.title}
           </NavLink>
