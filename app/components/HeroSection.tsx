@@ -37,26 +37,31 @@ export function HeroSection() {
       const isSmallScreen = window.innerWidth <= 768;
       const isMobile = isMobileDevice || isSmallScreen;
 
+      // Special case for very short viewports (e.g., iOS Safari with bottom bar)
+      if (viewportHeight < 650) {
+        return '11rem'; // Lift up even more to avoid being covered
+      }
+
       if (isMobile) {
         // For very small mobile devices (iPhone SE, etc.)
         if (viewportHeight < 700) {
-          return '6.5rem'; // Reduced for less space
+          return '6.5rem';
         }
         // For standard mobile devices
         if (viewportHeight < 800) {
-          return '6rem'; // Reduced for less space
+          return '6rem';
         }
         // For larger mobile devices
-        return '5.5rem'; // Reduced for less space
+        return '5.5rem';
       }
 
       // For desktop devices
       if (viewportHeight < 1024) {
-        return '5rem'; // Reduced for less space
+        return '5rem';
       }
 
       // For larger screens
-      return '4.5rem'; // Reduced for less space
+      return '4.5rem';
     };
 
     // Set the static margin only once
