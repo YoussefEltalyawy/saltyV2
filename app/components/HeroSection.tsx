@@ -126,7 +126,13 @@ export function HeroSection() {
   }, [isHeaderVisible]);
 
   return (
-    <section className="relative w-screen left-1/2 right-1/2 -mx-[50vw] h-screen overflow-hidden flex items-center justify-center">
+    <section
+      className="relative w-screen left-1/2 right-1/2 -mx-[50vw] overflow-hidden flex items-center justify-center"
+      style={{
+        height: '100dvh',
+        minHeight: '100vh',
+      }}
+    >
       {/* Overlay with Lottie animation */}
       <LoadingOverlay
         visible={overlayVisible}
@@ -159,7 +165,7 @@ export function HeroSection() {
       <div
         className="absolute left-0 w-full flex justify-center pointer-events-none"
         style={{
-          bottom: 'calc(var(--section-peek, clamp(30px, 8vh, 100px)) + 8px + env(safe-area-inset-bottom, 0px))',
+          bottom: 'calc(var(--section-peek, clamp(30px, 8vh, 100px)) + env(safe-area-inset-bottom, 0px))',
           zIndex: 10,
         }}
       >
