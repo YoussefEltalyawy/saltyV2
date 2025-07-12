@@ -11,6 +11,7 @@ html {
   --color-dark: #000;
   --color-light: #fff;
   --font-manrope: 'Manrope', sans-serif;
+  --section-peek: clamp(30px, 8vh, 100px);
 }
 
 img {
@@ -643,4 +644,54 @@ body {
 }
 * {
   font-family: var(--font-manrope), Manrope, sans-serif !important;
+}
+
+/* Hero/Browse Collections Layout Fixes */
+.hero-section {
+  position: relative;
+  width: 100vw;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-section .hero-button {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  bottom: calc(
+    var(--section-peek, clamp(30px, 8vh, 100px)) +
+      env(safe-area-inset-bottom, 0px)
+  );
+  z-index: 10;
+}
+
+.hero-section .hero-button a {
+  pointer-events: auto;
+}
+
+.browse-collections-section {
+  min-height: max(48vh, 300px);
+  margin-top: calc(-1 * var(--section-peek, clamp(30px, 8vh, 100px)));
+  z-index: 2;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  background: #000;
+  color: #fff;
+  padding: 1.5rem;
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .hero-section {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

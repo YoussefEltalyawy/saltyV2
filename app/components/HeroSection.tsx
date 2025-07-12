@@ -14,7 +14,6 @@ export function HeroSection() {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [overlayInteractive, setOverlayInteractive] = useState(true);
-  const [staticBottomMargin, setStaticBottomMargin] = useState('2rem'); // Store static margin
   const { setHeaderVisible, isHeaderVisible } = useHeaderAnimation();
   const overlayRef = useRef<HTMLDivElement>(null);
   const lottieRef = useRef<any>(null);
@@ -27,41 +26,6 @@ export function HeroSection() {
   // Fetch S25 collection data
   const s25Fetcher = useFetcher<FeaturedCollectionFragment>();
   const [s25Collection, setS25Collection] = useState<FeaturedCollectionFragment | null>(null);
-
-  // Set static bottom margin once on mount
-  useEffect(() => {
-    const calculateStaticBottomMargin = () => {
-      const viewportHeight = window.innerHeight;
-      const userAgent = navigator.userAgent.toLowerCase();
-      const isMobileDevice = /iphone|ipad|ipod|android|blackberry|windows phone/g.test(userAgent);
-      const isSmallScreen = window.innerWidth <= 768;
-      const isMobile = isMobileDevice || isSmallScreen;
-
-      if (isMobile) {
-        // For very small mobile devices (iPhone SE, etc.)
-        if (viewportHeight < 700) {
-          return '7rem'; // Increased from 5rem
-        }
-        // For standard mobile devices
-        if (viewportHeight < 800) {
-          return '6rem'; // Increased from 4rem
-        }
-        // For larger mobile devices
-        return '5rem'; // Increased from 3rem
-      }
-
-      // For desktop devices
-      if (viewportHeight < 1024) {
-        return '4rem'; // Increased from 3rem
-      }
-
-      // For larger screens
-      return '3rem'; // Increased from 2rem
-    };
-
-    // Set the static margin only once
-    setStaticBottomMargin(calculateStaticBottomMargin());
-  }, []); // Empty dependency array - only run once on mount
 
   useEffect(() => {
     setIsMounted(true);
@@ -193,8 +157,11 @@ export function HeroSection() {
       </div>
       {/* Add S25 Collection button at the bottom of hero */}
       <div
-        className="absolute left-0 w-full flex justify- pointer-events-none"
-        style={{ bottom: staticBottomMargin, zIndex: 10 }} // Use static margin and higher z-index
+        className="absolute left-0 w-full flex justify-center pointer-events-none"
+        style={{
+          bottom: 'calc(var(--section-peek, clamp(30px, 8vh, 100px)) + 8px + env(safe-area-inset-bottom, 0px))',
+          zIndex: 10,
+        }}
       >
         <a
           ref={exploreBtnRef}
@@ -212,7 +179,7 @@ export function HeroSection() {
               style={{
                 backgroundImage: `url(${s25Collection.image.url})`,
                 filter: 'brightness(0.5)',
-                backgroundPosition: 'top 30% center', // Move image further down
+                backgroundPosition: 'top 30% center',
               }}
             />
           )}
