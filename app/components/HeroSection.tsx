@@ -7,10 +7,7 @@ import { LoadingOverlay } from './LoadingOverlay';
 import { useFetcher } from 'react-router';
 import type { FeaturedCollectionFragment } from 'storefrontapi.generated';
 
-const LOGO_ANIMATION = '/logo-animation.json';
-
 export function HeroSection() {
-  const [isMounted, setIsMounted] = useState(false);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [overlayInteractive, setOverlayInteractive] = useState(true);
@@ -28,13 +25,11 @@ export function HeroSection() {
   const [s25Collection, setS25Collection] = useState<FeaturedCollectionFragment | null>(null);
 
   useEffect(() => {
-    setIsMounted(true);
-
     // Fetch S25 collection data when component mounts
     if (s25Fetcher.state === 'idle' && !s25Fetcher.data) {
       s25Fetcher.load('/api/s25collection');
     }
-  }, []);
+  }, [s25Fetcher]);
 
   // Update s25Collection state when data is fetched
   useEffect(() => {
@@ -53,7 +48,7 @@ export function HeroSection() {
         duration: 0.8,
         ease: 'power3.out',
         onUpdate: function () {
-          if (!triggered && this.progress() >= 0.3) { // now 0.4 for 40%
+          if (!triggered && this.progress() >= 0.3) {
             setHeaderVisible(true);
             triggered = true;
           }
@@ -71,57 +66,28 @@ export function HeroSection() {
     }
   }, [overlayVisible]);
 
-  // GSAP animation for title text - word by word with slide up + blur
+  // GSAP animation for title text
   useGSAP(() => {
-    // Always set initial state first
-    gsap.set([keepRef.current, itRef.current, saltyRef.current], {
-      filter: 'blur(10px)',
-      y: 30, // Start below the final position for slide-up effect
-      opacity: 0,
-    });
-    gsap.set(exploreBtnRef.current, {
+    gsap.set([keepRef.current, itRef.current, saltyRef.current, exploreBtnRef.current], {
       filter: 'blur(10px)',
       y: 30,
       opacity: 0,
     });
 
     if (isHeaderVisible) {
-      // Animate words in sequence: KEEP -> IT -> SALTY
-      gsap.to(keepRef.current, {
-        filter: 'blur(0px)',
-        y: 0,
-        opacity: 1,
-        duration: 0.8,
-        ease: 'power2.out',
-      });
-
-      gsap.to(itRef.current, {
-        filter: 'blur(0px)',
-        y: 0,
-        opacity: 1,
-        duration: 0.8,
-        ease: 'power2.out',
-        delay: 0.3, // Start after "KEEP" animation
-      });
-
-      gsap.to(saltyRef.current, {
-        filter: 'blur(0px)',
-        y: 0,
-        opacity: 1,
-        duration: 0.8,
-        ease: 'power2.out',
-        delay: 0.6, // Start after "IT" animation
-      });
-
-      // Animate Explore button after SALTY starts (same as delay for SALTY: 0.6s)
-      gsap.to(exploreBtnRef.current, {
-        filter: 'blur(0px)',
-        y: 0,
-        opacity: 1,
-        duration: 0.8,
-        ease: 'power2.out',
-        delay: 0.6,
-      });
+      const tl = gsap.timeline();
+      tl.to(keepRef.current, {
+        filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
+      })
+        .to(itRef.current, {
+          filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
+        }, '-=0.5')
+        .to(saltyRef.current, {
+          filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
+        }, '-=0.5')
+        .to(exploreBtnRef.current, {
+          filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
+        }, '-=0.8');
     }
   }, [isHeaderVisible]);
 
@@ -129,8 +95,8 @@ export function HeroSection() {
     <section
       className="relative w-screen left-1/2 right-1/2 -mx-[50vw] overflow-hidden flex items-center justify-center"
       style={{
+        // Use 'dvh' (dynamic viewport height) to account for mobile browser UI
         height: '100dvh',
-        minHeight: '100vh',
       }}
     >
       {/* Overlay with Lottie animation */}
@@ -142,10 +108,10 @@ export function HeroSection() {
         animationData={logoAnimation}
         onComplete={handleLottieComplete}
       />
-      {/* Hero background with native poster support */}
+      {/* Hero background video */}
       <video
         ref={videoRef}
-        className="absolute top-0 left-0 w-screen min-w-screen h-screen min-h-screen object-cover z-0"
+        className="absolute top-0 left-0 w-full h-full object-cover z-0"
         src="/hero.mp4"
         poster="/hero-placeholder.png"
         autoPlay
@@ -161,11 +127,12 @@ export function HeroSection() {
           <span ref={saltyRef} className="inline-block">SALTY.</span>
         </h1>
       </div>
-      {/* Add S25 Collection button at the bottom of hero */}
+      {/* S25 Collection button container */}
       <div
         className="absolute left-0 w-full flex justify-center pointer-events-none"
         style={{
-          bottom: 'calc(var(--section-peek, clamp(30px, 8vh, 100px)) + env(safe-area-inset-bottom, 0px))',
+          // Position is calculated from the bottom, accounting for the peek AND the safe area for browser UI
+          bottom: 'calc(var(--section-peek) + env(safe-area-inset-bottom, 0px))',
           zIndex: 10,
         }}
       >
@@ -189,8 +156,8 @@ export function HeroSection() {
               }}
             />
           )}
-          <span className="text-center text-xl relative  text-white font-manrope font-normal">Explore S25 Collection</span>
-          <span className="ml-4 flex items-center justify-center w-8 h-8 rounded-full relative  backdrop-blur-sm bg-white/10 border border-white/40 shadow-inner">
+          <span className="text-center text-xl relative text-white font-manrope font-normal">Explore S25 Collection</span>
+          <span className="ml-4 flex items-center justify-center w-8 h-8 rounded-full relative backdrop-blur-sm bg-white/10 border border-white/40 shadow-inner">
             <svg width="16" height="16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
           </span>
         </a>

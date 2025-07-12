@@ -647,7 +647,7 @@ body {
 }
 
 /* Hero/Browse Collections Layout Fixes */
-.hero-section {
+/* .hero-section {
   position: relative;
   width: 100vw;
   left: 50%;
@@ -694,4 +694,4 @@ body {
   .hero-section {
     padding-bottom: env(safe-area-inset-bottom);
   }
-}
+} */
