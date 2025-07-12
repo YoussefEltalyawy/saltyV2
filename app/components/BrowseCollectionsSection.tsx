@@ -13,9 +13,13 @@ export function BrowseCollectionsSection() {
   const [isClient, setIsClient] = useState(false);
   const lastScrollY = useRef(0);
   const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMobileRef = useRef(false);
 
   useEffect(() => {
     setIsClient(true);
+    // Detect mobile device
+    isMobileRef.current = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   }, []);
 
   useGSAP(() => {
@@ -38,40 +42,70 @@ export function BrowseCollectionsSection() {
     if (!isClient) return;
 
     const handleScroll = () => {
-      if (isScrollingRef.current) return;
-
-      const currentScrollY = window.scrollY;
-      const direction = currentScrollY > lastScrollY.current ? 'down' : 'up';
-      const sectionTop = sectionRef.current?.offsetTop || 0;
-      const threshold = 10; // Reduced from 200 to 80 for easier triggering
-
-      if (direction === 'down' && currentScrollY > threshold && currentScrollY < sectionTop) {
-        isScrollingRef.current = true;
-        gsap.to(window, {
-          scrollTo: sectionTop,
-          duration: 0.8, // Faster duration for more responsive feel
-          ease: 'power1.out', // Smoother easing for mobile
-          onComplete: () => {
-            isScrollingRef.current = false;
-          },
-        });
-      } else if (direction === 'up' && currentScrollY < sectionTop - threshold) {
-        isScrollingRef.current = true;
-        gsap.to(window, {
-          scrollTo: 0,
-          duration: 0.8, // Matching duration for consistency
-          ease: 'power1.out', // Smoother easing for mobile
-          onComplete: () => {
-            isScrollingRef.current = false;
-          },
-        });
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
       }
 
-      lastScrollY.current = currentScrollY;
+      // Debounce scroll events
+      scrollTimeoutRef.current = setTimeout(() => {
+        if (isScrollingRef.current) return;
+
+        const currentScrollY = window.scrollY;
+        const direction = currentScrollY > lastScrollY.current ? 'down' : 'up';
+        const sectionTop = sectionRef.current?.offsetTop || 0;
+
+        // Use different thresholds for mobile vs desktop
+        const threshold = isMobileRef.current ? 50 : 100;
+        const scrollDistance = Math.abs(currentScrollY - lastScrollY.current);
+
+        // Only trigger if user has scrolled a meaningful distance
+        if (scrollDistance < 20) return;
+
+        // Check if we're in the "snap zone" - the area where snapping should occur
+        const snapZoneStart = Math.max(0, sectionTop - threshold);
+        const snapZoneEnd = sectionTop + threshold;
+
+        if (direction === 'down' && currentScrollY > threshold && currentScrollY < snapZoneEnd) {
+          // User is scrolling down and approaching the section
+          isScrollingRef.current = true;
+          gsap.to(window, {
+            scrollTo: sectionTop,
+            duration: 0.6,
+            ease: 'power2.out',
+            onComplete: () => {
+              setTimeout(() => {
+                isScrollingRef.current = false;
+              }, 100); // Small delay to prevent immediate re-triggering
+            },
+          });
+        } else if (direction === 'up' && currentScrollY < snapZoneStart) {
+          // User is scrolling up and moving away from the section
+          isScrollingRef.current = true;
+          gsap.to(window, {
+            scrollTo: 0,
+            duration: 0.6,
+            ease: 'power2.out',
+            onComplete: () => {
+              setTimeout(() => {
+                isScrollingRef.current = false;
+              }, 100); // Small delay to prevent immediate re-triggering
+            },
+          });
+        }
+
+        lastScrollY.current = currentScrollY;
+      }, 50); // 50ms debounce
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    // Use passive event listener for better performance
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, [isClient]);
 
   if (!isClient) {
