@@ -132,7 +132,7 @@ export function HeroSection() {
         className="absolute left-0 w-full flex justify-center pointer-events-none"
         style={{
           // Position is calculated from the bottom, accounting for the peek AND the safe area for browser UI
-          bottom: 'calc(var(--section-peek) + env(safe-area-inset-bottom, 0px))',
+          bottom: 'calc(var(--section-peek) + .5rem + env(safe-area-inset-bottom, 0px))',
           zIndex: 10,
         }}
       >
