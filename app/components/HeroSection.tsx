@@ -133,7 +133,7 @@ export function HeroSection() {
         style={{
           // Position is calculated from the bottom, accounting for the peek AND the safe area for browser UI
           bottom: 'calc(var(--section-peek) + .5rem + env(safe-area-inset-bottom, 0px))',
-          zIndex: 10,
+          zIndex: 5,
         }}
       >
         <a
