@@ -1,17 +1,17 @@
-import { type LoaderFunctionArgs } from '@shopify/remix-oxygen';
-import { Await, useLoaderData, Link, type MetaFunction } from 'react-router';
-import { Suspense } from 'react';
-import { Image, Money } from '@shopify/hydrogen';
+import {type LoaderFunctionArgs} from '@shopify/remix-oxygen';
+import {Await, useLoaderData, Link, type MetaFunction} from 'react-router';
+import {Suspense} from 'react';
+import {Image, Money} from '@shopify/hydrogen';
 import type {
   FeaturedCollectionFragment,
   RecommendedProductsQuery,
 } from 'storefrontapi.generated';
-import { ProductItem } from '~/components/ProductItem';
-import { HeroSection } from '~/components/HeroSection';
-import { BrowseCollectionsSection } from '~/components/BrowseCollectionsSection';
+import {ProductItem} from '~/components/ProductItem';
+import {HeroSection} from '~/components/HeroSection';
+import {BrowseCollectionsSection} from '~/components/BrowseCollectionsSection';
 
 export const meta: MetaFunction = () => {
-  return [{ title: 'SALTY | Home' }];
+  return [{title: 'SALTY | Home'}];
 };
 
 export async function loader(args: LoaderFunctionArgs) {
@@ -21,15 +21,15 @@ export async function loader(args: LoaderFunctionArgs) {
   // Await the critical data required to render initial state of the page
   const criticalData = await loadCriticalData(args);
 
-  return { ...deferredData, ...criticalData };
+  return {...deferredData, ...criticalData};
 }
 
 /**
  * Load data necessary for rendering content above the fold. This is the critical data
  * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
  */
-async function loadCriticalData({ context }: LoaderFunctionArgs) {
-  const [{ collections }] = await Promise.all([
+async function loadCriticalData({context}: LoaderFunctionArgs) {
+  const [{collections}] = await Promise.all([
     context.storefront.query(FEATURED_COLLECTION_QUERY),
     // Add other queries here, so that they are loaded in parallel
   ]);
@@ -44,7 +44,7 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
  * fetched after the initial page load. If it's unavailable, the page should still 200.
  * Make sure to not throw any errors here, as it will cause the page to 500.
  */
-function loadDeferredData({ context }: LoaderFunctionArgs) {
+function loadDeferredData({context}: LoaderFunctionArgs) {
   const recommendedProducts = context.storefront
     .query(RECOMMENDED_PRODUCTS_QUERY)
     .catch((error) => {
@@ -57,8 +57,6 @@ function loadDeferredData({ context }: LoaderFunctionArgs) {
     recommendedProducts,
   };
 }
-
-
 
 export default function Homepage() {
   const data = useLoaderData<typeof loader>();
@@ -108,8 +106,8 @@ function RecommendedProducts({
             <div className="recommended-products-grid">
               {response
                 ? response.products.nodes.map((product) => (
-                  <ProductItem key={product.id} product={product} />
-                ))
+                    <ProductItem key={product.id} product={product} />
+                  ))
                 : null}
             </div>
           )}
