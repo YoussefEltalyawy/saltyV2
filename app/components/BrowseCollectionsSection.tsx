@@ -110,17 +110,17 @@ export function BrowseCollectionsSection() {
 
         // Hero-style blur animation with slide effect - only on background
         gsap.to(backgroundRef.current, {
-          filter: 'blur(15px)',
-          scale: 1.05,
-          duration: 0.4,
-          ease: 'power2.out',
+          filter: 'blur(12px)',
+          scale: 1.03,
+          duration: 0.25,
+          ease: 'power1.out',
           onComplete: () => {
             setCurrentBackgroundImage(newImageUrl);
             setNextBackgroundImage(null);
             gsap.to(backgroundRef.current, {
               filter: 'blur(0px)',
               scale: 1,
-              duration: 0.6,
+              duration: 0.35,
               ease: 'power2.out',
               onComplete: () => {
                 setIsTransitioning(false);
