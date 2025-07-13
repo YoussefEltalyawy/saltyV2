@@ -1,37 +1,49 @@
-import {useRef, useState, useEffect, Suspense} from 'react';
+import {
+  useRef,
+  useState,
+  useEffect,
+  Suspense,
+  useMemo,
+} from 'react';
 import gsap from 'gsap';
-import {useGSAP} from '@gsap/react';
-import {useHeaderAnimation} from '~/components/HeaderAnimationContext';
-import {ScrollToPlugin} from 'gsap/ScrollToPlugin';
-import {Await, NavLink, useRouteLoaderData} from 'react-router';
-import type {RootLoader} from '~/root';
-import type {FooterQuery} from 'storefrontapi.generated';
+import { useGSAP } from '@gsap/react';
+import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
+import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
+import { Await, NavLink, useRouteLoaderData } from 'react-router';
+import type { RootLoader } from '~/root';
+import type { FooterQuery } from 'storefrontapi.generated';
+import { throttle } from 'lodash';
 
-// Register the ScrollTo plugin
+// Register the necessary GSAP plugins
 gsap.registerPlugin(ScrollToPlugin);
 
 export function BrowseCollectionsSection() {
-  const {isHeaderVisible} = useHeaderAnimation();
+  const { isHeaderVisible } = useHeaderAnimation();
   const sectionRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
   const lastScrollY = useRef(0);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isMobileRef = useRef(false);
   const data = useRouteLoaderData<RootLoader>('root');
+
+  // State for the highlighted collection
+  const [activeIndex, setActiveIndex] = useState(0);
+  // ✨ State to track if the section is the active scroll area
+  const [isSectionActive, setIsSectionActive] = useState(false);
+
+  const collections = useMemo(
+    () => data?.browseCollections?.menu?.items || [],
+    [data],
+  );
 
   useEffect(() => {
     setIsClient(true);
-    // Detect mobile device
-    isMobileRef.current =
-      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-        navigator.userAgent,
-      );
   }, []);
 
+  // Effect for the initial section reveal animation
   useGSAP(() => {
     if (sectionRef.current) {
-      gsap.set(sectionRef.current, {filter: 'blur(10px)', y: 30, opacity: 0});
+      gsap.set(sectionRef.current, { filter: 'blur(10px)', y: 30, opacity: 0 });
       if (isHeaderVisible) {
         gsap.to(sectionRef.current, {
           filter: 'blur(0px)',
@@ -45,93 +57,117 @@ export function BrowseCollectionsSection() {
     }
   }, [isHeaderVisible]);
 
+  // Effect for snapping the section into view on scroll
   useEffect(() => {
     if (!isClient) return;
-
-    const handleScroll = () => {
-      // Clear any existing timeout
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-
-      // Debounce scroll events
+    const handleSnapScroll = () => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
       scrollTimeoutRef.current = setTimeout(() => {
         if (isScrollingRef.current) return;
-
         const currentScrollY = window.scrollY;
         const direction = currentScrollY > lastScrollY.current ? 'down' : 'up';
         const sectionTop = sectionRef.current?.offsetTop || 0;
-
-        // Use different thresholds for mobile vs desktop
-        const threshold = isMobileRef.current ? 50 : 100;
-        const scrollDistance = Math.abs(currentScrollY - lastScrollY.current);
-
-        // Only trigger if user has scrolled a meaningful distance
-        if (scrollDistance < 20) return;
-
-        // Check if we're in the "snap zone" - the area where snapping should occur
+        const threshold = 100;
+        if (Math.abs(currentScrollY - lastScrollY.current) < 20) return;
         const snapZoneStart = Math.max(0, sectionTop - threshold);
         const snapZoneEnd = sectionTop + threshold;
-
         if (
           direction === 'down' &&
           currentScrollY > threshold &&
           currentScrollY < snapZoneEnd
         ) {
-          // User is scrolling down and approaching the section
           isScrollingRef.current = true;
           gsap.to(window, {
             scrollTo: sectionTop,
             duration: 0.6,
             ease: 'power2.out',
-            onComplete: () => {
-              setTimeout(() => {
-                isScrollingRef.current = false;
-              }, 100); // Small delay to prevent immediate re-triggering
-            },
+            onComplete: () => { setTimeout(() => { isScrollingRef.current = false; }, 100); return undefined; },
           });
         } else if (direction === 'up' && currentScrollY < snapZoneStart) {
-          // User is scrolling up and moving away from the section
           isScrollingRef.current = true;
           gsap.to(window, {
             scrollTo: 0,
             duration: 0.6,
             ease: 'power2.out',
-            onComplete: () => {
-              setTimeout(() => {
-                isScrollingRef.current = false;
-              }, 100); // Small delay to prevent immediate re-triggering
-            },
+            onComplete: () => { setTimeout(() => { isScrollingRef.current = false; }, 100); return undefined; },
           });
         }
-
         lastScrollY.current = currentScrollY;
-      }, 50); // 50ms debounce
+      }, 50);
     };
-
-    // Use passive event listener for better performance
-    window.addEventListener('scroll', handleScroll, {passive: true});
+    window.addEventListener('scroll', handleSnapScroll, { passive: true });
     return () => {
-      window.removeEventListener('scroll', handleScroll);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
+      window.removeEventListener('scroll', handleSnapScroll);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
+  }, [isClient]);
+
+  // ✨ ROBUST SOLUTION: Use IntersectionObserver to detect when the section is active
+  useEffect(() => {
+    if (!isClient || !sectionRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Section is considered "active" for scroll hijacking when it's >90% visible.
+        // This reliably means the snap animation has completed.
+        setIsSectionActive(entry.isIntersecting && entry.intersectionRatio > 0.9);
+      },
+      { threshold: 0.9 },
+    );
+
+    observer.observe(sectionRef.current);
+
+    return () => {
+      if (sectionRef.current) {
+        observer.unobserve(sectionRef.current);
       }
     };
   }, [isClient]);
 
-  if (!isClient) {
-    return null;
-  }
+  // ✨ Effect for handling the scroll inside the section, now driven by `isSectionActive`
+  useEffect(() => {
+    if (!isClient || collections.length === 0) return;
+
+    const handleCollectionScroll = throttle((event: WheelEvent) => {
+      // If the section is not the active element, do nothing.
+      if (!isSectionActive) return;
+
+      const scrollDirection = event.deltaY > 0 ? 'down' : 'up';
+
+      setActiveIndex((prevIndex) => {
+        if (scrollDirection === 'down') {
+          if (prevIndex < collections.length - 1) {
+            event.preventDefault(); // Take control of scroll
+            return prevIndex + 1;
+          }
+        } else { // 'up'
+          if (prevIndex > 0) {
+            event.preventDefault(); // Take control of scroll
+            return prevIndex - 1;
+          } else if (prevIndex === 0) {
+            // Only scroll to hero section if already at the first collection
+            // Allow the scroll event to bubble so the snap scroll effect triggers
+            // Do not preventDefault here
+          }
+        }
+        // If at the start/end, don't preventDefault, allowing user to scroll away
+        return prevIndex;
+      });
+    }, 150, { leading: true, trailing: false });
+
+    window.addEventListener('wheel', handleCollectionScroll, { passive: false });
+    return () => window.removeEventListener('wheel', handleCollectionScroll);
+  }, [isClient, isSectionActive, collections.length]);
 
   return (
     <section
       ref={sectionRef}
-      className="w-full bg-black text-white rounded-t-2xl md:rounded-t-2xl flex flex-col items-start justify-start px-6 relative"
+      className="w-full bg-black text-white rounded-t-2xl flex flex-col items-start justify-start px-6 relative"
       style={
         {
           minHeight: '86dvh',
           marginTop: 'calc(-1 * var(--section-peek))',
-          paddingTop: '1.5rem', // Ensures content starts below header
+          paddingTop: '1.5rem',
           paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
           zIndex: 2,
         } as React.CSSProperties
@@ -144,7 +180,10 @@ export function BrowseCollectionsSection() {
         <Suspense fallback={<CollectionsSkeleton />}>
           <Await resolve={data.browseCollections}>
             {(browseCollections) => (
-              <CollectionsList menu={browseCollections?.menu} />
+              <CollectionsList
+                menu={browseCollections?.menu}
+                activeIndex={activeIndex}
+              />
             )}
           </Await>
         </Suspense>
@@ -163,27 +202,65 @@ function CollectionsSkeleton() {
   );
 }
 
-function CollectionsList({menu}: {menu: FooterQuery['menu']}) {
+function CollectionsList({
+  menu,
+  activeIndex,
+}: {
+  menu: FooterQuery['menu'];
+  activeIndex: number;
+}) {
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+
+  useGSAP(
+    () => {
+      if (!itemRefs.current.length) return;
+
+      // Animate all items to the "inactive" state
+      gsap.to(itemRefs.current, {
+        fontWeight: 400, // font-normal
+        scale: 1,
+        color: '#9CA3AF', // text-gray-400
+        x: 0,
+        duration: 0.4,
+        ease: 'power2.out',
+      });
+
+      // Animate the single active item to the "selected" state
+      const activeItem = itemRefs.current[activeIndex];
+      if (activeItem) {
+        gsap.to(activeItem, {
+          fontWeight: 700, // font-semibold
+          scale: 1.1,
+          color: '#FFFFFF', // text-white
+          duration: 0.5,
+          ease: 'power2.out',
+        });
+      }
+    },
+    { dependencies: [activeIndex, menu] },
+  );
+
   if (!menu) return null;
-  
+
   return (
     <div className="flex flex-col gap-2">
-      {menu.items.map((item) => {
+      {menu.items.map((item, index) => {
         if (!item.url) return null;
-        
-        // Format the URL to ensure it's an internal link to collections
-        // Extract just the handle from the URL if it's a collection URL
-        const url = item.url.includes('/collections/') 
-          ? `/collections/${item.url.split('/collections/')[1]}` 
-          : item.url.startsWith('http') 
-            ? `/collections/${item.title.toLowerCase().replace(/\s+/g, '-')}` 
+        const url = item.url.includes('/collections/')
+          ? `/collections/${item.url.split('/collections/')[1]}`
+          : item.url.startsWith('http')
+            ? `/collections/${item.title.toLowerCase().replace(/\s+/g, '-')}`
             : item.url;
-        
         return (
-          <NavLink 
+          <NavLink
             key={item.id}
+            ref={(el) => (itemRefs.current[index] = el)}
             to={url}
-            className="text-2xl font-normal hover:text-gray-300 transition-colors"
+            className="text-2xl font-[200] transition-colors"
+            style={{
+              transformOrigin: 'left center',
+              willChange: 'transform, font-weight, color',
+            }}
           >
             {item.title}
           </NavLink>
