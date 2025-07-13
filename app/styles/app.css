@@ -570,8 +570,11 @@ button.reset:hover:not(:has(> *)) {
   box-shadow: none;
 }
 .custom-header.scrolled {
-  background: #fff;
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.04);
 }
 .header-left,
 .header-center,

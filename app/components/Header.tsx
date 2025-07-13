@@ -41,8 +41,8 @@ export function Header({
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const logoSrc = scrolled ? '/black-logo.png' : '/white-logo.png';
-  const iconColor = scrolled ? '#000' : '#fff';
+  const logoSrc = scrolled ? '/white-logo.png' : '/white-logo.png';
+  const iconColor = scrolled ? '#fff' : '#fff';
   const { shop, menu } = header;
 
   // GSAP animation for header elements
