@@ -60,10 +60,10 @@ export function BrowseCollectionsSection() {
       const handle = item.url.split('/collections/')[1];
       if (!handle || collectionImages[handle]) return;
 
-      // Fetch collection image
+      // Fetch collection image with priority
       imageFetcher.load(`/api/collection-image?handle=${handle}`);
     });
-  }, [collections, collectionImages]);
+  }, [collections]);
 
   // ✨ Effect to update collection images when fetched
   useEffect(() => {
@@ -108,19 +108,19 @@ export function BrowseCollectionsSection() {
         setNextBackgroundImage(newImageUrl);
         setIsTransitioning(true);
 
-        // Hero-style blur animation with slide effect - only on background
+        // Smooth blur animation with subtle scale
         gsap.to(backgroundRef.current, {
-          filter: 'blur(12px)',
-          scale: 1.03,
-          duration: 0.25,
+          filter: 'blur(10px)',
+          scale: 1.01,
+          duration: 0.35,
           ease: 'power1.out',
           onComplete: () => {
             setCurrentBackgroundImage(newImageUrl);
             setNextBackgroundImage(null);
             gsap.to(backgroundRef.current, {
               filter: 'blur(0px)',
-              scale: 1,
-              duration: 0.35,
+              scale: 1.1,
+              duration: 0.45,
               ease: 'power2.out',
               onComplete: () => {
                 setIsTransitioning(false);
@@ -279,7 +279,7 @@ export function BrowseCollectionsSection() {
         event.preventDefault();
         releaseSectionLockAndScrollToHero();
       }
-    }, 150, { leading: true, trailing: false });
+    }, 100, { leading: true, trailing: false });
 
     // Touch swipe support for mobile
     let touchStartY: number | null = null;
@@ -358,11 +358,13 @@ export function BrowseCollectionsSection() {
             backgroundImage: `url(${currentBackgroundImage})`,
             backgroundPosition: 'center 30%',
             filter: 'brightness(0.4) contrast(1.1)',
-            transform: 'scale(1.1)', // Slight zoom to prevent white edges
-            willChange: 'filter, transform',
+            willChange: 'filter',
             // Mobile optimization
             backgroundSize: 'cover',
             backgroundRepeat: 'no-repeat',
+            // Hardware acceleration
+            transform: 'translateZ(0) scale(1.1)',
+            backfaceVisibility: 'hidden',
           }}
         />
       ) : (
@@ -372,6 +374,9 @@ export function BrowseCollectionsSection() {
           className="absolute inset-0 w-full h-full"
           style={{
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+            willChange: 'filter',
+            transform: 'translateZ(0)',
+            backfaceVisibility: 'hidden',
           }}
         />
       )}
