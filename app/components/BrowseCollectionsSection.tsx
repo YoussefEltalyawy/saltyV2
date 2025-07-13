@@ -249,7 +249,7 @@ export function BrowseCollectionsSection() {
       className="w-full bg-black text-white rounded-t-2xl flex flex-col items-start justify-start px-6 relative"
       style={
         {
-          minHeight: '86dvh',
+          minHeight: '85dvh',
           marginTop: 'calc(-1 * var(--section-peek))',
           paddingTop: '1.5rem',
           paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
@@ -267,6 +267,7 @@ export function BrowseCollectionsSection() {
               <CollectionsList
                 menu={browseCollections?.menu}
                 activeIndex={activeIndex}
+                setActiveIndex={setActiveIndex}
               />
             )}
           </Await>
@@ -289,9 +290,11 @@ function CollectionsSkeleton() {
 function CollectionsList({
   menu,
   activeIndex,
+  setActiveIndex,
 }: {
   menu: FooterQuery['menu'];
   activeIndex: number;
+  setActiveIndex: (index: number) => void;
 }) {
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
@@ -326,30 +329,74 @@ function CollectionsList({
 
   if (!menu) return null;
 
+  // Get the active collection's URL
+  const activeItem = menu.items[activeIndex];
+  let activeUrl = '';
+  if (activeItem && activeItem.url) {
+    activeUrl = activeItem.url.includes('/collections/')
+      ? `/collections/${activeItem.url.split('/collections/')[1]}`
+      : activeItem.url.startsWith('http')
+        ? `/collections/${activeItem.title.toLowerCase().replace(/\s+/g, '-')}`
+        : activeItem.url;
+  }
+
   return (
-    <div className="flex flex-col gap-2">
-      {menu.items.map((item, index) => {
-        if (!item.url) return null;
-        const url = item.url.includes('/collections/')
-          ? `/collections/${item.url.split('/collections/')[1]}`
-          : item.url.startsWith('http')
-            ? `/collections/${item.title.toLowerCase().replace(/\s+/g, '-')}`
-            : item.url;
-        return (
-          <NavLink
-            key={item.id}
-            ref={(el) => (itemRefs.current[index] = el)}
-            to={url}
-            className="text-lg font-[200] transition-colors"
-            style={{
-              transformOrigin: 'left center',
-              willChange: 'transform, font-weight, color',
-            }}
-          >
-            {item.title}
-          </NavLink>
-        );
-      })}
-    </div>
+    <>
+      <div className="flex flex-col gap-2">
+        {menu.items.map((item, index) => {
+          if (!item.url) return null;
+          const url = item.url.includes('/collections/')
+            ? `/collections/${item.url.split('/collections/')[1]}`
+            : item.url.startsWith('http')
+              ? `/collections/${item.title.toLowerCase().replace(/\s+/g, '-')}`
+              : item.url;
+          const isActive = index === activeIndex;
+          return (
+            isActive ? (
+              <NavLink
+                key={item.id}
+                ref={(el) => (itemRefs.current[index] = el)}
+                to={url}
+                className="text-lg font-[200] transition-colors"
+                style={{
+                  transformOrigin: 'left center',
+                  willChange: 'transform, font-weight, color',
+                }}
+              >
+                {item.title}
+              </NavLink>
+            ) : (
+              <span
+                key={item.id}
+                className="text-lg font-[200] transition-colors cursor-pointer select-none"
+                style={{
+                  transformOrigin: 'left center',
+                  willChange: 'transform, font-weight, color',
+                }}
+                onClick={() => setActiveIndex(index)}
+              >
+                {item.title}
+              </span>
+            )
+          );
+        })}
+      </div>
+      {/* Discover Button */}
+      <div className="mt-6">
+        <a
+          href={activeUrl}
+          className="flex items-center justify-between min-w-[180px] max-w-[200px] w-full shadow-lg py-1.5 pl-4 pr-4 text-base font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-white pointer-events-auto rounded-xl overflow-hidden backdrop-blur-md bg-white/10 border border-white/30"
+          style={{
+            boxShadow: '0 4px 24px rgba(0,0,0,0.30)',
+            position: 'relative',
+          }}
+        >
+          <span className="text-center text-base relative text-white font-manrope font-normal">Discover</span>
+
+          <svg width="15" height="15" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+
+        </a>
+      </div>
+    </>
   );
 }
