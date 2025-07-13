@@ -9,7 +9,7 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
-import { Await, NavLink, useRouteLoaderData } from 'react-router';
+import { Await, NavLink, useRouteLoaderData, useFetcher } from 'react-router';
 import type { RootLoader } from '~/root';
 import type { FooterQuery } from 'storefrontapi.generated';
 import { throttle } from 'lodash';
@@ -20,6 +20,7 @@ gsap.registerPlugin(ScrollToPlugin);
 export function BrowseCollectionsSection() {
   const { isHeaderVisible } = useHeaderAnimation();
   const sectionRef = useRef<HTMLDivElement>(null);
+  const backgroundRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
   const lastScrollY = useRef(0);
   const isScrollingRef = useRef(false);
@@ -30,23 +31,114 @@ export function BrowseCollectionsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
   // ✨ State to track if the section is the active scroll area
   const [isSectionActive, setIsSectionActive] = useState(false);
+  // ✨ State for collection images
+  const [collectionImages, setCollectionImages] = useState<{ [key: string]: any }>({});
+  const [currentBackgroundImage, setCurrentBackgroundImage] = useState<string | null>(null);
+  const [nextBackgroundImage, setNextBackgroundImage] = useState<string | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const collections = useMemo(
     () => data?.browseCollections?.menu?.items || [],
     [data],
   );
 
+  // ✨ Fetcher for collection images
+  const imageFetcher = useFetcher();
+
   useEffect(() => {
     setIsClient(true);
   }, []);
 
+  // ✨ Effect to fetch collection images for each menu item - load all images immediately
+  useEffect(() => {
+    if (!collections.length) return;
+
+    // Load all collection images immediately for better experience
+    collections.forEach((item) => {
+      if (!item.url || !item.url.includes('/collections/')) return;
+
+      const handle = item.url.split('/collections/')[1];
+      if (!handle || collectionImages[handle]) return;
+
+      // Fetch collection image
+      imageFetcher.load(`/api/collection-image?handle=${handle}`);
+    });
+  }, [collections, collectionImages]);
+
+  // ✨ Effect to update collection images when fetched
+  useEffect(() => {
+    if (imageFetcher.data && imageFetcher.data.image) {
+      const handle = imageFetcher.data.handle;
+      setCollectionImages(prev => ({
+        ...prev,
+        [handle]: imageFetcher.data
+      }));
+
+      // Set the first loaded image as the initial background
+      if (!currentBackgroundImage && activeIndex === 0) {
+        const firstItem = collections[0];
+        if (firstItem && firstItem.url && firstItem.url.includes('/collections/')) {
+          const firstHandle = firstItem.url.split('/collections/')[1];
+          if (handle === firstHandle) {
+            setCurrentBackgroundImage(imageFetcher.data.image.url);
+          }
+        }
+      }
+    }
+  }, [imageFetcher.data, currentBackgroundImage, activeIndex, collections]);
+
+  // ✨ Effect to update background image when active collection changes
+  useEffect(() => {
+    if (!collections.length || activeIndex >= collections.length) return;
+
+    const activeItem = collections[activeIndex];
+    if (!activeItem?.url) return;
+
+    const handle = activeItem.url.includes('/collections/')
+      ? activeItem.url.split('/collections/')[1]
+      : activeItem.title.toLowerCase().replace(/\s+/g, '-');
+
+    const collectionData = collectionImages[handle];
+    const newImageUrl = collectionData?.image?.url;
+
+    if (newImageUrl && newImageUrl !== currentBackgroundImage) {
+      // Preload the image for smooth transition
+      const img = new Image();
+      img.onload = () => {
+        setNextBackgroundImage(newImageUrl);
+        setIsTransitioning(true);
+
+        // Hero-style blur animation with slide effect - only on background
+        gsap.to(backgroundRef.current, {
+          filter: 'blur(15px)',
+          scale: 1.05,
+          duration: 0.4,
+          ease: 'power2.out',
+          onComplete: () => {
+            setCurrentBackgroundImage(newImageUrl);
+            setNextBackgroundImage(null);
+            gsap.to(backgroundRef.current, {
+              filter: 'blur(0px)',
+              scale: 1,
+              duration: 0.6,
+              ease: 'power2.out',
+              onComplete: () => {
+                setIsTransitioning(false);
+              }
+            });
+          }
+        });
+      };
+      img.src = newImageUrl;
+    }
+  }, [activeIndex, collections, collectionImages, currentBackgroundImage]);
+
   // Effect for the initial section reveal animation
   useGSAP(() => {
     if (sectionRef.current) {
-      gsap.set(sectionRef.current, { filter: 'blur(10px)', y: 30, opacity: 0 });
+      gsap.set(sectionRef.current, { y: 30, opacity: 0 });
       if (isHeaderVisible) {
         gsap.to(sectionRef.current, {
-          filter: 'blur(0px)',
           y: 0,
           opacity: 1,
           duration: 0.8,
@@ -246,7 +338,7 @@ export function BrowseCollectionsSection() {
   return (
     <section
       ref={sectionRef}
-      className="w-full bg-black text-white rounded-t-2xl flex flex-col items-start justify-start px-6 relative"
+      className="w-full text-white rounded-t-2xl flex flex-col items-start px-6 relative overflow-hidden"
       style={
         {
           minHeight: '85dvh',
@@ -257,20 +349,65 @@ export function BrowseCollectionsSection() {
         } as React.CSSProperties
       }
     >
-      <h2 className="text-2xl md:text-3xl font-medium mb-0">
-        Browse Collections
-      </h2>
-      <div className="mt-auto pb-8 w-full">
+      {/* ✨ Dynamic Background Image */}
+      {currentBackgroundImage ? (
+        <div
+          ref={backgroundRef}
+          className="absolute inset-0 w-full h-full bg-cover bg-center"
+          style={{
+            backgroundImage: `url(${currentBackgroundImage})`,
+            backgroundPosition: 'center 30%',
+            filter: 'brightness(0.4) contrast(1.1)',
+            transform: 'scale(1.1)', // Slight zoom to prevent white edges
+            willChange: 'filter, transform',
+            // Mobile optimization
+            backgroundSize: 'cover',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+      ) : (
+        // Fallback gradient background
+        <div
+          ref={backgroundRef}
+          className="absolute inset-0 w-full h-full"
+          style={{
+            background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+          }}
+        />
+      )}
+
+      {/* ✨ Overlay for better text readability */}
+      <div
+        className="absolute inset-0 bg-black/30"
+        style={{ willChange: 'opacity' }}
+      />
+
+      {/* Content */}
+      <div className="relative z-10 w-full h-full flex flex-col">
+        <h2 className="text-2xl md:text-3xl font-medium mb-0">
+          Browse Collections
+        </h2>
+      </div>
+
+      {/* Collections positioned at bottom with safe area support */}
+      <div
+        className="absolute left-0 w-full px-6 z-10"
+        style={{
+          bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
         <Suspense fallback={<CollectionsSkeleton />}>
-          <Await resolve={data.browseCollections}>
-            {(browseCollections) => (
-              <CollectionsList
-                menu={browseCollections?.menu}
-                activeIndex={activeIndex}
-                setActiveIndex={setActiveIndex}
-              />
-            )}
-          </Await>
+          {data?.browseCollections && (
+            <Await resolve={data.browseCollections}>
+              {(browseCollections) => (
+                <CollectionsList
+                  menu={browseCollections?.menu}
+                  activeIndex={activeIndex}
+                  setActiveIndex={setActiveIndex}
+                />
+              )}
+            </Await>
+          )}
         </Suspense>
       </div>
     </section>
@@ -302,25 +439,29 @@ function CollectionsList({
     () => {
       if (!itemRefs.current.length) return;
 
-      // Animate all items to the "inactive" state
+      // Animate all items to the "inactive" state with hardware acceleration
       gsap.to(itemRefs.current, {
-        fontWeight: 400, // font-normal
+        fontWeight: 400,
         scale: 1,
-        color: '#9CA3AF', // text-gray-400
+        color: '#9CA3AF',
         x: 0,
-        duration: 0.4,
+        duration: 0.3,
         ease: 'power2.out',
+        force3D: true,
+        transformOrigin: 'left center',
       });
 
       // Animate the single active item to the "selected" state
       const activeItem = itemRefs.current[activeIndex];
       if (activeItem) {
         gsap.to(activeItem, {
-          fontWeight: 700, // font-semibold
+          fontWeight: 700,
           scale: 1.1,
-          color: '#FFFFFF', // text-white
-          duration: 0.5,
+          color: '#FFFFFF',
+          duration: 0.4,
           ease: 'power2.out',
+          force3D: true,
+          transformOrigin: 'left center',
         });
       }
     },
