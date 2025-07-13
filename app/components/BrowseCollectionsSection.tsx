@@ -124,6 +124,35 @@ export function BrowseCollectionsSection() {
     };
   }, [isClient]);
 
+  // ✨ Lock body scroll when section is active
+  useEffect(() => {
+    if (!isClient) return;
+    if (isSectionActive) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [isClient, isSectionActive]);
+
+  // Helper to release section lock and scroll to hero
+  const releaseSectionLockAndScrollToHero = () => {
+    setIsSectionActive(false);
+    document.body.style.overflow = '';
+    document.body.style.touchAction = '';
+    // Smooth scroll to top
+    gsap.to(window, {
+      scrollTo: 0,
+      duration: 0.6,
+      ease: 'power2.out',
+    });
+  };
+
   // ✨ Effect for handling the scroll inside the section, now driven by `isSectionActive`
   useEffect(() => {
     if (!isClient || collections.length === 0) return;
@@ -133,30 +162,85 @@ export function BrowseCollectionsSection() {
       if (!isSectionActive) return;
 
       const scrollDirection = event.deltaY > 0 ? 'down' : 'up';
-
+      let handled = false;
+      let releaseLock = false;
       setActiveIndex((prevIndex) => {
         if (scrollDirection === 'down') {
           if (prevIndex < collections.length - 1) {
-            event.preventDefault(); // Take control of scroll
+            handled = true;
             return prevIndex + 1;
           }
         } else { // 'up'
           if (prevIndex > 0) {
-            event.preventDefault(); // Take control of scroll
+            handled = true;
             return prevIndex - 1;
           } else if (prevIndex === 0) {
             // Only scroll to hero section if already at the first collection
-            // Allow the scroll event to bubble so the snap scroll effect triggers
-            // Do not preventDefault here
+            releaseLock = true;
           }
         }
-        // If at the start/end, don't preventDefault, allowing user to scroll away
         return prevIndex;
       });
+      if (handled) {
+        event.preventDefault(); // Only prevent scroll if we handled the event
+      } else if (releaseLock) {
+        event.preventDefault();
+        releaseSectionLockAndScrollToHero();
+      }
     }, 150, { leading: true, trailing: false });
 
+    // Touch swipe support for mobile
+    let touchStartY: number | null = null;
+    let touchEndY: number | null = null;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (!isSectionActive) return;
+      touchStartY = event.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (event: TouchEvent) => {
+      if (!isSectionActive || touchStartY === null) return;
+      touchEndY = event.changedTouches[0].clientY;
+      const deltaY = touchStartY - touchEndY;
+      if (Math.abs(deltaY) < 30) return; // Ignore small swipes
+      const swipeDirection = deltaY > 0 ? 'down' : 'up';
+      let handled = false;
+      let releaseLock = false;
+      setActiveIndex((prevIndex) => {
+        if (swipeDirection === 'down') {
+          if (prevIndex < collections.length - 1) {
+            handled = true;
+            return prevIndex + 1;
+          }
+        } else { // 'up'
+          if (prevIndex > 0) {
+            handled = true;
+            return prevIndex - 1;
+          } else if (prevIndex === 0) {
+            // Only scroll to hero section if already at the first collection
+            releaseLock = true;
+          }
+        }
+        return prevIndex;
+      });
+      if (handled) {
+        event.preventDefault(); // Only prevent scroll if we handled the event
+      } else if (releaseLock) {
+        event.preventDefault();
+        releaseSectionLockAndScrollToHero();
+      }
+      touchStartY = null;
+      touchEndY = null;
+    };
+
     window.addEventListener('wheel', handleCollectionScroll, { passive: false });
-    return () => window.removeEventListener('wheel', handleCollectionScroll);
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener('wheel', handleCollectionScroll);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
   }, [isClient, isSectionActive, collections.length]);
 
   return (
@@ -256,7 +340,7 @@ function CollectionsList({
             key={item.id}
             ref={(el) => (itemRefs.current[index] = el)}
             to={url}
-            className="text-2xl font-[200] transition-colors"
+            className="text-lg font-[200] transition-colors"
             style={{
               transformOrigin: 'left center',
               willChange: 'transform, font-weight, color',
