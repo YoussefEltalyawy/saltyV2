@@ -54,16 +54,19 @@ export function BrowseCollectionsSection() {
     if (!collections.length) return;
 
     // Load all collection images immediately for better experience
-    collections.forEach((item) => {
-      if (!item.url || !item.url.includes('/collections/')) return;
+    const imagesToLoad = collections
+      .filter(item => item.url && item.url.includes('/collections/'))
+      .map(item => {
+        const handle = item.url!.split('/collections/')[1];
+        return { handle, item };
+      })
+      .filter(({ handle }) => !collectionImages[handle]);
 
-      const handle = item.url.split('/collections/')[1];
-      if (!handle || collectionImages[handle]) return;
-
-      // Fetch collection image with priority
+    // Load images in parallel for better performance
+    imagesToLoad.forEach(({ handle }) => {
       imageFetcher.load(`/api/collection-image?handle=${handle}`);
     });
-  }, [collections]);
+  }, [collections, collectionImages]);
 
   // ✨ Effect to update collection images when fetched
   useEffect(() => {
@@ -101,27 +104,42 @@ export function BrowseCollectionsSection() {
     const collectionData = collectionImages[handle];
     const newImageUrl = collectionData?.image?.url;
 
-    if (newImageUrl && newImageUrl !== currentBackgroundImage) {
+    if (newImageUrl && newImageUrl !== currentBackgroundImage && !isTransitioning) {
+      // Kill any existing animations to prevent conflicts
+      if (backgroundRef.current) {
+        gsap.killTweensOf(backgroundRef.current);
+      }
+
       // Preload the image for smooth transition
       const img = new Image();
       img.onload = () => {
+        // Double-check we're still on the same collection
+        if (activeIndex !== collections.findIndex(item => {
+          const itemHandle = item.url?.includes('/collections/')
+            ? item.url.split('/collections/')[1]
+            : item.title.toLowerCase().replace(/\s+/g, '-');
+          return itemHandle === handle;
+        })) return;
+
         setNextBackgroundImage(newImageUrl);
         setIsTransitioning(true);
 
-        // Smooth blur animation with subtle scale
+        // Hero-style blur animation with slide effect - only on background
         gsap.to(backgroundRef.current, {
-          filter: 'blur(10px)',
-          scale: 1.01,
-          duration: 0.35,
+          filter: 'blur(12px)',
+          scale: 1.03,
+          duration: 0.25,
           ease: 'power1.out',
+          force3D: true,
           onComplete: () => {
             setCurrentBackgroundImage(newImageUrl);
             setNextBackgroundImage(null);
             gsap.to(backgroundRef.current, {
               filter: 'blur(0px)',
-              scale: 1.1,
-              duration: 0.45,
+              scale: 1,
+              duration: 0.35,
               ease: 'power2.out',
+              force3D: true,
               onComplete: () => {
                 setIsTransitioning(false);
               }
@@ -131,7 +149,7 @@ export function BrowseCollectionsSection() {
       };
       img.src = newImageUrl;
     }
-  }, [activeIndex, collections, collectionImages, currentBackgroundImage]);
+  }, [activeIndex, collections, collectionImages, currentBackgroundImage, isTransitioning]);
 
   // Effect for the initial section reveal animation
   useGSAP(() => {
@@ -279,7 +297,7 @@ export function BrowseCollectionsSection() {
         event.preventDefault();
         releaseSectionLockAndScrollToHero();
       }
-    }, 100, { leading: true, trailing: false });
+    }, 150, { leading: true, trailing: false });
 
     // Touch swipe support for mobile
     let touchStartY: number | null = null;
@@ -358,13 +376,15 @@ export function BrowseCollectionsSection() {
             backgroundImage: `url(${currentBackgroundImage})`,
             backgroundPosition: 'center 30%',
             filter: 'brightness(0.4) contrast(1.1)',
-            willChange: 'filter',
+            transform: 'scale(1.1)', // Slight zoom to prevent white edges
+            willChange: 'filter, transform',
             // Mobile optimization
             backgroundSize: 'cover',
             backgroundRepeat: 'no-repeat',
-            // Hardware acceleration
-            transform: 'translateZ(0) scale(1.1)',
+            // Performance optimizations
             backfaceVisibility: 'hidden',
+            perspective: '1000px',
+            transformStyle: 'preserve-3d',
           }}
         />
       ) : (
@@ -374,9 +394,10 @@ export function BrowseCollectionsSection() {
           className="absolute inset-0 w-full h-full"
           style={{
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-            willChange: 'filter',
-            transform: 'translateZ(0)',
+            // Performance optimizations
             backfaceVisibility: 'hidden',
+            perspective: '1000px',
+            transformStyle: 'preserve-3d',
           }}
         />
       )}
