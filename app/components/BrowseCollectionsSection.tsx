@@ -36,7 +36,6 @@ export function BrowseCollectionsSection() {
   const [currentBackgroundImage, setCurrentBackgroundImage] = useState<string | null>(null);
   const [nextBackgroundImage, setNextBackgroundImage] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [backgroundOpacity, setBackgroundOpacity] = useState(1);
 
   const collections = useMemo(
     () => data?.browseCollections?.menu?.items || [],
@@ -55,16 +54,13 @@ export function BrowseCollectionsSection() {
     if (!collections.length) return;
 
     // Load all collection images immediately for better experience
-    const imagesToLoad = collections
-      .filter(item => item.url && item.url.includes('/collections/'))
-      .map(item => {
-        const handle = item.url!.split('/collections/')[1];
-        return { handle, item };
-      })
-      .filter(({ handle }) => !collectionImages[handle]);
+    collections.forEach((item) => {
+      if (!item.url || !item.url.includes('/collections/')) return;
 
-    // Load images in parallel for better performance
-    imagesToLoad.forEach(({ handle }) => {
+      const handle = item.url.split('/collections/')[1];
+      if (!handle || collectionImages[handle]) return;
+
+      // Fetch collection image
       imageFetcher.load(`/api/collection-image?handle=${handle}`);
     });
   }, [collections, collectionImages]);
@@ -105,50 +101,47 @@ export function BrowseCollectionsSection() {
     const collectionData = collectionImages[handle];
     const newImageUrl = collectionData?.image?.url;
 
-    if (newImageUrl && newImageUrl !== currentBackgroundImage && !isTransitioning) {
-      // Kill any existing animations to prevent conflicts
-      if (backgroundRef.current) {
-        gsap.killTweensOf(backgroundRef.current);
-      }
-
+    if (newImageUrl && newImageUrl !== currentBackgroundImage) {
       // Preload the image for smooth transition
       const img = new Image();
       img.onload = () => {
-        // Double-check we're still on the same collection
-        if (activeIndex !== collections.findIndex(item => {
-          const itemHandle = item.url?.includes('/collections/')
-            ? item.url.split('/collections/')[1]
-            : item.title.toLowerCase().replace(/\s+/g, '-');
-          return itemHandle === handle;
-        })) return;
-
         setNextBackgroundImage(newImageUrl);
         setIsTransitioning(true);
 
-        // Smooth morph animation - no blank space
-        setNextBackgroundImage(newImageUrl);
-        setIsTransitioning(true);
-
-        // Morph from current to next image
-        gsap.to({}, {
-          duration: 0.4,
-          ease: 'power2.out',
-          force3D: true,
-          onUpdate: function () {
-            const progress = this.progress();
-            setBackgroundOpacity(1 - progress);
-          },
+        // Create a GSAP timeline for smoother, more controlled animation
+        const tl = gsap.timeline({
           onComplete: () => {
             setCurrentBackgroundImage(newImageUrl);
             setNextBackgroundImage(null);
-            setBackgroundOpacity(1);
             setIsTransitioning(false);
           }
         });
+
+        // Phase 1: Quick blur and scale up
+        tl.to(backgroundRef.current, {
+          filter: 'blur(8px) brightness(0.7)',
+          scale: 1.15,
+          rotation: 0.5,
+          duration: 0.2,
+          ease: 'power2.inOut',
+        })
+          // Phase 2: Change image and start recovery
+          .call(() => {
+            setCurrentBackgroundImage(newImageUrl);
+            setNextBackgroundImage(null);
+          })
+          // Phase 3: Smooth recovery to final state
+          .to(backgroundRef.current, {
+            filter: 'blur(0px) brightness(0.8)',
+            scale: 1.1,
+            rotation: 0,
+            duration: 0.5,
+            ease: 'power3.out',
+          });
       };
       img.src = newImageUrl;
     }
-  }, [activeIndex, collections, collectionImages, currentBackgroundImage, isTransitioning]);
+  }, [activeIndex, collections, collectionImages, currentBackgroundImage]);
 
   // Effect for the initial section reveal animation
   useGSAP(() => {
@@ -366,63 +359,38 @@ export function BrowseCollectionsSection() {
         } as React.CSSProperties
       }
     >
-      {/* ✨ Dynamic Background Image - Morph Effect */}
-      {currentBackgroundImage && (
+      {/* ✨ Dynamic Background Image */}
+      {currentBackgroundImage ? (
         <div
           ref={backgroundRef}
           className="absolute inset-0 w-full h-full bg-cover bg-center"
           style={{
             backgroundImage: `url(${currentBackgroundImage})`,
             backgroundPosition: 'center 30%',
-            filter: 'brightness(0.6) contrast(1.1)',
-            opacity: backgroundOpacity,
-            willChange: 'opacity',
+            transform: 'scale(1.1) rotate(0deg)', // Slight zoom to prevent white edges
+            willChange: 'filter, transform',
             // Mobile optimization
             backgroundSize: 'cover',
             backgroundRepeat: 'no-repeat',
             // Performance optimizations
             backfaceVisibility: 'hidden',
-            transform: 'translateZ(0)', // Force hardware acceleration
+            transformStyle: 'preserve-3d',
           }}
         />
-      )}
-
-      {/* Next background image for smooth morph */}
-      {nextBackgroundImage && (
+      ) : (
+        // Fallback gradient background
         <div
-          className="absolute inset-0 w-full h-full bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${nextBackgroundImage})`,
-            backgroundPosition: 'center 30%',
-            filter: 'brightness(0.6) contrast(1.1)',
-            opacity: 1 - backgroundOpacity,
-            willChange: 'opacity',
-            // Mobile optimization
-            backgroundSize: 'cover',
-            backgroundRepeat: 'no-repeat',
-            // Performance optimizations
-            backfaceVisibility: 'hidden',
-            transform: 'translateZ(0)', // Force hardware acceleration
-          }}
-        />
-      )}
-
-      {/* Fallback gradient background */}
-      {!currentBackgroundImage && !nextBackgroundImage && (
-        <div
+          ref={backgroundRef}
           className="absolute inset-0 w-full h-full"
           style={{
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-            // Performance optimizations
-            backfaceVisibility: 'hidden',
-            transform: 'translateZ(0)', // Force hardware acceleration
           }}
         />
       )}
 
       {/* ✨ Overlay for better text readability */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 bg-black/0"
         style={{ willChange: 'opacity' }}
       />
 
@@ -483,30 +451,34 @@ function CollectionsList({
     () => {
       if (!itemRefs.current.length) return;
 
-      // Animate all items to the "inactive" state with hardware acceleration
-      gsap.to(itemRefs.current, {
+      // Create a timeline for coordinated animations
+      const tl = gsap.timeline();
+
+      // Phase 1: Reset all items to inactive state
+      tl.to(itemRefs.current, {
         fontWeight: 400,
         scale: 1,
         color: '#9CA3AF',
         x: 0,
-        duration: 0.3,
+        duration: 0.25,
         ease: 'power2.out',
         force3D: true,
         transformOrigin: 'left center',
+        stagger: 0.02, // Slight stagger for smoother feel
       });
 
-      // Animate the single active item to the "selected" state
+      // Phase 2: Animate the active item with a slight delay for better visual flow
       const activeItem = itemRefs.current[activeIndex];
       if (activeItem) {
-        gsap.to(activeItem, {
+        tl.to(activeItem, {
           fontWeight: 700,
-          scale: 1.1,
+          scale: 1.08, // Slightly reduced scale for less harsh feel
           color: '#FFFFFF',
-          duration: 0.4,
+          duration: 0.35,
           ease: 'power2.out',
           force3D: true,
           transformOrigin: 'left center',
-        });
+        }, '-=0.1'); // Slight overlap with previous animation
       }
     },
     { dependencies: [activeIndex, menu] },
