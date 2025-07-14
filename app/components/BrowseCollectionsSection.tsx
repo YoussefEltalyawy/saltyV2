@@ -119,7 +119,7 @@ export function BrowseCollectionsSection() {
 
         // Phase 1: Quick blur and scale up
         tl.to(backgroundRef.current, {
-          filter: 'blur(8px) brightness(0.7)',
+          filter: 'blur(8px) brightness(0.8)',
           scale: 1.15,
           rotation: 0.5,
           duration: 0.2,
@@ -366,6 +366,7 @@ export function BrowseCollectionsSection() {
           className="absolute inset-0 w-full h-full bg-cover bg-center"
           style={{
             backgroundImage: `url(${currentBackgroundImage})`,
+            filter: 'brightness(0.8)',
             backgroundPosition: 'center 30%',
             transform: 'scale(1.1) rotate(0deg)', // Slight zoom to prevent white edges
             willChange: 'filter, transform',
@@ -451,11 +452,13 @@ function CollectionsList({
     () => {
       if (!itemRefs.current.length) return;
 
-      // Create a timeline for coordinated animations
+      // Filter out null refs (only animate actual DOM elements)
+      const validRefs = itemRefs.current.filter(Boolean);
+
       const tl = gsap.timeline();
 
       // Phase 1: Reset all items to inactive state
-      tl.to(itemRefs.current, {
+      tl.to(validRefs, {
         fontWeight: 400,
         scale: 1,
         color: '#9CA3AF',
