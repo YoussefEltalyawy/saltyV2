@@ -36,6 +36,7 @@ export function BrowseCollectionsSection() {
   const [currentBackgroundImage, setCurrentBackgroundImage] = useState<string | null>(null);
   const [nextBackgroundImage, setNextBackgroundImage] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [backgroundOpacity, setBackgroundOpacity] = useState(1);
 
   const collections = useMemo(
     () => data?.browseCollections?.menu?.items || [],
@@ -54,13 +55,16 @@ export function BrowseCollectionsSection() {
     if (!collections.length) return;
 
     // Load all collection images immediately for better experience
-    collections.forEach((item) => {
-      if (!item.url || !item.url.includes('/collections/')) return;
+    const imagesToLoad = collections
+      .filter(item => item.url && item.url.includes('/collections/'))
+      .map(item => {
+        const handle = item.url!.split('/collections/')[1];
+        return { handle, item };
+      })
+      .filter(({ handle }) => !collectionImages[handle]);
 
-      const handle = item.url.split('/collections/')[1];
-      if (!handle || collectionImages[handle]) return;
-
-      // Fetch collection image
+    // Load images in parallel for better performance
+    imagesToLoad.forEach(({ handle }) => {
       imageFetcher.load(`/api/collection-image?handle=${handle}`);
     });
   }, [collections, collectionImages]);
@@ -101,39 +105,50 @@ export function BrowseCollectionsSection() {
     const collectionData = collectionImages[handle];
     const newImageUrl = collectionData?.image?.url;
 
-    if (newImageUrl && newImageUrl !== currentBackgroundImage) {
+    if (newImageUrl && newImageUrl !== currentBackgroundImage && !isTransitioning) {
+      // Kill any existing animations to prevent conflicts
+      if (backgroundRef.current) {
+        gsap.killTweensOf(backgroundRef.current);
+      }
+
       // Preload the image for smooth transition
       const img = new Image();
       img.onload = () => {
+        // Double-check we're still on the same collection
+        if (activeIndex !== collections.findIndex(item => {
+          const itemHandle = item.url?.includes('/collections/')
+            ? item.url.split('/collections/')[1]
+            : item.title.toLowerCase().replace(/\s+/g, '-');
+          return itemHandle === handle;
+        })) return;
+
         setNextBackgroundImage(newImageUrl);
         setIsTransitioning(true);
 
-        // Dynamic animation with scale, blur, brightness, and rotation effects
-        gsap.to(backgroundRef.current, {
-          filter: 'blur(6px) brightness(0.7) contrast(1.3)',
-          scale: 1.12,
-          rotation: 1,
-          duration: 0.25,
+        // Smooth morph animation - no blank space
+        setNextBackgroundImage(newImageUrl);
+        setIsTransitioning(true);
+
+        // Morph from current to next image
+        gsap.to({}, {
+          duration: 0.4,
           ease: 'power2.out',
+          force3D: true,
+          onUpdate: function () {
+            const progress = this.progress();
+            setBackgroundOpacity(1 - progress);
+          },
           onComplete: () => {
             setCurrentBackgroundImage(newImageUrl);
             setNextBackgroundImage(null);
-            gsap.to(backgroundRef.current, {
-              filter: 'blur(0px) brightness(0.4) contrast(1.1)',
-              scale: 1.1,
-              rotation: 0,
-              duration: 0.5,
-              ease: 'power3.out',
-              onComplete: () => {
-                setIsTransitioning(false);
-              }
-            });
+            setBackgroundOpacity(1);
+            setIsTransitioning(false);
           }
         });
       };
       img.src = newImageUrl;
     }
-  }, [activeIndex, collections, collectionImages, currentBackgroundImage]);
+  }, [activeIndex, collections, collectionImages, currentBackgroundImage, isTransitioning]);
 
   // Effect for the initial section reveal animation
   useGSAP(() => {
@@ -351,39 +366,63 @@ export function BrowseCollectionsSection() {
         } as React.CSSProperties
       }
     >
-      {/* ✨ Dynamic Background Image */}
-      {currentBackgroundImage ? (
+      {/* ✨ Dynamic Background Image - Morph Effect */}
+      {currentBackgroundImage && (
         <div
           ref={backgroundRef}
           className="absolute inset-0 w-full h-full bg-cover bg-center"
           style={{
             backgroundImage: `url(${currentBackgroundImage})`,
             backgroundPosition: 'center 30%',
-            filter: 'brightness(0.4) contrast(1.1)',
-            transform: 'scale(1.1) rotate(0deg)', // Slight zoom to prevent white edges
-            willChange: 'filter, transform',
+            filter: 'brightness(0.6) contrast(1.1)',
+            opacity: backgroundOpacity,
+            willChange: 'opacity',
             // Mobile optimization
             backgroundSize: 'cover',
             backgroundRepeat: 'no-repeat',
             // Performance optimizations
             backfaceVisibility: 'hidden',
-            transformStyle: 'preserve-3d',
+            transform: 'translateZ(0)', // Force hardware acceleration
           }}
         />
-      ) : (
-        // Fallback gradient background
+      )}
+
+      {/* Next background image for smooth morph */}
+      {nextBackgroundImage && (
         <div
-          ref={backgroundRef}
+          className="absolute inset-0 w-full h-full bg-cover bg-center"
+          style={{
+            backgroundImage: `url(${nextBackgroundImage})`,
+            backgroundPosition: 'center 30%',
+            filter: 'brightness(0.6) contrast(1.1)',
+            opacity: 1 - backgroundOpacity,
+            willChange: 'opacity',
+            // Mobile optimization
+            backgroundSize: 'cover',
+            backgroundRepeat: 'no-repeat',
+            // Performance optimizations
+            backfaceVisibility: 'hidden',
+            transform: 'translateZ(0)', // Force hardware acceleration
+          }}
+        />
+      )}
+
+      {/* Fallback gradient background */}
+      {!currentBackgroundImage && !nextBackgroundImage && (
+        <div
           className="absolute inset-0 w-full h-full"
           style={{
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+            // Performance optimizations
+            backfaceVisibility: 'hidden',
+            transform: 'translateZ(0)', // Force hardware acceleration
           }}
         />
       )}
 
       {/* ✨ Overlay for better text readability */}
       <div
-        className="absolute inset-0 bg-black/10"
+        className="absolute inset-0"
         style={{ willChange: 'opacity' }}
       />
 
