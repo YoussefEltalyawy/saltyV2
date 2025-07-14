@@ -108,36 +108,41 @@ export function BrowseCollectionsSection() {
         setNextBackgroundImage(newImageUrl);
         setIsTransitioning(true);
 
-        // Create a GSAP timeline for smoother, more controlled animation
-        const tl = gsap.timeline({
-          onComplete: () => {
-            setCurrentBackgroundImage(newImageUrl);
-            setNextBackgroundImage(null);
-            setIsTransitioning(false);
-          }
-        });
-
-        // Phase 1: Quick blur and scale up
-        tl.to(backgroundRef.current, {
-          filter: 'blur(8px) brightness(0.8)',
-          scale: 1.15,
-          rotation: 0.5,
-          duration: 0.2,
-          ease: 'power2.inOut',
-        })
-          // Phase 2: Change image and start recovery
-          .call(() => {
-            setCurrentBackgroundImage(newImageUrl);
-            setNextBackgroundImage(null);
-          })
-          // Phase 3: Smooth recovery to final state
-          .to(backgroundRef.current, {
-            filter: 'blur(0px) brightness(0.8)',
-            scale: 1.1,
-            rotation: 0,
-            duration: 0.5,
-            ease: 'power3.out',
+        // Use gsap.context for scoping and cleanup
+        const ctx = gsap.context(() => {
+          const tl = gsap.timeline({
+            onComplete: () => {
+              setCurrentBackgroundImage(newImageUrl);
+              setNextBackgroundImage(null);
+              setIsTransitioning(false);
+            }
           });
+
+          // Phase 1: Quick blur and scale up
+          tl.to(backgroundRef.current, {
+            filter: 'blur(8px) brightness(0.8)',
+            scale: 1.15,
+            rotation: 0.5,
+            duration: 0.2,
+            ease: 'power2.inOut',
+            force3D: true,
+          })
+            // Phase 2: Change image and start recovery
+            .call(() => {
+              setCurrentBackgroundImage(newImageUrl);
+              setNextBackgroundImage(null);
+            })
+            // Phase 3: Smooth recovery to final state
+            .to(backgroundRef.current, {
+              filter: 'blur(0px) brightness(0.8)',
+              scale: 1.1,
+              rotation: 0,
+              duration: 0.5,
+              ease: 'power3.out',
+              force3D: true,
+            });
+        }, backgroundRef);
+        return () => ctx.revert();
       };
       img.src = newImageUrl;
     }
@@ -385,6 +390,7 @@ export function BrowseCollectionsSection() {
           className="absolute inset-0 w-full h-full"
           style={{
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+            willChange: 'filter, transform',
           }}
         />
       )}
@@ -455,34 +461,38 @@ function CollectionsList({
       // Filter out null refs (only animate actual DOM elements)
       const validRefs = itemRefs.current.filter(Boolean);
 
-      const tl = gsap.timeline();
+      // Use gsap.context for scoping and cleanup
+      const ctx = gsap.context(() => {
+        const tl = gsap.timeline();
 
-      // Phase 1: Reset all items to inactive state
-      tl.to(validRefs, {
-        fontWeight: 400,
-        scale: 1,
-        color: '#9CA3AF',
-        x: 0,
-        duration: 0.25,
-        ease: 'power2.out',
-        force3D: true,
-        transformOrigin: 'left center',
-        stagger: 0.02, // Slight stagger for smoother feel
-      });
-
-      // Phase 2: Animate the active item with a slight delay for better visual flow
-      const activeItem = itemRefs.current[activeIndex];
-      if (activeItem) {
-        tl.to(activeItem, {
-          fontWeight: 700,
-          scale: 1.08, // Slightly reduced scale for less harsh feel
-          color: '#FFFFFF',
-          duration: 0.35,
+        // Phase 1: Reset all items to inactive state
+        tl.to(validRefs, {
+          fontWeight: 400,
+          scale: 1,
+          color: '#9CA3AF',
+          x: 0,
+          duration: 0.25,
           ease: 'power2.out',
           force3D: true,
           transformOrigin: 'left center',
-        }, '-=0.1'); // Slight overlap with previous animation
-      }
+          stagger: 0.02, // Slight stagger for smoother feel
+        });
+
+        // Phase 2: Animate the active item with a slight delay for better visual flow
+        const activeItem = itemRefs.current[activeIndex];
+        if (activeItem) {
+          tl.to(activeItem, {
+            fontWeight: 700,
+            scale: 1.08, // Slightly reduced scale for less harsh feel
+            color: '#FFFFFF',
+            duration: 0.35,
+            ease: 'power2.out',
+            force3D: true,
+            transformOrigin: 'left center',
+          }, '-=0.1'); // Slight overlap with previous animation
+        }
+      }, validRefs);
+      return () => ctx.revert();
     },
     { dependencies: [activeIndex, menu] },
   );
@@ -549,6 +559,7 @@ function CollectionsList({
           style={{
             boxShadow: '0 4px 24px rgba(0,0,0,0.30)',
             position: 'relative',
+            willChange: 'transform, color',
           }}
         >
           <span className="text-center text-base relative text-white font-manrope font-normal">Discover</span>
