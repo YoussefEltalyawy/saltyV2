@@ -54,16 +54,13 @@ export function BrowseCollectionsSection() {
     if (!collections.length) return;
 
     // Load all collection images immediately for better experience
-    const imagesToLoad = collections
-      .filter(item => item.url && item.url.includes('/collections/'))
-      .map(item => {
-        const handle = item.url!.split('/collections/')[1];
-        return { handle, item };
-      })
-      .filter(({ handle }) => !collectionImages[handle]);
+    collections.forEach((item) => {
+      if (!item.url || !item.url.includes('/collections/')) return;
 
-    // Load images in parallel for better performance
-    imagesToLoad.forEach(({ handle }) => {
+      const handle = item.url.split('/collections/')[1];
+      if (!handle || collectionImages[handle]) return;
+
+      // Fetch collection image
       imageFetcher.load(`/api/collection-image?handle=${handle}`);
     });
   }, [collections, collectionImages]);
@@ -104,42 +101,29 @@ export function BrowseCollectionsSection() {
     const collectionData = collectionImages[handle];
     const newImageUrl = collectionData?.image?.url;
 
-    if (newImageUrl && newImageUrl !== currentBackgroundImage && !isTransitioning) {
-      // Kill any existing animations to prevent conflicts
-      if (backgroundRef.current) {
-        gsap.killTweensOf(backgroundRef.current);
-      }
-
+    if (newImageUrl && newImageUrl !== currentBackgroundImage) {
       // Preload the image for smooth transition
       const img = new Image();
       img.onload = () => {
-        // Double-check we're still on the same collection
-        if (activeIndex !== collections.findIndex(item => {
-          const itemHandle = item.url?.includes('/collections/')
-            ? item.url.split('/collections/')[1]
-            : item.title.toLowerCase().replace(/\s+/g, '-');
-          return itemHandle === handle;
-        })) return;
-
         setNextBackgroundImage(newImageUrl);
         setIsTransitioning(true);
 
-        // Hero-style blur animation with slide effect - only on background
+        // Dynamic animation with scale, blur, brightness, and rotation effects
         gsap.to(backgroundRef.current, {
-          filter: 'blur(12px)',
-          scale: 1.03,
+          filter: 'blur(6px) brightness(0.7) contrast(1.3)',
+          scale: 1.12,
+          rotation: 1,
           duration: 0.25,
-          ease: 'power1.out',
-          force3D: true,
+          ease: 'power2.out',
           onComplete: () => {
             setCurrentBackgroundImage(newImageUrl);
             setNextBackgroundImage(null);
             gsap.to(backgroundRef.current, {
-              filter: 'blur(0px)',
-              scale: 1,
-              duration: 0.35,
-              ease: 'power2.out',
-              force3D: true,
+              filter: 'blur(0px) brightness(0.4) contrast(1.1)',
+              scale: 1.1,
+              rotation: 0,
+              duration: 0.5,
+              ease: 'power3.out',
               onComplete: () => {
                 setIsTransitioning(false);
               }
@@ -149,7 +133,7 @@ export function BrowseCollectionsSection() {
       };
       img.src = newImageUrl;
     }
-  }, [activeIndex, collections, collectionImages, currentBackgroundImage, isTransitioning]);
+  }, [activeIndex, collections, collectionImages, currentBackgroundImage]);
 
   // Effect for the initial section reveal animation
   useGSAP(() => {
@@ -376,14 +360,13 @@ export function BrowseCollectionsSection() {
             backgroundImage: `url(${currentBackgroundImage})`,
             backgroundPosition: 'center 30%',
             filter: 'brightness(0.4) contrast(1.1)',
-            transform: 'scale(1.1)', // Slight zoom to prevent white edges
+            transform: 'scale(1.1) rotate(0deg)', // Slight zoom to prevent white edges
             willChange: 'filter, transform',
             // Mobile optimization
             backgroundSize: 'cover',
             backgroundRepeat: 'no-repeat',
             // Performance optimizations
             backfaceVisibility: 'hidden',
-            perspective: '1000px',
             transformStyle: 'preserve-3d',
           }}
         />
@@ -394,17 +377,13 @@ export function BrowseCollectionsSection() {
           className="absolute inset-0 w-full h-full"
           style={{
             background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-            // Performance optimizations
-            backfaceVisibility: 'hidden',
-            perspective: '1000px',
-            transformStyle: 'preserve-3d',
           }}
         />
       )}
 
       {/* ✨ Overlay for better text readability */}
       <div
-        className="absolute inset-0 bg-black/30"
+        className="absolute inset-0 bg-black/10"
         style={{ willChange: 'opacity' }}
       />
 
