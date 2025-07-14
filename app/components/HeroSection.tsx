@@ -43,26 +43,31 @@ export function HeroSection() {
     setOverlayInteractive(false);
     let triggered = false;
     if (overlayRef.current) {
-      gsap.to(overlayRef.current, {
-        y: '100%',
-        duration: 0.8,
-        ease: 'power3.out',
-        onUpdate: function () {
-          if (!triggered && this.progress() >= 0.3) {
-            setHeaderVisible(true);
-            triggered = true;
-          }
-        },
-        onComplete: () => {
-          setOverlayVisible(false);
-        },
-      });
+      // Use gsap.context for scoping and cleanup
+      const ctx = gsap.context(() => {
+        gsap.to(overlayRef.current, {
+          y: '100%',
+          duration: 0.8,
+          ease: 'power3.out',
+          force3D: true,
+          onUpdate: function () {
+            if (!triggered && this.progress() >= 0.3) {
+              setHeaderVisible(true);
+              triggered = true;
+            }
+          },
+          onComplete: () => {
+            setOverlayVisible(false);
+          },
+        });
+      }, overlayRef);
+      return () => ctx.revert();
     }
   }, [setHeaderVisible]);
 
   useGSAP(() => {
     if (overlayRef.current) {
-      gsap.set(overlayRef.current, { y: 0 });
+      gsap.set(overlayRef.current, { y: 0, force3D: true });
     }
   }, [overlayVisible]);
 
@@ -72,22 +77,28 @@ export function HeroSection() {
       filter: 'blur(10px)',
       y: 30,
       opacity: 0,
+      willChange: 'filter, transform, opacity',
+      force3D: true,
     });
 
     if (isHeaderVisible) {
-      const tl = gsap.timeline();
-      tl.to(keepRef.current, {
-        filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
-      })
-        .to(itRef.current, {
-          filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
-        }, '-=0.5')
-        .to(saltyRef.current, {
-          filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
-        }, '-=0.5')
-        .to(exploreBtnRef.current, {
-          filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
-        }, '-=0.8');
+      // Use gsap.context for scoping and cleanup
+      const ctx = gsap.context(() => {
+        const tl = gsap.timeline();
+        tl.to(keepRef.current, {
+          filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out', willChange: 'filter, transform, opacity', force3D: true,
+        })
+          .to(itRef.current, {
+            filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out', willChange: 'filter, transform, opacity', force3D: true,
+          }, '-=0.5')
+          .to(saltyRef.current, {
+            filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out', willChange: 'filter, transform, opacity', force3D: true,
+          }, '-=0.5')
+          .to(exploreBtnRef.current, {
+            filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out', willChange: 'filter, transform, opacity', force3D: true,
+          }, '-=0.8');
+      }, [keepRef, itRef, saltyRef, exploreBtnRef]);
+      return () => ctx.revert();
     }
   }, [isHeaderVisible]);
 
@@ -119,12 +130,13 @@ export function HeroSection() {
         muted
         playsInline
         onCanPlay={() => setIsVideoLoaded(true)}
+        style={{ willChange: 'opacity, filter' }}
       />
       <div className="absolute top-5 left-0 w-full h-full flex items-start pt-[var(--header-height)] pl-4 z-1">
         <h1 className='text-white font-normal text-6xl md:text-7xl tracking-tight max-w-[65%] text-left overflow-hidden'>
-          <span ref={keepRef} className="inline-block">KEEP</span>{' '}
-          <span ref={itRef} className="inline-block">IT</span>{' '}
-          <span ref={saltyRef} className="inline-block">SALTY.</span>
+          <span ref={keepRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>KEEP</span>{' '}
+          <span ref={itRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>IT</span>{' '}
+          <span ref={saltyRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>SALTY.</span>
         </h1>
       </div>
       {/* S25 Collection button container */}

@@ -22,12 +22,12 @@ export const LoadingOverlay = forwardRef<HTMLDivElement, LoadingOverlayProps>(
         <div className="absolute inset-0 flex items-center justify-center w-full h-full">
           <div>
             <Player
-              ref={lottieRef}
               animationData={animationData}
               autoplay
               loop={false}
               style={{ width: 400, height: 400 }}
               onComplete={onComplete}
+              lottieRef={lottieRef}
             />
           </div>
         </div>

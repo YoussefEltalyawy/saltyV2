@@ -49,40 +49,48 @@ export function Aside({
   useGSAP(() => {
     const aside = asideRef.current;
     if (!aside) return;
-    if (animation === 'top') {
-      if (expanded && !exiting) {
-        gsap.fromTo(
-          aside,
-          { y: '-100%' },
-          { y: '0%', duration: 0.5, ease: 'power2.inOut' }
-        );
-      } else if (exiting) {
-        gsap.to(aside, {
-          y: '-100%',
-          duration: 0.5,
-          ease: 'power2.inOut',
-        });
+    // Use gsap.context for scoping and cleanup
+    const ctx = gsap.context(() => {
+      if (animation === 'top') {
+        if (expanded && !exiting) {
+          gsap.fromTo(
+            aside,
+            { y: '-100%', force3D: true },
+            { y: '0%', duration: 0.5, ease: 'power2.inOut', force3D: true, willChange: 'transform, opacity' }
+          );
+        } else if (exiting) {
+          gsap.to(aside, {
+            y: '-100%',
+            duration: 0.5,
+            ease: 'power2.inOut',
+            force3D: true,
+            willChange: 'transform, opacity',
+          });
+        } else {
+          gsap.set(aside, { y: '-100%', force3D: true, willChange: 'transform, opacity' });
+        }
       } else {
-        gsap.set(aside, { y: '-100%' });
+        // default: left
+        if (expanded && !exiting) {
+          gsap.fromTo(
+            aside,
+            { x: '-100%', force3D: true },
+            { x: '0%', duration: 0.5, ease: 'power2.inOut', force3D: true, willChange: 'transform, opacity' }
+          );
+        } else if (exiting) {
+          gsap.to(aside, {
+            x: '-100%',
+            duration: 0.5,
+            ease: 'power2.inOut',
+            force3D: true,
+            willChange: 'transform, opacity',
+          });
+        } else {
+          gsap.set(aside, { x: '-100%', force3D: true, willChange: 'transform, opacity' });
+        }
       }
-    } else {
-      // default: left
-      if (expanded && !exiting) {
-        gsap.fromTo(
-          aside,
-          { x: '-100%' },
-          { x: '0%', duration: 0.5, ease: 'power2.inOut' }
-        );
-      } else if (exiting) {
-        gsap.to(aside, {
-          x: '-100%',
-          duration: 0.5,
-          ease: 'power2.inOut',
-        });
-      } else {
-        gsap.set(aside, { x: '-100%' });
-      }
-    }
+    }, aside);
+    return () => ctx.revert();
   }, [expanded, exiting, animation]);
 
   useEffect(() => {
@@ -138,7 +146,7 @@ export function Aside({
       <div
         ref={asideRef}
         className={asideClass}
-        style={{ willChange: 'transform', position: 'relative' }}
+        style={{ willChange: 'transform, opacity' }}
       >
         {showHeader ? (
           <header className="flex items-center border-b border-black h-[var(--header-height)] justify-between px-5">

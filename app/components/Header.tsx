@@ -52,16 +52,23 @@ export function Header({
       gsap.set([leftRef.current, centerRef.current, rightRef.current], {
         filter: 'blur(10px)',
         y: -20,
+        willChange: 'filter, transform, opacity',
+        force3D: true,
       });
     } else {
-      // Animate header elements in with blur to clear
-      gsap.to([leftRef.current, centerRef.current, rightRef.current], {
-        filter: 'blur(0px)',
-        y: 0,
-        duration: 0.6,
-        stagger: 0.3, // Increased stagger for more noticeable timing
-        ease: 'power2.out',
-      });
+      // Use gsap.context for scoping and cleanup
+      const ctx = gsap.context(() => {
+        gsap.to([leftRef.current, centerRef.current, rightRef.current], {
+          filter: 'blur(0px)',
+          y: 0,
+          duration: 0.6,
+          stagger: 0.3, // Increased stagger for more noticeable timing
+          ease: 'power2.out',
+          willChange: 'filter, transform, opacity',
+          force3D: true,
+        });
+      }, [leftRef, centerRef, rightRef]);
+      return () => ctx.revert();
     }
   }, [isHeaderVisible]);
 
