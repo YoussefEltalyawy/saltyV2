@@ -56,6 +56,9 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
     return initial;
   });
 
+  // Add after selectedOptionsMap state
+  const [lastColorMap, setLastColorMap] = useState<Record<string, string>>({});
+
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
     setCanScrollPrev(emblaApi.canScrollPrev());
@@ -93,30 +96,40 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
 
   // Handler for selecting an option value
   function handleOptionChange(productId: string, optionName: string, value: string) {
-    setSelectedOptionsMap((prev) => ({
-      ...prev,
-      [productId]: {
-        ...prev[productId],
-        [optionName]: value,
-      },
-    }));
+    setSelectedOptionsMap((prev) => {
+      const prevOptions = prev[productId] || {};
+      // If color changes, update lastColorMap
+      if (optionName.toLowerCase() === 'color') {
+        setLastColorMap((last) => ({
+          ...last,
+          [productId]: value,
+        }));
+      }
+      return {
+        ...prev,
+        [productId]: {
+          ...prevOptions,
+          [optionName]: value,
+        },
+      };
+    });
   }
 
-  const getDisplayImage = (product: ProductItemFragment, matchingVariant: any, selectedOptions: SelectedOptions) => {
-    // Try to find a swatch image for the selected color
-    const colorOption = product.options.find(
-      (opt) => opt.name.toLowerCase() === 'color'
-    );
-    if (colorOption) {
-      const selectedColor = selectedOptions['color'];
-      const colorValue = colorOption.optionValues.find(
-        (v) => v.name === selectedColor
-      );
+  // Helper to get the image for the last selected color
+  function getDisplayImage(product: ProductItemFragment) {
+    const colorOption = product.options.find(opt => opt.name.toLowerCase() === 'color');
+    let selectedColor = lastColorMap[product.id] || (colorOption && colorOption.optionValues[0]?.name);
+    if (colorOption && selectedColor) {
+      // Find a variant with this color
+      const colorVariant = [...(product.adjacentVariants || []), product.selectedOrFirstAvailableVariant]
+        .find(variant => variant && variant.selectedOptions.some(opt => opt.name.toLowerCase() === 'color' && opt.value === selectedColor));
+      if (colorVariant?.image) return colorVariant.image;
+      // Swatch fallback
+      const colorValue = colorOption.optionValues.find(v => v.name === selectedColor);
       const swatchUrl = colorValue?.swatch?.image?.previewImage?.url;
       if (swatchUrl) {
-        // Return a fake image object compatible with <Image>
         return {
-          __typename: 'Image',
+          __typename: 'Image' as const,
           id: product.id + '-swatch-' + selectedColor,
           url: swatchUrl,
           altText: product.title + ' - ' + selectedColor,
@@ -125,11 +138,9 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
         };
       }
     }
-    // Fallback to variant image
-    if (matchingVariant?.image) return matchingVariant.image;
     // Fallback to product featured image
     return product.featuredImage;
-  };
+  }
 
   return (
     <section ref={sectionRef} className="bg-white py-10">
@@ -149,7 +160,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                   console.log('DEBUG: productOptions for', product.title, productOptions);
                 }
                 const matchingVariant = findMatchingVariant(product, selectedOptions) || product.selectedOrFirstAvailableVariant;
-                const displayImage = getDisplayImage(product, matchingVariant, selectedOptions);
+                const displayImage = getDisplayImage(product);
                 return (
                   <div
                     className="min-w-0 flex-[0_0_100%] flex flex-col items-center justify-center px-2"
