@@ -5,15 +5,24 @@ import type { RootLoader } from '~/root';
 import { Suspense } from 'react';
 import { Image } from '@shopify/hydrogen';
 
+// Custom hook for fetching a collection image by handle
+function useCollectionImage(handle: string | undefined) {
+  const fetcher = useFetcher();
+  useEffect(() => {
+    if (handle && fetcher.state === 'idle' && !fetcher.data) {
+      fetcher.load(`/api/collection-image?handle=${handle}`);
+    }
+  }, [handle, fetcher]);
+  return fetcher.data?.image;
+}
+
 export function BrowseCategoriesSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const data = useRouteLoaderData<RootLoader>('root');
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, slidesToScroll: 1, align: 'start' });
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
-  const [collectionImages, setCollectionImages] = useState<{ [key: string]: any }>({});
   const categoriesMenu: any[] = useMemo(() => data?.browseCategories?.menu?.items || [], [data]);
-  const imageFetcher = useFetcher();
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -28,51 +37,6 @@ export function BrowseCategoriesSection() {
     };
   }, [emblaApi]);
 
-  // Preload all collection images as soon as the website loads
-  useEffect(() => {
-    if (!categoriesMenu.length) return;
-    categoriesMenu.forEach((item: any) => {
-      if (!item.url || !item.url.includes('/collections/')) return;
-      const handle = item.url.split('/collections/')[1];
-      if (!handle) return;
-      imageFetcher.load(`/api/collection-image?handle=${handle}`);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Inject <link rel="preload"> tags for all collection images
-  useEffect(() => {
-    if (!categoriesMenu.length) return;
-    categoriesMenu.forEach((item: any) => {
-      if (!item.url || !item.url.includes('/collections/')) return;
-      const handle = item.url.split('/collections/')[1];
-      const imageData = collectionImages[handle]?.image;
-      if (imageData && imageData.url) {
-        const link = document.createElement('link');
-        link.rel = 'preload';
-        link.as = 'image';
-        link.href = imageData.url;
-        link.setAttribute('imagesrcset', imageData.url);
-        document.head.appendChild(link);
-      }
-    });
-    // Cleanup: remove the preloads on unmount
-    return () => {
-      const links = document.querySelectorAll('link[rel="preload"][as="image"]');
-      links.forEach((link) => {
-        if (link.parentNode) link.parentNode.removeChild(link);
-      });
-    };
-  }, [categoriesMenu, collectionImages]);
-
-  // Update collection images when fetched
-  useEffect(() => {
-    if (imageFetcher.data && imageFetcher.data.image) {
-      const handle = imageFetcher.data.handle;
-      setCollectionImages((prev) => ({ ...prev, [handle]: imageFetcher.data }));
-    }
-  }, [imageFetcher.data]);
-
   return (
     <section ref={sectionRef} className="w-full bg-white">
       <div className="max-w-6xl mx-auto">
@@ -82,7 +46,7 @@ export function BrowseCategoriesSection() {
               {categoriesMenu.map((item: any, idx: number) => {
                 if (!item.url || !item.url.includes('/collections/')) return null;
                 const handle = item.url.split('/collections/')[1];
-                const imageData = collectionImages[handle]?.image;
+                const imageData = useCollectionImage(handle);
                 // Ensure the URL is always relative and not external
                 let url = item.url;
                 if (url.startsWith('http')) {
