@@ -138,7 +138,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                       <div className="text-center">
                         <h3 className="text-lg text-black mb-1 uppercase tracking-tight font-medium">{product.title}</h3>
                         <span className="block text-base text-black mb-2">
-                          {product.priceRange.minVariantPrice.amount} {product.priceRange.minVariantPrice.currencyCode}
+                          {Math.round(Number(product.priceRange.minVariantPrice.amount))} {product.priceRange.minVariantPrice.currencyCode}
                         </span>
                       </div>
                     </Link>
