@@ -10,6 +10,7 @@ import { ProductItem } from '~/components/ProductItem';
 import { HeroSection } from '~/components/HeroSection';
 import { BrowseCollectionsSection } from '~/components/BrowseCollectionsSection';
 import { FeaturedProductsCarousel } from '~/components/FeaturedProductsCarousel';
+import { BrowseCategoriesSection } from '~/components/BrowseCategoriesSection';
 
 export const meta: MetaFunction = () => {
   return [{ title: 'SALTY | Home' }];
@@ -69,6 +70,7 @@ export default function Homepage() {
       {data.featuredCollection?.products?.nodes?.length > 0 ? (
         <FeaturedProductsCarousel products={data.featuredCollection.products.nodes} />
       ) : null}
+      <BrowseCategoriesSection />
     </div>
   );
 }

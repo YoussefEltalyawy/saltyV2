@@ -198,24 +198,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                               variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'size' && opt.value === size)
                             );
                             const inStock = variant?.availableForSale;
-                            if (inStock === undefined) {
-                              console.log('[DEBUG] No matching variant found or availableForSale is undefined:', {
-                                product: product.title,
-                                color,
-                                size,
-                                variants: getAllVariants(product).map((v: any) => ({
-                                  selectedOptions: v.selectedOptions,
-                                  availableForSale: v.availableForSale,
-                                  id: v.id,
-                                })),
-                                selectedOrFirstAvailableVariant: product.selectedOrFirstAvailableVariant && {
-                                  selectedOptions: product.selectedOrFirstAvailableVariant.selectedOptions,
-                                  availableForSale: product.selectedOrFirstAvailableVariant.availableForSale,
-                                  id: product.selectedOrFirstAvailableVariant.id,
-                                }
-                              });
-                            }
-                            console.log(`[TRUE STOCK] Product: ${product.title}, Color: ${color}, Size: ${size}, In Stock: ${inStock}`);
+                          
                           });
                         }
                       });
