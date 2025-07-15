@@ -102,6 +102,35 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
     }));
   }
 
+  const getDisplayImage = (product: ProductItemFragment, matchingVariant: any, selectedOptions: SelectedOptions) => {
+    // Try to find a swatch image for the selected color
+    const colorOption = product.options.find(
+      (opt) => opt.name.toLowerCase() === 'color'
+    );
+    if (colorOption) {
+      const selectedColor = selectedOptions['color'];
+      const colorValue = colorOption.optionValues.find(
+        (v) => v.name === selectedColor
+      );
+      const swatchUrl = colorValue?.swatch?.image?.previewImage?.url;
+      if (swatchUrl) {
+        // Return a fake image object compatible with <Image>
+        return {
+          __typename: 'Image',
+          id: product.id + '-swatch-' + selectedColor,
+          url: swatchUrl,
+          altText: product.title + ' - ' + selectedColor,
+          width: 800,
+          height: 1200,
+        };
+      }
+    }
+    // Fallback to variant image
+    if (matchingVariant?.image) return matchingVariant.image;
+    // Fallback to product featured image
+    return product.featuredImage;
+  };
+
   return (
     <section ref={sectionRef} className="bg-white py-10">
       <div className="max-w-xl mx-auto">
@@ -120,19 +149,20 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                   console.log('DEBUG: productOptions for', product.title, productOptions);
                 }
                 const matchingVariant = findMatchingVariant(product, selectedOptions) || product.selectedOrFirstAvailableVariant;
+                const displayImage = getDisplayImage(product, matchingVariant, selectedOptions);
                 return (
                   <div
                     className="min-w-0 flex-[0_0_100%] flex flex-col items-center justify-center px-2"
                     key={product.id}
                   >
                     <Link to={"/products/" + product.handle} className="block w-full">
-                      {product.featuredImage && (
+                      {displayImage && (
                         <Image
-                          data={product.featuredImage}
+                          data={displayImage}
                           className="w-full object-cover mb-4 rounded-lg"
                           aspectRatio="3/4"
                           sizes="(min-width: 45em) 400px, 100vw"
-                          alt={product.featuredImage.altText || product.title}
+                          alt={displayImage.altText || product.featuredImage?.altText || product.title}
                         />
                       )}
                       <div className="text-center">
@@ -155,38 +185,50 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                               // Color circle only for color option
                               if (isColor && value.swatch?.color) {
                                 return (
-                                  <button
-                                    key={value.name}
-                                    type="button"
-                                    className={`w-7 h-7 rounded-full border flex items-center justify-center transition-all shadow-sm
-                                      ${isSelected ? 'border-gray-900 ring-2 ring-gray-900' : 'border-gray-200'}
-                                      ${!isAvailable ? 'opacity-30 cursor-not-allowed' : 'hover:ring-2 hover:ring-gray-900'}
-                                    `}
-                                    style={{ backgroundColor: value.swatch.color, borderWidth: '.5px' }}
-                                    disabled={!isAvailable}
-                                    aria-pressed={isSelected}
-                                    onClick={() => handleOptionChange(product.id, option.name, value.name)}
-                                  />
+                                  <div className="relative inline-block" key={value.name}>
+                                    <button
+                                      type="button"
+                                      className={`w-7 h-7 rounded-full border flex items-center justify-center transition-all shadow-sm
+                                        ${isSelected ? 'border-gray-900 ring-2 ring-gray-900' : 'border-gray-200'}
+                                        ${!isAvailable ? 'opacity-30 cursor-not-allowed' : 'hover:ring-2 hover:ring-gray-900'}
+                                      `}
+                                      style={{ backgroundColor: value.swatch.color, borderWidth: '.5px' }}
+                                      disabled={!isAvailable}
+                                      aria-pressed={isSelected}
+                                      onClick={() => handleOptionChange(product.id, option.name, value.name)}
+                                    />
+                                    {!isAvailable && (
+                                      <span className="absolute left-0 top-0 w-full h-full pointer-events-none flex items-center justify-center">
+                                        <span className="block w-4/5 h-0.5 bg-red-500 rounded rotate-45" style={{ position: 'absolute', left: '10%', top: '50%' }} />
+                                      </span>
+                                    )}
+                                  </div>
                                 );
                               }
                               // Size rectangle for size option
                               if (isSize) {
                                 return (
-                                  <button
-                                    key={value.name}
-                                    type="button"
-                                    className={`px-4 py-1 rounded-md border text-sm font-medium transition-all bg-white
-                                      ${isSelected ? 'border-gray-900 ring-1 ring-gray-300 text-gray-900' : 'border-gray-300 text-gray-900'}
-                                      ${!isAvailable ? 'opacity-30 cursor-not-allowed' : 'hover:border-gray-900'}
-                                      min-w-[40px] text-center tracking-wide`
-                                    }
-                                    style={{ borderWidth: '1px' }}
-                                    disabled={!isAvailable}
-                                    aria-pressed={isSelected}
-                                    onClick={() => handleOptionChange(product.id, option.name, value.name)}
-                                  >
-                                    {value.name}
-                                  </button>
+                                  <div className="relative inline-block" key={value.name}>
+                                    <button
+                                      type="button"
+                                      className={`px-4 py-1 rounded-md border text-sm font-medium transition-all bg-white
+                                        ${isSelected ? 'border-gray-900 ring-1 ring-gray-300 text-gray-900' : 'border-gray-300 text-gray-900'}
+                                        ${!isAvailable ? 'opacity-30 cursor-not-allowed' : 'hover:border-gray-900'}
+                                        min-w-[40px] text-center tracking-wide`
+                                      }
+                                      style={{ borderWidth: '1px' }}
+                                      disabled={!isAvailable}
+                                      aria-pressed={isSelected}
+                                      onClick={() => handleOptionChange(product.id, option.name, value.name)}
+                                    >
+                                      {value.name}
+                                    </button>
+                                    {!isAvailable && (
+                                      <span className="absolute left-0 top-0 w-full h-full pointer-events-none flex items-center justify-center">
+                                        <span className="block w-4/5 h-0.5 bg-red-500 rounded rotate-45" style={{ position: 'absolute', left: '10%', top: '50%' }} />
+                                      </span>
+                                    )}
+                                  </div>
                                 );
                               }
                               // Fallback: show as simple minimal button

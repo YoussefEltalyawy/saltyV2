@@ -215,7 +215,7 @@ const PRODUCT_ITEM_FRAGMENT = `#graphql
     amount
     currencyCode
   }
-  fragment ProductItem on Product {
+  fragment ProductItemFull on Product {
     id
     handle
     title
@@ -277,7 +277,7 @@ const FEATURED_COLLECTION_PRODUCTS_QUERY = `#graphql
       title
       products(first: $first) {
         nodes {
-          ...ProductItem
+          ...ProductItemFull
         }
       }
     }
