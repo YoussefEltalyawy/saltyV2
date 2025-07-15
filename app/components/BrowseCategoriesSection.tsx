@@ -28,16 +28,17 @@ export function BrowseCategoriesSection() {
     };
   }, [emblaApi]);
 
-  // Fetch collection images
+  // Preload all collection images as soon as the website loads
   useEffect(() => {
     if (!categoriesMenu.length) return;
-    categoriesMenu.forEach((item) => {
+    categoriesMenu.forEach((item: any) => {
       if (!item.url || !item.url.includes('/collections/')) return;
       const handle = item.url.split('/collections/')[1];
-      if (!handle || collectionImages[handle]) return;
+      if (!handle) return;
       imageFetcher.load(`/api/collection-image?handle=${handle}`);
     });
-  }, [categoriesMenu, collectionImages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Update collection images when fetched
   useEffect(() => {
@@ -77,6 +78,7 @@ export function BrowseCategoriesSection() {
                         aspectRatio="4/5"
                         sizes="(min-width: 45em) 500px, 85vw"
                         alt={imageData.altText || item.title}
+                        loading={idx < 2 ? 'eager' : 'lazy'}
                       />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6">
