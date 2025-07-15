@@ -63,7 +63,7 @@ const CollectionsList: React.FC<CollectionsListProps> = ({ menu, activeIndex, se
 
   return (
     <>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {menu.items.map((item, index) => {
           if (!item.url) return null;
           const url = item.url.includes('/collections/')
@@ -77,7 +77,7 @@ const CollectionsList: React.FC<CollectionsListProps> = ({ menu, activeIndex, se
             <div
               key={item.id}
               ref={(el) => (itemRefs.current[index] = el)}
-              className="text-lg font-[200] transition-colors cursor-pointer select-none"
+              className="text-base font-[200] transition-colors cursor-pointer select-none"
               style={{
                 transformOrigin: 'left center',
               }}
@@ -96,7 +96,6 @@ const CollectionsList: React.FC<CollectionsListProps> = ({ menu, activeIndex, se
           className="flex items-center gap-2 w-fit py-1.5 px-0 text-base font-semibold text-white transition-colors hover:text-blue-300 focus:text-blue-400 outline-none border-none bg-transparent shadow-none rounded-none"
           style={{
             textDecoration: 'none',
-            borderBottom: '2px solid #fff',
             width: 'fit-content',
             fontWeight: 500,
             fontSize: '1.1rem',

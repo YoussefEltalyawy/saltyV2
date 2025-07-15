@@ -131,20 +131,20 @@ export function BrowseCollectionsSection() {
   }, [activeIndex, collections, collectionImages, currentBackgroundImage]);
 
   // Initial section animation
-  useGSAP(() => {
-    if (sectionRef.current) {
-      gsap.set(sectionRef.current, { y: 30, opacity: 0 });
-      if (isHeaderVisible) {
-        gsap.to(sectionRef.current, {
-          y: 0,
-          opacity: 1,
-          duration: 0.8,
-          delay: 1,
-          ease: 'power2.out',
-        });
-      }
-    }
-  }, [isHeaderVisible]);
+  // useGSAP(() => {
+  //   if (sectionRef.current) {
+  //     gsap.set(sectionRef.current, { y: 30, opacity: 0 });
+  //     if (isHeaderVisible) {
+  //       gsap.to(sectionRef.current, {
+  //         y: 0,
+  //         opacity: 1,
+  //         duration: 0.8,
+  //         delay: 1,
+  //         ease: 'power2.out',
+  //       });
+  //     }
+  //   }
+  // }, [isHeaderVisible]);
 
   // Intersection observer for section activation
   useEffect(() => {

@@ -107,7 +107,7 @@ export function HeroSection() {
       className="relative w-screen left-1/2 right-1/2 -mx-[50vw] overflow-hidden flex items-center justify-center"
       style={{
         // Use 'dvh' (dynamic viewport height) to account for mobile browser UI
-        height: '90dvh',
+        height: '93dvh',
       }}
     >
       {/* Overlay with Lottie animation */}
