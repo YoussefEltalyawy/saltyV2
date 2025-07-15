@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
-import { Await, useRouteLoaderData, useFetcher } from 'react-router';
+import { useRouteLoaderData, useFetcher } from 'react-router';
 import type { RootLoader } from '~/root';
-import { Suspense } from 'react';
 import { Image } from '@shopify/hydrogen';
 
 // Custom hook for fetching a collection image by handle
