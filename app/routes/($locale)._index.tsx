@@ -67,10 +67,11 @@ export default function Homepage() {
     <div className="home">
       <HeroSection />
       <BrowseCollectionsSection />
+      <BrowseCategoriesSection />
       {data.featuredCollection?.products?.nodes?.length > 0 ? (
         <FeaturedProductsCarousel products={data.featuredCollection.products.nodes} />
       ) : null}
-      <BrowseCategoriesSection />
+
     </div>
   );
 }

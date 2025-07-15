@@ -40,6 +40,31 @@ export function BrowseCategoriesSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Inject <link rel="preload"> tags for all collection images
+  useEffect(() => {
+    if (!categoriesMenu.length) return;
+    categoriesMenu.forEach((item: any) => {
+      if (!item.url || !item.url.includes('/collections/')) return;
+      const handle = item.url.split('/collections/')[1];
+      const imageData = collectionImages[handle]?.image;
+      if (imageData && imageData.url) {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = imageData.url;
+        link.setAttribute('imagesrcset', imageData.url);
+        document.head.appendChild(link);
+      }
+    });
+    // Cleanup: remove the preloads on unmount
+    return () => {
+      const links = document.querySelectorAll('link[rel="preload"][as="image"]');
+      links.forEach((link) => {
+        if (link.parentNode) link.parentNode.removeChild(link);
+      });
+    };
+  }, [categoriesMenu, collectionImages]);
+
   // Update collection images when fetched
   useEffect(() => {
     if (imageFetcher.data && imageFetcher.data.image) {
