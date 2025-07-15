@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
-import type { ProductItemFragment } from 'storefrontapi.generated';
+import type { ProductItemFullFragment as ProductItemFragment } from 'storefrontapi.generated';
 import { Image } from '@shopify/hydrogen';
 import { Link } from 'react-router';
 import { useHeaderColor } from '~/components/HeaderColorContext';
@@ -17,25 +17,26 @@ type SelectedOptions = Record<string, string>;
 function getInitialSelectedOptions(product: ProductItemFragment) {
   // Default to the first value for each option
   const options: SelectedOptions = {};
-  product.options.forEach((option) => {
+  product.options.forEach((option: any) => {
     if (option.optionValues.length > 0) {
-      options[option.name] = option.optionValues[0].name;
+      options[option.name.toLowerCase()] = option.optionValues[0].name;
     }
   });
   return options;
 }
 
+// Helper to get all variants for a product
+function getAllVariants(product: ProductItemFragment) {
+  // Use product.variants.nodes if available, otherwise fallback
+  // @ts-ignore: variants may not be typed on ProductItemFragment
+  return product.variants?.nodes || [...(product.adjacentVariants || []), product.selectedOrFirstAvailableVariant].filter(Boolean);
+}
+
 function findMatchingVariant(product: ProductItemFragment, selectedOptions: SelectedOptions) {
-  // Try to find a variant that matches the selected options
-  const allVariants = [
-    ...(product.adjacentVariants || []),
-    ...(product.selectedOrFirstAvailableVariant ? [product.selectedOrFirstAvailableVariant] : []),
-  ];
-  return allVariants.find((variant) => {
+  const allVariants = getAllVariants(product);
+  return allVariants.find((variant: any) => {
     if (!variant) return false;
-    return variant.selectedOptions.every(
-      (opt) => selectedOptions[opt.name] === opt.value
-    );
+    return variant.selectedOptions.every((opt: any) => selectedOptions[opt.name.toLowerCase()] === opt.value);
   });
 }
 
@@ -98,19 +99,45 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
   function handleOptionChange(productId: string, optionName: string, value: string) {
     setSelectedOptionsMap((prev) => {
       const prevOptions = prev[productId] || {};
-      // If color changes, update lastColorMap
-      if (optionName.toLowerCase() === 'color') {
+      // Normalize all keys to lowercase
+      const normalizedOptions: SelectedOptions = {};
+      Object.keys(prevOptions).forEach((k) => {
+        normalizedOptions[k.toLowerCase()] = prevOptions[k];
+      });
+      const lowerOptionName = optionName.toLowerCase();
+      let newOptions = { ...normalizedOptions, [lowerOptionName]: value };
+      // If color changes, check size availability
+      if (lowerOptionName === 'color') {
         setLastColorMap((last) => ({
           ...last,
           [productId]: value,
         }));
+        // Find all available sizes for the new color
+        const product = products.find((p) => p.id === productId);
+        if (product) {
+          const sizeOption = product.options.find(opt => opt.name.toLowerCase() === 'size');
+          if (sizeOption) {
+            // Find all variants for the new color
+            const availableSizes = sizeOption.optionValues.filter(sizeValue => {
+              return getAllVariants(product).some(variant =>
+                variant &&
+                variant.availableForSale &&
+                variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'color' && opt.value === value) &&
+                variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'size' && opt.value === sizeValue.name)
+              );
+            });
+            // If the current size is not available for the new color, select the first available size
+            if (!availableSizes.some(s => s.name === newOptions['size'])) {
+              if (availableSizes.length > 0) {
+                newOptions['size'] = availableSizes[0].name;
+              }
+            }
+          }
+        }
       }
       return {
         ...prev,
-        [productId]: {
-          ...prevOptions,
-          [optionName]: value,
-        },
+        [productId]: newOptions,
       };
     });
   }
@@ -121,8 +148,8 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
     let selectedColor = lastColorMap[product.id] || (colorOption && colorOption.optionValues[0]?.name);
     if (colorOption && selectedColor) {
       // Find a variant with this color
-      const colorVariant = [...(product.adjacentVariants || []), product.selectedOrFirstAvailableVariant]
-        .find(variant => variant && variant.selectedOptions.some(opt => opt.name.toLowerCase() === 'color' && opt.value === selectedColor));
+      const colorVariant = getAllVariants(product)
+        .find(variant => variant && variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'color' && opt.value === selectedColor));
       if (colorVariant?.image) return colorVariant.image;
       // Swatch fallback
       const colorValue = colorOption.optionValues.find(v => v.name === selectedColor);
@@ -155,9 +182,45 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                 const selectedOptions = selectedOptionsMap[product.id] || getInitialSelectedOptions(product);
                 const productOptions = getProductOptions({ ...product, selectedOrFirstAvailableVariant: product.selectedOrFirstAvailableVariant });
                 if (idx === 0) {
-                  // Debug: log the product options structure for the first product
-                  // eslint-disable-next-line no-console
-                  console.log('DEBUG: productOptions for', product.title, productOptions);
+                  // For each product, log the true stock for every color and size
+                  product.options.forEach((option: any) => {
+                    if (option.name.toLowerCase() === 'color') {
+                      option.optionValues.forEach((colorValue: any) => {
+                        const color = colorValue.name;
+                        // For each size, check if a variant exists and is available
+                        const sizeOption = product.options.find(opt => opt.name.toLowerCase() === 'size');
+                        if (sizeOption) {
+                          sizeOption.optionValues.forEach((sizeValue: any) => {
+                            const size = sizeValue.name;
+                            const variant = getAllVariants(product).find((variant: any) =>
+                              variant &&
+                              variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'color' && opt.value === color) &&
+                              variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'size' && opt.value === size)
+                            );
+                            const inStock = variant?.availableForSale;
+                            if (inStock === undefined) {
+                              console.log('[DEBUG] No matching variant found or availableForSale is undefined:', {
+                                product: product.title,
+                                color,
+                                size,
+                                variants: getAllVariants(product).map((v: any) => ({
+                                  selectedOptions: v.selectedOptions,
+                                  availableForSale: v.availableForSale,
+                                  id: v.id,
+                                })),
+                                selectedOrFirstAvailableVariant: product.selectedOrFirstAvailableVariant && {
+                                  selectedOptions: product.selectedOrFirstAvailableVariant.selectedOptions,
+                                  availableForSale: product.selectedOrFirstAvailableVariant.availableForSale,
+                                  id: product.selectedOrFirstAvailableVariant.id,
+                                }
+                              });
+                            }
+                            console.log(`[TRUE STOCK] Product: ${product.title}, Color: ${color}, Size: ${size}, In Stock: ${inStock}`);
+                          });
+                        }
+                      });
+                    }
+                  });
                 }
                 const matchingVariant = findMatchingVariant(product, selectedOptions) || product.selectedOrFirstAvailableVariant;
                 const displayImage = getDisplayImage(product);
@@ -185,14 +248,24 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                     </Link>
                     {/* Variant selectors */}
                     <div className="w-full flex flex-col gap-4 items-center mb-4">
-                      {productOptions.map((option) => {
+                      {productOptions.map((option: any) => {
                         const isColor = option.name.toLowerCase() === 'color';
                         const isSize = option.name.toLowerCase() === 'size';
                         return (
                           <div key={option.name} className={`flex ${isColor ? 'flex-row gap-3 justify-center' : 'flex-row gap-2 justify-center'}`}>
-                            {option.optionValues.map((value) => {
-                              const isSelected = selectedOptions[option.name] === value.name;
-                              const isAvailable = value.available;
+                            {option.optionValues.map((value: any) => {
+                              const isSelected = selectedOptions[option.name.toLowerCase()] === value.name;
+                              let isAvailable = value.available;
+                              if (isSize) {
+                                // Only available if a variant with the selected color and this size is available
+                                const selectedColor = selectedOptions['color'];
+                                isAvailable = getAllVariants(product).some((variant: any) =>
+                                  variant &&
+                                  variant.availableForSale &&
+                                  variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'color' && opt.value === selectedColor) &&
+                                  variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'size' && opt.value === value.name)
+                                );
+                              }
                               // Color circle only for color option
                               if (isColor && value.swatch?.color) {
                                 return (
@@ -218,6 +291,14 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                               }
                               // Size rectangle for size option
                               if (isSize) {
+                                const selectedColor = selectedOptions['color'];
+                                const isAvailableForColor = getAllVariants(product).some((variant: any) =>
+                                  variant &&
+                                  variant.availableForSale &&
+                                  variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'color' && opt.value === selectedColor) &&
+                                  variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'size' && opt.value === value.name)
+                                );
+                                console.log(`[UI STOCK] Product: ${product.title}, Color: ${selectedColor}, Size: ${value.name}, UI In Stock: ${isAvailableForColor}`);
                                 return (
                                   <div className="relative inline-block" key={value.name}>
                                     <button

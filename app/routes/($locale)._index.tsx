@@ -259,6 +259,11 @@ const PRODUCT_ITEM_FRAGMENT = `#graphql
     adjacentVariants {
       ...ProductVariant
     }
+    variants(first: 100) {
+      nodes {
+        ...ProductVariant
+      }
+    }
   }
   ${PRODUCT_VARIANT_FRAGMENT}
 ` as const;
