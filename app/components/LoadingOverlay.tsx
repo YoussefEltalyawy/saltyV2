@@ -16,7 +16,7 @@ export const LoadingOverlay = forwardRef<HTMLDivElement, LoadingOverlayProps>(
     return (
       <div
         ref={overlayRef}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-white"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-[#bfb2a2]"
         style={{ pointerEvents: interactive ? 'auto' : 'none' }}
       >
         <div className="absolute inset-0 flex items-center justify-center w-full h-full">

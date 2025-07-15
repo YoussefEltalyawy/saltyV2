@@ -570,11 +570,7 @@ button.reset:hover:not(:has(> *)) {
   box-shadow: none;
 }
 .custom-header.scrolled {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.04);
+
 }
 .header-left,
 .header-center,
@@ -596,8 +592,8 @@ button.reset:hover:not(:has(> *)) {
   gap: 0.5rem;
 }
 .header-logo {
-  max-height: 30px;
-  max-width: 120px;
+  max-height: 24px;
+  max-width: 100px;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -607,8 +603,8 @@ button.reset:hover:not(:has(> *)) {
 }
 @media (max-width: 600px) {
   .header-logo {
-    max-height: 22px;
-    max-width: 90px;
+    max-height: 18px;
+    max-width: 80px;
   }
 }
 .icon-btn {

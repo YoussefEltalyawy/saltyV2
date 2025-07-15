@@ -4,7 +4,7 @@ import { useGSAP } from '@gsap/react';
 import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
 import logoAnimation from '../../public/logo-animation.json';
 import { LoadingOverlay } from './LoadingOverlay';
-import { useFetcher } from 'react-router';
+import { useFetcher, NavLink } from 'react-router';
 import type { FeaturedCollectionFragment } from 'storefrontapi.generated';
 
 export function HeroSection() {
@@ -38,7 +38,7 @@ export function HeroSection() {
     }
   }, [s25Fetcher.data]);
 
-  // GSAP slide up when Lottie finishes
+  // GSAP fade out when Lottie finishes
   const handleLottieComplete = useCallback(() => {
     setOverlayInteractive(false);
     let triggered = false;
@@ -46,8 +46,8 @@ export function HeroSection() {
       // Use gsap.context for scoping and cleanup
       const ctx = gsap.context(() => {
         gsap.to(overlayRef.current, {
-          y: '100%',
-          duration: 0.8,
+          opacity: 0,
+          duration: 1,
           ease: 'power3.out',
           force3D: true,
           onUpdate: function () {
@@ -67,7 +67,7 @@ export function HeroSection() {
 
   useGSAP(() => {
     if (overlayRef.current) {
-      gsap.set(overlayRef.current, { y: 0, force3D: true });
+      gsap.set(overlayRef.current, { opacity: 1, force3D: true });
     }
   }, [overlayVisible]);
 
@@ -107,7 +107,7 @@ export function HeroSection() {
       className="relative w-screen left-1/2 right-1/2 -mx-[50vw] overflow-hidden flex items-center justify-center"
       style={{
         // Use 'dvh' (dynamic viewport height) to account for mobile browser UI
-        height: '100dvh',
+        height: '90dvh',
       }}
     >
       {/* Overlay with Lottie animation */}
@@ -133,47 +133,21 @@ export function HeroSection() {
         style={{ willChange: 'opacity, filter' }}
       />
       <div className="absolute top-5 left-0 w-full h-full flex items-start pt-[var(--header-height)] pl-4 z-1">
-        <h1 className='text-white font-normal text-6xl md:text-7xl tracking-tight max-w-[65%] text-left overflow-hidden'>
+        <h1 className='text-white font-normal text-3xl md:text-3xl tracking-tight max-w-[40%] text-left overflow-hidden'>
           <span ref={keepRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>KEEP</span>{' '}
           <span ref={itRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>IT</span>{' '}
           <span ref={saltyRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>SALTY.</span>
         </h1>
       </div>
-      {/* S25 Collection button container */}
-      <div
-        className="absolute left-0 w-full flex justify-center pointer-events-none"
-        style={{
-          // Position is calculated from the bottom, accounting for the peek AND the safe area for browser UI
-          bottom: 'calc(var(--section-peek) + .5rem + env(safe-area-inset-bottom, 0px))',
-          zIndex: 5,
-        }}
+      {/* S25 Collection button container - removed as per request */}
+      {/* SHOP HERE link at bottom right */}
+      <NavLink
+        to="/collections/s25-collection"
+        className="absolute bottom-8 right-8 z- text-white text-sm tracking-widest font-medium uppercase hover:underline focus:underline outline-none"
+
       >
-        <a
-          ref={exploreBtnRef}
-          href="/collections/s25-collection"
-          className="flex items-center justify-between w-[90vw] max-w-md mx-auto shadow-lg py-2.5 px-6 text-xl font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-white pointer-events-auto rounded-xl overflow-hidden"
-          style={{
-            boxShadow: '0 4px 24px rgba(0,0,0,0.30)',
-            position: 'relative',
-          }}
-        >
-          {/* Background image from collection */}
-          {s25Collection?.image && (
-            <div
-              className="absolute inset-0 w-full h-full bg-cover bg-center"
-              style={{
-                backgroundImage: `url(${s25Collection.image.url})`,
-                filter: 'brightness(0.5)',
-                backgroundPosition: 'top 30% center',
-              }}
-            />
-          )}
-          <span className="text-center text-xl relative text-white font-manrope font-normal">Explore S25 Collection</span>
-          <span className="ml-4 flex items-center justify-center w-8 h-8 rounded-full relative backdrop-blur-sm bg-white/10 border border-white/40 shadow-inner">
-            <svg width="16" height="16" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-          </span>
-        </a>
-      </div>
+        SHOP HERE
+      </NavLink>
     </section>
   );
 }
