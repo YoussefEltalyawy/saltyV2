@@ -182,15 +182,35 @@ export function BrowseCollectionsSection() {
     };
   }, [isClient, isSectionActive]);
 
-  const releaseSectionLockAndScrollToHero = () => {
+  // Replace releaseSectionLockAndScrollToHero with a direction-aware function
+  const releaseSectionLockAndScroll = (direction: 'up' | 'down') => {
     setIsSectionActive(false);
     document.body.style.overflow = '';
     document.body.style.touchAction = '';
-    gsap.to(window, {
-      scrollTo: 0,
-      duration: 0.6,
-      ease: 'power2.out',
-    });
+    if (direction === 'up') {
+      // Scroll to hero (top)
+      gsap.to(window, {
+        scrollTo: 0,
+        duration: 0.6,
+        ease: 'power2.out',
+      });
+    } else if (direction === 'down') {
+      // Scroll to next section below collections
+      const section = sectionRef.current;
+      if (section) {
+        let next = section.nextElementSibling as HTMLElement | null;
+        while (next && next.tagName.toLowerCase() !== 'section') {
+          next = next.nextElementSibling as HTMLElement | null;
+        }
+        if (next) {
+          gsap.to(window, {
+            scrollTo: next.offsetTop,
+            duration: 0.6,
+            ease: 'power2.out',
+          });
+        }
+      }
+    }
   };
 
   // Scroll handling for collections
@@ -202,20 +222,22 @@ export function BrowseCollectionsSection() {
 
       const scrollDirection = event.deltaY > 0 ? 'down' : 'up';
       let handled = false;
-      let releaseLock = false;
+      let releaseLock: 'up' | 'down' | null = null;
 
       setActiveIndex((prevIndex) => {
         if (scrollDirection === 'down') {
           if (prevIndex < collections.length - 1) {
             handled = true;
             return prevIndex + 1;
+          } else if (prevIndex === collections.length - 1) {
+            releaseLock = 'down';
           }
         } else {
           if (prevIndex > 0) {
             handled = true;
             return prevIndex - 1;
           } else if (prevIndex === 0) {
-            releaseLock = true;
+            releaseLock = 'up';
           }
         }
         return prevIndex;
@@ -225,7 +247,7 @@ export function BrowseCollectionsSection() {
         event.preventDefault();
       } else if (releaseLock) {
         event.preventDefault();
-        releaseSectionLockAndScrollToHero();
+        releaseSectionLockAndScroll(releaseLock);
       }
     }, 150, { leading: true, trailing: false });
 
@@ -245,20 +267,22 @@ export function BrowseCollectionsSection() {
 
       const swipeDirection = deltaY > 0 ? 'down' : 'up';
       let handled = false;
-      let releaseLock = false;
+      let releaseLock: 'up' | 'down' | null = null;
 
       setActiveIndex((prevIndex) => {
         if (swipeDirection === 'down') {
           if (prevIndex < collections.length - 1) {
             handled = true;
             return prevIndex + 1;
+          } else if (prevIndex === collections.length - 1) {
+            releaseLock = 'down';
           }
         } else {
           if (prevIndex > 0) {
             handled = true;
             return prevIndex - 1;
           } else if (prevIndex === 0) {
-            releaseLock = true;
+            releaseLock = 'up';
           }
         }
         return prevIndex;
@@ -268,7 +292,7 @@ export function BrowseCollectionsSection() {
         event.preventDefault();
       } else if (releaseLock) {
         event.preventDefault();
-        releaseSectionLockAndScrollToHero();
+        releaseSectionLockAndScroll(releaseLock);
       }
       touchStartY = null;
     };

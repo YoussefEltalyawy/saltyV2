@@ -17,6 +17,7 @@
     "@gsap/react": "^2.1.2",
     "@shopify/hydrogen": "2025.5.0",
     "@shopify/remix-oxygen": "^3.0.0",
+    "embla-carousel-react": "^8.6.0",
     "graphql": "^16.10.0",
     "graphql-tag": "^2.12.6",
     "gsap": "^3.13.0",

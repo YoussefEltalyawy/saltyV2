@@ -9,6 +9,7 @@ import type {
 import { ProductItem } from '~/components/ProductItem';
 import { HeroSection } from '~/components/HeroSection';
 import { BrowseCollectionsSection } from '~/components/BrowseCollectionsSection';
+import { FeaturedProductsCarousel } from '~/components/FeaturedProductsCarousel';
 
 export const meta: MetaFunction = () => {
   return [{ title: 'SALTY | Home' }];
@@ -29,13 +30,24 @@ export async function loader(args: LoaderFunctionArgs) {
  * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
  */
 async function loadCriticalData({ context }: LoaderFunctionArgs) {
-  const [{ collections }] = await Promise.all([
-    context.storefront.query(FEATURED_COLLECTION_QUERY),
-    // Add other queries here, so that they are loaded in parallel
+  const { storefront } = context;
+  const [{ collection }] = await Promise.all([
+    storefront.query(FEATURED_COLLECTION_PRODUCTS_QUERY, {
+      variables: {
+        handle: 'featured',
+        country: storefront.i18n.country,
+        language: storefront.i18n.language,
+        first: 8,
+      },
+    }),
   ]);
 
+  if (!collection) {
+    throw new Response('Featured collection not found', { status: 404 });
+  }
+
   return {
-    featuredCollection: collections.nodes[0],
+    featuredCollection: collection,
   };
 }
 
@@ -45,17 +57,7 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
  * Make sure to not throw any errors here, as it will cause the page to 500.
  */
 function loadDeferredData({ context }: LoaderFunctionArgs) {
-  const recommendedProducts = context.storefront
-    .query(RECOMMENDED_PRODUCTS_QUERY)
-    .catch((error) => {
-      // Log query errors, but don't throw them so the page can still render
-      console.error(error);
-      return null;
-    });
-
-  return {
-    recommendedProducts,
-  };
+  return {};
 }
 
 export default function Homepage() {
@@ -64,8 +66,9 @@ export default function Homepage() {
     <div className="home">
       <HeroSection />
       <BrowseCollectionsSection />
-      {/* <FeaturedCollection collection={data.featuredCollection} />
-      <RecommendedProducts products={data.recommendedProducts} /> */}
+      {data.featuredCollection?.products?.nodes?.length > 0 ? (
+        <FeaturedProductsCarousel products={data.featuredCollection.products.nodes} />
+      ) : null}
     </div>
   );
 }
@@ -165,6 +168,54 @@ const RECOMMENDED_PRODUCTS_QUERY = `#graphql
     products(first: 4, sortKey: UPDATED_AT, reverse: true) {
       nodes {
         ...RecommendedProduct
+      }
+    }
+  }
+` as const;
+
+const PRODUCT_ITEM_FRAGMENT = `#graphql
+  fragment MoneyProductItem on MoneyV2 {
+    amount
+    currencyCode
+  }
+  fragment ProductItem on Product {
+    id
+    handle
+    title
+    featuredImage {
+      id
+      altText
+      url
+      width
+      height
+    }
+    priceRange {
+      minVariantPrice {
+        ...MoneyProductItem
+      }
+      maxVariantPrice {
+        ...MoneyProductItem
+      }
+    }
+  }
+` as const;
+
+const FEATURED_COLLECTION_PRODUCTS_QUERY = `#graphql
+  ${PRODUCT_ITEM_FRAGMENT}
+  query FeaturedCollectionProducts(
+    $handle: String!
+    $country: CountryCode
+    $language: LanguageCode
+    $first: Int
+  ) @inContext(country: $country, language: $language) {
+    collection(handle: $handle) {
+      id
+      handle
+      title
+      products(first: $first) {
+        nodes {
+          ...ProductItem
+        }
       }
     }
   }
