@@ -8,6 +8,7 @@ import {
 import type { HeaderQuery, CartApiQueryFragment } from 'storefrontapi.generated';
 import { useAside } from '~/components/Aside';
 import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
+import { useHeaderColor } from './HeaderColorContext';
 import { Menu, User, Search, ShoppingCart } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -34,6 +35,7 @@ export function Header({
   const leftRef = useRef<HTMLDivElement>(null);
   const centerRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
+  const { headerColor } = useHeaderColor();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -41,8 +43,8 @@ export function Header({
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const logoSrc = scrolled ? '/white-logo.png' : '/white-logo.png';
-  const iconColor = scrolled ? '#fff' : '#fff';
+  const logoSrc = headerColor === 'black' ? '/black-logo.png' : '/white-logo.png';
+  const iconColor = headerColor === 'black' ? '#000' : '#fff';
   const { shop, menu } = header;
 
   // GSAP animation for header elements

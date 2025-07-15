@@ -3,6 +3,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import type { RecommendedProductFragment } from 'storefrontapi.generated';
 import { Image } from '@shopify/hydrogen';
 import { Link } from 'react-router';
+import { useHeaderColor } from '~/components/HeaderColorContext';
 
 interface FeaturedProductsCarouselProps {
   products: RecommendedProductFragment[];
@@ -12,6 +13,8 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, slidesToScroll: 1 });
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const { setHeaderColor } = useHeaderColor();
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -28,13 +31,33 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
     };
   }, [emblaApi, onSelect]);
 
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    const observer = new window.IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHeaderColor('black');
+        } else {
+          setHeaderColor('default');
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(section);
+    return () => {
+      observer.disconnect();
+      setHeaderColor('default');
+    };
+  }, [setHeaderColor]);
+
   return (
-    <section className="bg-white py-6">
+    <section ref={sectionRef} className="bg-white py-6">
       <div className="max-w-xl mx-auto">
-        <h2 className="text-2xl md:text-3xl font-medium mb-0 ml-4 text-black flex items-center gap-2">
-          <span>Featured</span>
+        <h2 className="text-small font-medium mb-0 ml-4 text-black flex items-center gap-2">
+          <span>FEATURED</span>
         </h2>
-        <div className="relative mt-6">
+        <div className="relative">
           <div className="overflow-hidden" ref={emblaRef}>
             <div className="flex">
               {products.map((product) => (
@@ -53,8 +76,8 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                       />
                     )}
                     <div className="text-center">
-                      <h3 className="text-lg font-semibold text-black mb-1">{product.title}</h3>
-                      <span className="block text-base font-mono text-black">
+                      <h3 className="text-lg text-black mb-1 uppercase">{product.title}</h3>
+                      <span className="block text-base text-black">
                         {product.priceRange.minVariantPrice.amount} {product.priceRange.minVariantPrice.currencyCode}
                       </span>
                     </div>

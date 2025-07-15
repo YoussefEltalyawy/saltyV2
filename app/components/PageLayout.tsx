@@ -18,6 +18,7 @@ import { HeaderAnimationProvider } from '~/components/HeaderAnimationContext';
 import { CartAside } from '~/components/CartAside';
 import { SearchAside } from '~/components/SearchAside';
 import { MenuAside } from '~/components/MenuAside';
+import { HeaderColorProvider } from './HeaderColorContext';
 
 interface PageLayoutProps {
   cart: Promise<CartApiQueryFragment | null>;
@@ -37,26 +38,28 @@ export function PageLayout({
   publicStoreDomain,
 }: PageLayoutProps) {
   return (
-    <HeaderAnimationProvider>
-      <Aside.Provider>
-        <CartAside cart={cart} />
-        <SearchAside />
-        <MenuAside header={header} publicStoreDomain={publicStoreDomain} />
-        {header && (
-          <Header
+    <HeaderColorProvider>
+      <HeaderAnimationProvider>
+        <Aside.Provider>
+          <CartAside cart={cart} />
+          <SearchAside />
+          <MenuAside header={header} publicStoreDomain={publicStoreDomain} />
+          {header && (
+            <Header
+              header={header}
+              cart={cart}
+              isLoggedIn={isLoggedIn}
+              publicStoreDomain={publicStoreDomain}
+            />
+          )}
+          <main>{children}</main>
+          <Footer
+            footer={footer}
             header={header}
-            cart={cart}
-            isLoggedIn={isLoggedIn}
             publicStoreDomain={publicStoreDomain}
           />
-        )}
-        <main>{children}</main>
-        <Footer
-          footer={footer}
-          header={header}
-          publicStoreDomain={publicStoreDomain}
-        />
-      </Aside.Provider>
-    </HeaderAnimationProvider>
+        </Aside.Provider>
+      </HeaderAnimationProvider>
+    </HeaderColorProvider>
   );
 }
