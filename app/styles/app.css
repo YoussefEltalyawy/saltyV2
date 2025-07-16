@@ -14,10 +14,6 @@ html {
   --section-peek: clamp(30px, 8vh, 100px);
 }
 
-img {
-  border-radius: 4px;
-}
-
 /*
 * --------------------------------------------------
 * Non anchor links
@@ -438,7 +434,8 @@ button.reset:hover:not(:has(> *)) {
 
 .products-grid {
   display: grid;
-  grid-gap: 1.5rem;
+  grid-row-gap: 1.5rem;
+  grid-column-gap: 0.2rem;
   grid-template-columns: repeat(auto-fit, minmax(var(--grid-item-width), 1fr));
   margin-bottom: 2rem;
 }
@@ -693,3 +690,9 @@ body {
     padding-bottom: env(safe-area-inset-bottom);
   }
 } */
+
+@media (max-width: 640px) {
+  .products-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}

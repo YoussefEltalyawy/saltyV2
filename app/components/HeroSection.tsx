@@ -143,7 +143,7 @@ export function HeroSection() {
       {/* SHOP HERE link at bottom right */}
       <NavLink
         to="/collections/s25-collection"
-        className="absolute bottom-8 right-8 z- text-white text-sm tracking-widest font-medium uppercase hover:underline focus:underline outline-none"
+        className="absolute bottom-8 right-8 z-[8] text-white text-sm tracking-widest font-medium uppercase hover:underline focus:underline outline-none"
 
       >
         SHOP HERE

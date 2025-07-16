@@ -3,7 +3,8 @@ import { useLoaderData, type MetaFunction } from 'react-router';
 import { getPaginationVariables, Analytics } from '@shopify/hydrogen';
 import { PaginatedResourceSection } from '~/components/PaginatedResourceSection';
 import { redirectIfHandleIsLocalized } from '~/lib/redirect';
-import { ProductItem } from '~/components/ProductItem';
+import { ProductCard } from '~/components/ProductCard';
+import type { ProductItemCollectionFragment } from 'storefrontapi.generated';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [{ title: `SALTY | ${data?.collection.title ?? ''} Collection` }];
@@ -73,19 +74,16 @@ export default function Collection() {
 
   return (
     <div className="collection">
-      <h1>{collection.title}</h1>
-      <p className="collection-description">{collection.description}</p>
+      <h1 className='ml-3 font-semibold uppercase text-small'>{collection.title}</h1>
+      {/* Removed collection description */}
       <PaginatedResourceSection
         connection={collection.products}
-        resourcesClassName="products-grid"
+        resourcesClassName="grid grid-cols-2 products-grid"
       >
-        {({ node: product, index }) => (
-          <ProductItem
-            key={product.id}
-            product={product}
-            loading={index < 8 ? 'eager' : undefined}
-          />
-        )}
+        {({ node, index }: { node: unknown; index: number }) => {
+          const product = node as ProductItemCollectionFragment;
+          return <ProductCard key={product.id} product={product} />;
+        }}
       </PaginatedResourceSection>
       <Analytics.CollectionView
         data={{
@@ -121,6 +119,20 @@ const PRODUCT_ITEM_FRAGMENT = `#graphql
       }
       maxVariantPrice {
         ...MoneyProductItem
+      }
+    }
+    options {
+      name
+      optionValues {
+        name
+        swatch {
+          color
+          image {
+            previewImage {
+              url
+            }
+          }
+        }
       }
     }
   }
