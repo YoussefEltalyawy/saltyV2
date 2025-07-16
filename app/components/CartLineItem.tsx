@@ -35,7 +35,7 @@ export function CartLineItem({
   return (
     <li
       key={id}
-      className="flex bg-[#fafafa] rounded-lg overflow-hidden mb-4 min-h-[120px] relative"
+      className="flex bg-[#fafafa] overflow-hidden mb-4 min-h-[120px] relative"
       style={{ minHeight: '120px' }}
     >
       {/* Product Image */}
