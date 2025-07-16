@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { Image, Money } from '@shopify/hydrogen';
 import type { ProductItemFragment } from 'storefrontapi.generated';
+import { ProductPrice } from './ProductPrice';
 
 function ColorSwatch({ color, image, name }: { color?: string; image?: string; name: string }) {
   return (
@@ -36,10 +37,17 @@ export function ProductCard({ product }: { product: ProductItemFragment }) {
         />
       )}
       <div className="flex flex-col gap-1 ml-2">
-        <h4 className="text-sm font-medium text-gray-900 group-hover:underline truncate">{product.title}</h4>
-        <span className="text-xs text-gray-700 font-semibold">
-          <Money data={product.priceRange.minVariantPrice} />
-        </span>
+        <h4 className="text-base font-medium text-gray-900 group-hover:underline truncate">{product.title}</h4>
+        {product.selectedOrFirstAvailableVariant ? (
+          <ProductPrice
+            price={product.selectedOrFirstAvailableVariant.price}
+            compareAtPrice={product.selectedOrFirstAvailableVariant.compareAtPrice}
+          />
+        ) : (
+          <span className="text-sm text-gray-700 font-semibold">
+            <Money data={product.priceRange.minVariantPrice} />
+          </span>
+        )}
         {colorOption && (
           <div className="flex items-center mt-1">
             {colorOption.optionValues.map((value: any) => (

@@ -135,6 +135,16 @@ const PRODUCT_ITEM_FRAGMENT = `#graphql
         }
       }
     }
+    selectedOrFirstAvailableVariant {
+      price {
+        amount
+        currencyCode
+      }
+      compareAtPrice {
+        amount
+        currencyCode
+      }
+    }
   }
 ` as const;
 
