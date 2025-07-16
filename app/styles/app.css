@@ -570,7 +570,6 @@ button.reset:hover:not(:has(> *)) {
   box-shadow: none;
 }
 .custom-header.scrolled {
-
 }
 .header-left,
 .header-center,

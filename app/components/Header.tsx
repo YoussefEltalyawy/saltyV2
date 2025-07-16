@@ -18,6 +18,8 @@ interface HeaderProps {
   cart: Promise<CartApiQueryFragment | null>;
   isLoggedIn: Promise<boolean>;
   publicStoreDomain: string;
+  showMarginButton?: boolean;
+  isHomePage?: boolean;
 }
 
 type Viewport = 'desktop' | 'mobile';
@@ -27,6 +29,8 @@ export function Header({
   isLoggedIn,
   cart,
   publicStoreDomain,
+  showMarginButton = false, // keep for prop compatibility, but unused
+  isHomePage = false,
 }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false);
   const { open } = useAside();
@@ -49,6 +53,16 @@ export function Header({
 
   // GSAP animation for header elements
   useGSAP(() => {
+    if (!isHomePage) {
+      // On non-home pages, ensure header is sharp and static
+      gsap.set([leftRef.current, centerRef.current, rightRef.current], {
+        filter: 'blur(0px)',
+        y: 0,
+        willChange: 'filter, transform, opacity',
+        force3D: true,
+      });
+      return;
+    }
     if (!isHeaderVisible) {
       // Initially hide header elements with blur
       gsap.set([leftRef.current, centerRef.current, rightRef.current], {
@@ -72,13 +86,16 @@ export function Header({
       }, [leftRef, centerRef, rightRef]);
       return () => ctx.revert();
     }
-  }, [isHeaderVisible]);
+  }, [isHeaderVisible, isHomePage]);
 
   return (
     <header
       ref={headerRef}
       className={`header custom-header${scrolled ? ' scrolled' : ''}`}
-      style={{ filter: isHeaderVisible ? 'blur(0px)' : 'blur(10px)' }}
+      style={{
+        filter: isHomePage ? (isHeaderVisible ? 'blur(0px)' : 'blur(10px)') : 'blur(0px)',
+        marginBottom: isHomePage ? undefined : '2rem',
+      }}
     >
       <div ref={leftRef} className="header-left">
         <button className="icon-btn" aria-label="Menu" onClick={() => open('mobile')}>

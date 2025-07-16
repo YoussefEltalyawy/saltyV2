@@ -1,5 +1,5 @@
-import { Await, Link } from 'react-router';
-import { Suspense, useId } from 'react';
+import { Await, Link, useLocation } from 'react-router';
+import { Suspense, useId, useEffect } from 'react';
 import type {
   CartApiQueryFragment,
   FooterQuery,
@@ -18,7 +18,7 @@ import { HeaderAnimationProvider } from '~/components/HeaderAnimationContext';
 import { CartAside } from '~/components/CartAside';
 import { SearchAside } from '~/components/SearchAside';
 import { MenuAside } from '~/components/MenuAside';
-import { HeaderColorProvider } from './HeaderColorContext';
+import { HeaderColorProvider, useHeaderColor } from './HeaderColorContext';
 
 interface PageLayoutProps {
   cart: Promise<CartApiQueryFragment | null>;
@@ -29,7 +29,15 @@ interface PageLayoutProps {
   children?: React.ReactNode;
 }
 
-export function PageLayout({
+export function PageLayout(props: PageLayoutProps) {
+  return (
+    <HeaderColorProvider>
+      <PageLayoutWithHeaderColor {...props} />
+    </HeaderColorProvider>
+  );
+}
+
+function PageLayoutWithHeaderColor({
   cart,
   children = null,
   footer,
@@ -37,29 +45,52 @@ export function PageLayout({
   isLoggedIn,
   publicStoreDomain,
 }: PageLayoutProps) {
+  const location = useLocation();
+  const { setHeaderColor } = useHeaderColor();
+
+  const isHomePage =
+    location.pathname === '/' ||
+    /^\/[a-zA-Z]{2}-[a-zA-Z]{2}\/?$/.test(location.pathname);
+
+  useEffect(() => {
+    if (isHomePage) {
+      setHeaderColor('default');
+    } else {
+      setHeaderColor('black');
+    }
+  }, [location.pathname, setHeaderColor, isHomePage]);
+
+  const headerHeight = 'var(--header-height)';
+
   return (
-    <HeaderColorProvider>
-      <HeaderAnimationProvider>
-        <Aside.Provider>
-          <CartAside cart={cart} />
-          <SearchAside />
-          <MenuAside header={header} publicStoreDomain={publicStoreDomain} />
-          {header && (
-            <Header
-              header={header}
-              cart={cart}
-              isLoggedIn={isLoggedIn}
-              publicStoreDomain={publicStoreDomain}
-            />
-          )}
-          <main>{children}</main>
-          <Footer
-            footer={footer}
+    <HeaderAnimationProvider>
+      <Aside.Provider>
+        <CartAside cart={cart} />
+        <SearchAside />
+        <MenuAside header={header} publicStoreDomain={publicStoreDomain} />
+        {header && (
+          <Header
             header={header}
+            cart={cart}
+            isLoggedIn={isLoggedIn}
             publicStoreDomain={publicStoreDomain}
+            showMarginButton={!isHomePage}
+            isHomePage={isHomePage}
           />
-        </Aside.Provider>
-      </HeaderAnimationProvider>
-    </HeaderColorProvider>
+        )}
+        <main
+          style={{
+            paddingTop: isHomePage ? undefined : headerHeight,
+          }}
+        >
+          {children}
+        </main>
+        <Footer
+          footer={footer}
+          header={header}
+          publicStoreDomain={publicStoreDomain}
+        />
+      </Aside.Provider>
+    </HeaderAnimationProvider>
   );
 }
