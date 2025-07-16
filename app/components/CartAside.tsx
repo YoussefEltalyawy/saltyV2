@@ -10,7 +10,7 @@ interface CartAsideProps {
 
 export function CartAside({ cart }: CartAsideProps) {
   return (
-    <Aside type="cart" heading="CART">
+    <Aside type="cart" heading="CART" animation="right">
       <Suspense fallback={<p>Loading cart ...</p>}>
         <Await resolve={cart}>
           {(cart) => {

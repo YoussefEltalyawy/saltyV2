@@ -30,13 +30,13 @@ export function Aside({
   children,
   heading,
   type,
-  animation = 'left', // 'left' or 'top'
+  animation = 'left', // 'left', 'right', or 'top'
   showHeader = true,
 }: {
   children?: React.ReactNode;
   type: AsideType;
   heading: React.ReactNode;
-  animation?: 'left' | 'top';
+  animation?: 'left' | 'right' | 'top';
   showHeader?: boolean;
 }) {
   const { type: activeType, close } = useAside();
@@ -68,6 +68,24 @@ export function Aside({
           });
         } else {
           gsap.set(aside, { y: '-100%', force3D: true, willChange: 'transform, opacity' });
+        }
+      } else if (animation === 'right') {
+        if (expanded && !exiting) {
+          gsap.fromTo(
+            aside,
+            { x: '100%', force3D: true },
+            { x: '0%', duration: 0.5, ease: 'power2.inOut', force3D: true, willChange: 'transform, opacity' }
+          );
+        } else if (exiting) {
+          gsap.to(aside, {
+            x: '100%',
+            duration: 0.5,
+            ease: 'power2.inOut',
+            force3D: true,
+            willChange: 'transform, opacity',
+          });
+        } else {
+          gsap.set(aside, { x: '100%', force3D: true, willChange: 'transform, opacity' });
         }
       } else {
         // default: left
@@ -134,7 +152,9 @@ export function Aside({
   const asideClass =
     animation === 'top'
       ? 'fixed left-0 top-0 w-full max-w-full bg-white shadow-2xl z-50 flex flex-col'
-      : 'fixed left-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-50 flex flex-col';
+      : animation === 'right'
+        ? 'fixed right-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-50 flex flex-col px-4'
+        : 'fixed left-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-50 flex flex-col px-4';
 
   return (
     <div
@@ -149,8 +169,8 @@ export function Aside({
         style={{ willChange: 'transform, opacity' }}
       >
         {showHeader ? (
-          <header className="flex items-center border-b border-black h-[var(--header-height)] justify-between px-5">
-            <h3 className="m-0">{heading}</h3>
+          <header className="flex items-center border-b border-black h-[var(--header-height)] justify-between">
+            <h3 className="m-0 font-semibold">{heading}</h3>
             <button className="close reset font-bold opacity-80 w-5 hover:opacity-100" onClick={handleClose} aria-label="Close">
               &times;
             </button>
@@ -165,7 +185,7 @@ export function Aside({
             &times;
           </button>
         )}
-        <main className="m-4 flex-1 overflow-y-auto">{children}</main>
+        <main className="mt-4 flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

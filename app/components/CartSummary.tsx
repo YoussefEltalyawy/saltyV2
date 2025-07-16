@@ -1,22 +1,18 @@
-import type {CartApiQueryFragment} from 'storefrontapi.generated';
-import type {CartLayout} from '~/components/CartMain';
-import {CartForm, Money, type OptimisticCart} from '@shopify/hydrogen';
-import {useRef} from 'react';
-import {FetcherWithComponents} from 'react-router';
+import type { CartApiQueryFragment } from 'storefrontapi.generated';
+import type { CartLayout } from '~/components/CartMain';
+import { CartForm, Money, type OptimisticCart } from '@shopify/hydrogen';
+import { useRef } from 'react';
+import { FetcherWithComponents } from 'react-router';
 
 type CartSummaryProps = {
   cart: OptimisticCart<CartApiQueryFragment | null>;
   layout: CartLayout;
 };
 
-export function CartSummary({cart, layout}: CartSummaryProps) {
-  const className =
-    layout === 'page' ? 'cart-summary-page' : 'cart-summary-aside';
-
+export function CartSummary({ cart, layout }: CartSummaryProps) {
   return (
-    <div aria-labelledby="cart-summary" className={className}>
-      <h4>Totals</h4>
-      <dl className="cart-subtotal">
+    <div className="pt-6 pb-2 px-0 w-full">
+      <dl className="flex justify-between items-center text-base font-normal mb-4">
         <dt>Subtotal</dt>
         <dd>
           {cart.cost?.subtotalAmount?.amount ? (
@@ -26,13 +22,19 @@ export function CartSummary({cart, layout}: CartSummaryProps) {
           )}
         </dd>
       </dl>
-      <CartDiscounts discountCodes={cart.discountCodes} />
-      <CartGiftCard giftCardCodes={cart.appliedGiftCards} />
-      <CartCheckoutActions checkoutUrl={cart.checkoutUrl} />
+      <a
+        href={cart.checkoutUrl}
+        className="block w-full bg-black text-white text-center py-3 rounded-none font-semibold text-base transition hover:opacity-90 focus:outline-none"
+      >
+        Checkout
+      </a>
+      <div className="text-xs text-center text-gray-700 mt-4 mb-2 tracking-wide">
+        SHIPPING & TAXES CALCULATED AT CHECKOUT
+      </div>
     </div>
   );
 }
-function CartCheckoutActions({checkoutUrl}: {checkoutUrl?: string}) {
+function CartCheckoutActions({ checkoutUrl }: { checkoutUrl?: string }) {
   if (!checkoutUrl) return null;
 
   return (
@@ -53,7 +55,7 @@ function CartDiscounts({
   const codes: string[] =
     discountCodes
       ?.filter((discount) => discount.applicable)
-      ?.map(({code}) => code) || [];
+      ?.map(({ code }) => code) || [];
 
   return (
     <div>
@@ -111,7 +113,7 @@ function CartGiftCard({
   const appliedGiftCardCodes = useRef<string[]>([]);
   const giftCardCodeInput = useRef<HTMLInputElement>(null);
   const codes: string[] =
-    giftCardCodes?.map(({lastCharacters}) => `***${lastCharacters}`) || [];
+    giftCardCodes?.map(({ lastCharacters }) => `***${lastCharacters}`) || [];
 
   function saveAppliedCode(code: string) {
     const formattedCode = code.replace(/\s/g, ''); // Remove spaces

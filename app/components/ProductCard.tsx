@@ -37,8 +37,8 @@ export function ProductCard({ product }: { product: ProductItemFullFragment }) {
         />
       )}
       <div className="flex flex-col gap-1 ml-2">
-        <h4 className="text-small text-gray-900 group-hover:underline truncate">{product.title}</h4>
-        <p className='text-[12px]'>
+        <h4 className="text-sm text-gray-900 group-hover:underline truncate">{product.title}</h4>
+        <p className='text-[13px]'>
           {product.selectedOrFirstAvailableVariant ? (
             <ProductPrice
               price={product.selectedOrFirstAvailableVariant.price}
