@@ -37,14 +37,14 @@ export function ProductCard({ product }: { product: ProductItemFragment }) {
         />
       )}
       <div className="flex flex-col gap-1 ml-2">
-        <h4 className="text-base font-medium text-gray-900 group-hover:underline truncate">{product.title}</h4>
+        <h4 className="text-[14px] font-medium text-gray-900 group-hover:underline truncate">{product.title}</h4>
         {product.selectedOrFirstAvailableVariant ? (
           <ProductPrice
             price={product.selectedOrFirstAvailableVariant.price}
             compareAtPrice={product.selectedOrFirstAvailableVariant.compareAtPrice}
           />
         ) : (
-          <span className="text-sm text-gray-700 font-semibold">
+          <span className="text-xs text-gray-700 font-semibold">
             <Money data={product.priceRange.minVariantPrice} />
           </span>
         )}
