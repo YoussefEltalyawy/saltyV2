@@ -223,6 +223,63 @@ button.reset:hover:not(:has(> *)) {
 
 .header-menu-item {
   cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header-menu-item:hover {
+  transform: translateX(2px);
+}
+
+/* Expandable menu styles */
+.menu-item-container {
+  margin-bottom: 0.25rem;
+}
+
+.menu-item-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.header-menu-item.has-sub-items {
+  font-weight: 500;
+  color: #333;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header-menu-item.has-sub-items:hover {
+  color: #000;
+  transform: translateX(4px);
+}
+
+.sub-items-container {
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  margin-left: 0.5rem;
+}
+
+.menu-item-container.level-1 .header-menu-item {
+  font-size: 0.9rem;
+  color: #666;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.menu-item-container.level-1 .header-menu-item:hover {
+  color: #333;
+  transform: translateX(3px);
+}
+
+.menu-item-container.level-2 .header-menu-item {
+  font-size: 0.85rem;
+  color: #888;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.menu-item-container.level-2 .header-menu-item:hover {
+  color: #666;
+  transform: translateX(2px);
 }
 
 .header-ctas {

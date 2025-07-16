@@ -64,7 +64,7 @@ export function CartLineItem({
               </svg>
             </span>
           ) : (
-            <ProductPrice price={cost?.totalAmount} className="font-semibold text-sm" />
+            <ProductPrice price={cost?.totalAmount} />
           )}
         </div>
         {/* Product Name */}

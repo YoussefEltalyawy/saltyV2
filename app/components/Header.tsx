@@ -9,7 +9,7 @@ import type { HeaderQuery, CartApiQueryFragment } from 'storefrontapi.generated'
 import { useAside } from '~/components/Aside';
 import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
 import { useHeaderColor } from './HeaderColorContext';
-import { Menu, User, Search, ShoppingCart } from 'lucide-react';
+import { Menu, User, Search, ShoppingCart, ChevronRight } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 
@@ -135,33 +135,105 @@ export function HeaderMenu({
 }) {
   const className = `header-menu-${viewport}`;
   const { close } = useAside();
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (itemId: string) => {
+    const newExpandedItems = new Set(expandedItems);
+    if (newExpandedItems.has(itemId)) {
+      newExpandedItems.delete(itemId);
+    } else {
+      newExpandedItems.add(itemId);
+    }
+    setExpandedItems(newExpandedItems);
+  };
+
+  const handleItemClick = (item: any, hasSubItems: boolean) => {
+    if (hasSubItems) {
+      toggleExpanded(item.id);
+    } else {
+      close();
+    }
+  };
+
+  const renderMenuItem = (item: any, level: number = 0) => {
+    if (!item.url && (!item.items || item.items.length === 0)) return null;
+
+    const hasSubItems = item.items && item.items.length > 0;
+    const isExpanded = expandedItems.has(item.id);
+
+    // if the url is internal, we strip the domain
+    const url = item.url ? (
+      item.url.includes('myshopify.com') ||
+        item.url.includes(publicStoreDomain) ||
+        item.url.includes(primaryDomainUrl)
+        ? new URL(item.url).pathname
+        : item.url
+    ) : null;
+
+    return (
+      <div key={item.id} className={`menu-item-container level-${level}`}>
+        <div className="menu-item-row">
+          {url && !hasSubItems ? (
+            <NavLink
+              className="header-menu-item"
+              end
+              onClick={close}
+              prefetch="intent"
+              style={activeLinkStyle}
+              to={url}
+            >
+              {item.title}
+            </NavLink>
+          ) : (
+            <button
+              className={`header-menu-item ${hasSubItems ? 'has-sub-items' : ''}`}
+              onClick={() => handleItemClick(item, hasSubItems)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                textAlign: 'left'
+              }}
+            >
+              <span>{item.title}</span>
+              {hasSubItems && (
+                <ChevronRight
+                  size={16}
+                  style={{
+                    transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    opacity: 0.7
+                  }}
+                />
+              )}
+            </button>
+          )}
+        </div>
+
+        {hasSubItems && (
+          <div
+            className="sub-items-container"
+            style={{
+              maxHeight: isExpanded ? '500px' : '0px',
+              opacity: isExpanded ? 1 : 0,
+              transform: isExpanded ? 'translateY(0)' : 'translateY(-10px)'
+            }}
+          >
+            {item.items.map((subItem: any) => renderMenuItem(subItem, level + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <nav className={className} role="navigation">
-      {(menu || FALLBACK_HEADER_MENU).items.map((item) => {
-        if (!item.url) return null;
-
-        // if the url is internal, we strip the domain
-        const url =
-          item.url.includes('myshopify.com') ||
-            item.url.includes(publicStoreDomain) ||
-            item.url.includes(primaryDomainUrl)
-            ? new URL(item.url).pathname
-            : item.url;
-        return (
-          <NavLink
-            className="header-menu-item"
-            end
-            key={item.id}
-            onClick={close}
-            prefetch="intent"
-            style={activeLinkStyle}
-            to={url}
-          >
-            {item.title}
-          </NavLink>
-        );
-      })}
+      {(menu || FALLBACK_HEADER_MENU).items.map((item) => renderMenuItem(item))}
     </nav>
   );
 }

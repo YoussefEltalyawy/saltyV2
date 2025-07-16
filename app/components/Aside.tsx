@@ -8,6 +8,7 @@ import {
 } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { X } from 'lucide-react';
 
 type AsideType = 'search' | 'cart' | 'mobile' | 'closed';
 type AsideContextValue = {
@@ -171,18 +172,18 @@ export function Aside({
         {showHeader ? (
           <header className="flex items-center border-b border-black h-[var(--header-height)] justify-between">
             <h3 className="m-0 font-semibold">{heading}</h3>
-            <button className="close reset font-bold opacity-80 w-5 hover:opacity-100" onClick={handleClose} aria-label="Close">
-              &times;
+            <button className="close reset opacity-80 hover:opacity-100" onClick={handleClose} aria-label="Close">
+              <X size={18} />
             </button>
           </header>
         ) : (
           <button
-            className="absolute top-4 right-6 text-3xl font-bold opacity-80 hover:opacity-100 z-50"
+            className="absolute top-4 right-6 opacity-80 hover:opacity-100 z-50"
             onClick={handleClose}
             aria-label="Close"
             type="button"
           >
-            &times;
+            <X size={18} />
           </button>
         )}
         <main className="mt-4 flex-1 overflow-y-auto">{children}</main>
