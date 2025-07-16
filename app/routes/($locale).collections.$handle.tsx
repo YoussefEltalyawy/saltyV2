@@ -5,6 +5,7 @@ import { PaginatedResourceSection } from '~/components/PaginatedResourceSection'
 import { redirectIfHandleIsLocalized } from '~/lib/redirect';
 import { ProductCard } from '~/components/ProductCard';
 import type { ProductItemCollectionFragment } from 'storefrontapi.generated';
+import type { ProductItemFullFragment } from 'storefrontapi.generated';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [{ title: `SALTY | ${data?.collection.title ?? ''} Collection` }];
@@ -81,7 +82,8 @@ export default function Collection() {
         resourcesClassName="grid grid-cols-2 products-grid"
       >
         {({ node, index }: { node: unknown; index: number }) => {
-          const product = node as ProductItemCollectionFragment;
+          // Cast to ProductItemFullFragment to match ProductCard prop type
+          const product = node as unknown as ProductItemFullFragment;
           return <ProductCard key={product.id} product={product} />;
         }}
       </PaginatedResourceSection>
