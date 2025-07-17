@@ -188,17 +188,6 @@ export function HeaderMenu({
             <button
               className={`header-menu-item ${hasSubItems ? 'has-sub-items' : ''}`}
               onClick={() => handleItemClick(item, hasSubItems)}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%',
-                textAlign: 'left'
-              }}
             >
               <span>{item.title}</span>
               {hasSubItems && (

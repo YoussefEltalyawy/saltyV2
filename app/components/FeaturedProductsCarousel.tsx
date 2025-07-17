@@ -82,16 +82,15 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
       ([entry]) => {
         if (entry.isIntersecting) {
           setHeaderColor('black');
-        } else {
-          setHeaderColor('default');
         }
+        // Remove the else clause - don't reset to default when leaving
       },
       { threshold: 0.5 }
     );
     observer.observe(section);
     return () => {
       observer.disconnect();
-      setHeaderColor('default');
+      // Don't reset header color on cleanup
     };
   }, [setHeaderColor]);
 
