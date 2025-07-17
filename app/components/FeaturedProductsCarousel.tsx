@@ -170,9 +170,9 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
   }
 
   return (
-    <section ref={sectionRef} className="bg-white py-10">
+    <section ref={sectionRef} className="bg-white py-6">
       <div className="max-w-xl mx-auto">
-        <h2 className="text-small font-medium mb-0 ml-4 text-black flex items-center gap-2">
+        <h2 className="text-small font-semibold mb-0 ml-4 text-black flex items-center gap-2">
           <span>FEATURED</span>
         </h2>
         <div className="relative">
