@@ -23,6 +23,8 @@ import { Aside } from './components/Aside';
 import { HeaderAnimationProvider } from './components/HeaderAnimationContext';
 import { LockScreen } from '~/components/LockScreen';
 import { safeLocalStorage } from '~/lib/localStorage';
+import { NewsletterPopup } from '~/components/NewsletterPopup';
+import { useNewsletterPopup } from '~/hooks/useNewsletterPopup';
 
 export type RootLoader = typeof loader;
 
@@ -126,8 +128,8 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
         footerMenuHandle: 'browse-categories', // Menu handle for browse categories
       },
     }),
-    storefront.query(LOCK_PAGE_QUERY, { 
-      cache: storefront.CacheNone() 
+    storefront.query(LOCK_PAGE_QUERY, {
+      cache: storefront.CacheNone()
     }),
     // Add other queries here, so that they are loaded in parallel
   ]);
@@ -173,12 +175,13 @@ export function Layout({ children }: { children?: React.ReactNode }) {
   const data = useRouteLoaderData<RootLoader>('root');
   const [isChecking, setIsChecking] = useState(true);
   const [isLocked, setIsLocked] = useState(true);
+  const { isOpen: isNewsletterOpen, closePopup: closeNewsletterPopup } = useNewsletterPopup();
 
   useEffect(() => {
     if (data) {
       const shouldLock = data.storeLocked === true && typeof data.storePassword === 'string' && data.storePassword.trim() !== '';
       const hasAccess = safeLocalStorage.getItem('storeAccessGranted') === 'true';
-      
+
       if (hasAccess || !shouldLock) {
         setIsLocked(false);
       }
@@ -237,6 +240,7 @@ export function Layout({ children }: { children?: React.ReactNode }) {
             </HeaderAnimationProvider>
           )
         )}
+        <NewsletterPopup isOpen={isNewsletterOpen} onClose={closeNewsletterPopup} />
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />
       </body>
