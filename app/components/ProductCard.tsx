@@ -43,6 +43,7 @@ export function ProductCard({ product }: { product: ProductItemFullFragment }) {
             <ProductPrice
               price={product.selectedOrFirstAvailableVariant.price}
               compareAtPrice={product.selectedOrFirstAvailableVariant.compareAtPrice}
+              size={'sm'}
             />
           ) : (
             <span>

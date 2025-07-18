@@ -120,6 +120,7 @@ export default function Product() {
             <ProductPrice
               price={selectedVariant?.price}
               compareAtPrice={selectedVariant?.compareAtPrice}
+              size="base"
             />
           </div>
 
