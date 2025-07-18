@@ -79,7 +79,7 @@ export default function Collection() {
       {/* Removed collection description */}
       <PaginatedResourceSection
         connection={collection.products}
-        resourcesClassName="grid grid-cols-2 products-grid"
+        resourcesClassName="grid grid-cols-2 gap-x-[3px] gap-y-4 mb-4"
       >
         {({ node, index }: { node: unknown; index: number }) => {
           // Cast to ProductItemFullFragment to match ProductCard prop type
