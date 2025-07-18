@@ -11,14 +11,18 @@ import {
   ScrollRestoration,
   useRouteLoaderData,
 } from 'react-router';
+import { useState, useEffect } from 'react';
 import favicon from '~/assets/favicon.ico';
 import { FOOTER_QUERY, HEADER_QUERY } from '~/lib/fragments';
+import { LOCK_PAGE_QUERY } from '~/graphql/lockQuery';
 import resetStyles from '~/styles/reset.css?url';
 import appStyles from '~/styles/app.css?url';
 import tailwindCss from './styles/tailwind.css?url';
 import { PageLayout } from './components/PageLayout';
 import { Aside } from './components/Aside';
 import { HeaderAnimationProvider } from './components/HeaderAnimationContext';
+import { LockScreen } from '~/components/LockScreen';
+import { safeLocalStorage } from '~/lib/localStorage';
 
 export type RootLoader = typeof loader;
 
@@ -103,7 +107,7 @@ export async function loader(args: LoaderFunctionArgs) {
 async function loadCriticalData({ context }: LoaderFunctionArgs) {
   const { storefront } = context;
 
-  const [header, browseCollections, browseCategories] = await Promise.all([
+  const [header, browseCollections, browseCategories, lockData] = await Promise.all([
     storefront.query(HEADER_QUERY, {
       cache: storefront.CacheLong(),
       variables: {
@@ -122,10 +126,18 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
         footerMenuHandle: 'browse-categories', // Menu handle for browse categories
       },
     }),
+    storefront.query(LOCK_PAGE_QUERY, { 
+      cache: storefront.CacheNone() 
+    }),
     // Add other queries here, so that they are loaded in parallel
   ]);
 
-  return { header, browseCollections, browseCategories };
+  const metafields = lockData?.page?.metafields || [];
+  const storeLockedMetafield = metafields.find((m: any) => m && m.key === 'store_locked');
+  const storeLocked = storeLockedMetafield?.value === 'true';
+  const storePassword = metafields.find((m: any) => m && m.key === 'store_password')?.value || '';
+
+  return { header, browseCollections, browseCategories, storeLocked, storePassword };
 }
 
 /**
@@ -159,6 +171,42 @@ function loadDeferredData({ context }: LoaderFunctionArgs) {
 export function Layout({ children }: { children?: React.ReactNode }) {
   const nonce = useNonce();
   const data = useRouteLoaderData<RootLoader>('root');
+  const [isChecking, setIsChecking] = useState(true);
+  const [isLocked, setIsLocked] = useState(true);
+
+  useEffect(() => {
+    if (data) {
+      const shouldLock = data.storeLocked === true && typeof data.storePassword === 'string' && data.storePassword.trim() !== '';
+      const hasAccess = safeLocalStorage.getItem('storeAccessGranted') === 'true';
+      
+      if (hasAccess || !shouldLock) {
+        setIsLocked(false);
+      }
+      setIsChecking(false);
+    }
+  }, [data]);
+
+  const handlePasswordSuccess = () => setIsLocked(false);
+
+  if (isChecking || !data) {
+    return (
+      <html lang="en">
+        <head>
+          <meta charSet="utf-8" />
+          <meta name="viewport" content="width=device-width,initial-scale=1" />
+          <link rel="stylesheet" href={tailwindCss}></link>
+          <link rel="stylesheet" href={resetStyles}></link>
+          <link rel="stylesheet" href={appStyles}></link>
+          <Meta />
+          <Links />
+        </head>
+        <body>
+          <ScrollRestoration nonce={nonce} />
+          <Scripts nonce={nonce} />
+        </body>
+      </html>
+    );
+  }
 
   return (
     <html lang="en">
@@ -172,18 +220,22 @@ export function Layout({ children }: { children?: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        {data ? (
-          <Analytics.Provider
-            cart={data.cart}
-            shop={data.shop}
-            consent={data.consent}
-          >
-            <PageLayout {...data}>{children}</PageLayout>
-          </Analytics.Provider>
+        {data.storeLocked === true && typeof data.storePassword === 'string' && data.storePassword.trim() !== '' && isLocked ? (
+          <LockScreen correctPassword={data.storePassword} onPasswordSuccess={handlePasswordSuccess} />
         ) : (
-          <HeaderAnimationProvider>
-            <Aside.Provider>{children}</Aside.Provider>
-          </HeaderAnimationProvider>
+          data ? (
+            <Analytics.Provider
+              cart={data.cart}
+              shop={data.shop}
+              consent={data.consent}
+            >
+              <PageLayout {...data}>{children}</PageLayout>
+            </Analytics.Provider>
+          ) : (
+            <HeaderAnimationProvider>
+              <Aside.Provider>{children}</Aside.Provider>
+            </HeaderAnimationProvider>
+          )
         )}
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />
