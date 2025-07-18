@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
+import { useHeaderColor } from '~/components/HeaderColorContext';
 import logoAnimation from '../../public/logo-animation.json';
 import { LoadingOverlay } from './LoadingOverlay';
 import { useFetcher, NavLink } from 'react-router';
@@ -12,6 +13,7 @@ export function HeroSection() {
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [overlayInteractive, setOverlayInteractive] = useState(true);
   const { setHeaderVisible, isHeaderVisible } = useHeaderAnimation();
+  const { setHeaderColor } = useHeaderColor();
   const overlayRef = useRef<HTMLDivElement>(null);
   const lottieRef = useRef<any>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -19,6 +21,7 @@ export function HeroSection() {
   const itRef = useRef<HTMLSpanElement>(null);
   const saltyRef = useRef<HTMLSpanElement>(null);
   const exploreBtnRef = useRef<HTMLAnchorElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
   // Fetch S25 collection data
   const s25Fetcher = useFetcher<FeaturedCollectionFragment>();
@@ -71,6 +74,24 @@ export function HeroSection() {
     }
   }, [overlayVisible]);
 
+  // Intersection observer to set header color back to white when hero is in view
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHeaderColor('default');
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [setHeaderColor]);
+
   // GSAP animation for title text
   useGSAP(() => {
     gsap.set([keepRef.current, itRef.current, saltyRef.current, exploreBtnRef.current], {
@@ -104,6 +125,7 @@ export function HeroSection() {
 
   return (
     <section
+      ref={sectionRef}
       className="relative w-screen left-1/2 right-1/2 -mx-[50vw] overflow-hidden flex items-center justify-center"
       style={{
         // Use 'dvh' (dynamic viewport height) to account for mobile browser UI

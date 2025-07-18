@@ -8,6 +8,7 @@ import {
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
+import { useHeaderColor } from '~/components/HeaderColorContext';
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
 import { Await, NavLink, useRouteLoaderData, useFetcher } from 'react-router';
 import type { RootLoader } from '~/root';
@@ -20,6 +21,7 @@ gsap.registerPlugin(ScrollToPlugin);
 
 export function BrowseCollectionsSection() {
   const { isHeaderVisible } = useHeaderAnimation();
+  const { setHeaderColor } = useHeaderColor();
   const sectionRef = useRef<HTMLDivElement>(null);
   const currentBgRef = useRef<HTMLDivElement>(null);
   const nextBgRef = useRef<HTMLDivElement>(null);
@@ -145,6 +147,24 @@ export function BrowseCollectionsSection() {
   //     }
   //   }
   // }, [isHeaderVisible]);
+
+  // Intersection observer to set header color back to white when collections section is in view
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHeaderColor('default');
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, [setHeaderColor]);
 
   // Intersection observer for section activation
   useEffect(() => {

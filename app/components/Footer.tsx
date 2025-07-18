@@ -30,14 +30,14 @@ export function Footer({
               ABOUT
             </h3>
             <div>
-              <Link 
-                to="/pages/about-us" 
+              <Link
+                to="/pages/about-us"
                 className="block text-sm text-black hover:text-gray-700 transition-colors"
               >
                 About
               </Link>
-              <Link 
-                to="/pages/terms-conditions" 
+              <Link
+                to="/pages/terms-conditions"
                 className="block text-sm text-black hover:text-gray-700 transition-colors"
               >
                 Terms and Conditions
@@ -51,17 +51,17 @@ export function Footer({
               CONNECT
             </h3>
             <div className="">
-              <a 
-                href="https://www.instagram.com/salty.cai/" 
-                target="_blank" 
+              <a
+                href="https://www.instagram.com/salty.cai/"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="block text-sm text-black hover:text-gray-700 transition-colors"
               >
                 Instagram
               </a>
-              <a 
-                href="https://www.facebook.com/salty.cai" 
-                target="_blank" 
+              <a
+                href="https://www.facebook.com/salty.cai"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="block text-sm text-black hover:text-gray-700 transition-colors"
               >
@@ -78,9 +78,9 @@ export function Footer({
           </div>
           <div className="text-[12px] text-black">
             SITE BY{' '}
-            <a 
-              href="https://talyawy.vercel.app/" 
-              target="_blank" 
+            <a
+              href="https://talyawy.vercel.app/"
+              target="_blank"
               rel="noopener noreferrer"
               className="hover:text-gray-700 transition-colors"
             >
