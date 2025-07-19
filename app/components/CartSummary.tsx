@@ -3,6 +3,7 @@ import type { CartLayout } from '~/components/CartMain';
 import { CartForm, Money, type OptimisticCart } from '@shopify/hydrogen';
 import { useRef } from 'react';
 import { FetcherWithComponents } from 'react-router';
+import { useAnalytics } from '@shopify/hydrogen';
 
 type CartSummaryProps = {
   cart: OptimisticCart<CartApiQueryFragment | null>;
@@ -10,6 +11,7 @@ type CartSummaryProps = {
 };
 
 export function CartSummary({ cart, layout }: CartSummaryProps) {
+  const { publish } = useAnalytics();
   return (
     <div className="pt-6 pb-2 px-0 w-full">
       <dl className="flex justify-between items-center text-base font-normal mb-4">
@@ -25,6 +27,7 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
       <a
         href={cart.checkoutUrl}
         className="block w-full bg-black text-white text-center py-3 rounded-none font-semibold text-base transition hover:opacity-90 focus:outline-none"
+        onClick={() => publish('checkout_started', { cart })}
       >
         Checkout
       </a>
