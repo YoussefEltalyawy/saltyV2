@@ -1,4 +1,4 @@
-import { redirect, type LoaderFunctionArgs } from '@shopify/remix-oxygen';
+import { type LoaderFunctionArgs } from '@shopify/remix-oxygen';
 import { useLoaderData, type MetaFunction } from 'react-router';
 import {
   getSelectedProductOptions,
@@ -12,8 +12,9 @@ import { ProductPrice } from '~/components/ProductPrice';
 import { ProductImageCarousel } from '~/components/ProductImageCarousel';
 import { ProductForm } from '~/components/ProductForm';
 import { redirectIfHandleIsLocalized } from '~/lib/redirect';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { AddToCartButton } from '~/components/AddToCartButton';
+import { useAside } from '~/components/Aside';
 import type { ProductFragment, ProductVariantFragment } from 'storefrontapi.generated';
 import type { MappedProductOptions } from '@shopify/hydrogen';
 
@@ -126,7 +127,7 @@ function UpsellSection({ product, productOptions, upsells }: {
   upsells: any[];
 }) {
   return (
-    <div className="my-12 flex flex-col gap-10">
+    <div className="flex flex-col gap-10">
       {upsells.map((upsell: any, idx: number) => {
         if (upsell.type === 'bundle') {
           return (
@@ -156,16 +157,55 @@ function BundleUpsellCard({ product, productOptions, upsell }: {
   };
 }) {
   const { minQuantity, title, description } = upsell;
-  const [selections, setSelections] = useState(Array(minQuantity).fill({}));
+  const { open } = useAside();
   const [error, setError] = useState('');
+
+  // Define the selection type to fix TypeScript errors
+  type SelectionType = {
+    color: string;
+    size: string;
+    variantId?: string;
+    image?: string;
+  };
 
   // Option values
   const getOptionValues = (optionName: string): string[] => {
     const opt = productOptions.find((o) => o.name.toLowerCase() === optionName);
     return opt ? opt.optionValues.map((v: any) => v.name) : [];
   };
+
   const colorOptions = getOptionValues('color');
   const sizeOptions = getOptionValues('size');
+
+  // Initialize selections with default values (first color and size)
+  const initializeSelections = (): SelectionType[] => {
+    const defaultSelections: SelectionType[] = [];
+    const defaultColor = colorOptions.length > 0 ? colorOptions[0] : '';
+    const defaultSize = sizeOptions.length > 0 ? sizeOptions[0] : '';
+
+    for (let i = 0; i < minQuantity; i++) {
+      const selection: SelectionType = { color: defaultColor, size: defaultSize };
+
+      // Find variant for default selection
+      if (defaultColor && defaultSize) {
+        const variant = findVariant(product, [
+          { name: 'Color', value: defaultColor },
+          { name: 'Size', value: defaultSize },
+        ]);
+
+        if (variant) {
+          selection.variantId = variant.id;
+          selection.image = variant.image?.url;
+        }
+      }
+
+      defaultSelections.push(selection);
+    }
+
+    return defaultSelections;
+  };
+
+  const [selections, setSelections] = useState<SelectionType[]>(initializeSelections);
 
   // Update selection for a top
   const handleChange = (idx: number, field: string, value: string) => {
@@ -191,7 +231,7 @@ function BundleUpsellCard({ product, productOptions, upsell }: {
 
   // Prepare lines for AddToCartButton
   const lines = selections.every(sel => sel.variantId)
-    ? selections.map(sel => ({ merchandiseId: sel.variantId, quantity: 1 }))
+    ? selections.map(sel => ({ merchandiseId: sel.variantId!, quantity: 1 }))
     : [];
 
   // Validate before add to cart
@@ -201,49 +241,92 @@ function BundleUpsellCard({ product, productOptions, upsell }: {
       return false;
     }
     setError('');
+    open('cart'); // Open cart aside when successfully added
     return true;
   };
 
   return (
-    <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg max-w-3xl mx-auto shadow-md">
-      <h2 className="text-2xl font-bold mb-2 text-center">{title}</h2>
-      <p className="mb-6 text-center text-gray-700">{description}</p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="mb-4 border border-gray-200 p-6">
+      <h2 className="text-2xl font-medium text-black mb-2">{title}</h2>
+      <p className="mb-6 text-gray-700">{description}</p>
+
+      {/* Product cards in a horizontal row */}
+      <div className="grid grid-cols-3 gap-4">
         {selections.map((sel, idx) => (
-          <div key={idx} className="flex flex-col items-center bg-white rounded-lg p-4 shadow-sm">
-            <span className="font-medium mb-2">Top {idx + 1}</span>
-            <div className="w-24 h-24 mb-2 flex items-center justify-center bg-gray-100 rounded">
+          <div key={idx} className="flex flex-col border border-gray-100 p-3">
+            {/* Larger product image without title */}
+            <div className="w-full aspect-square mb-3 bg-gray-100 max-h-48">
               {sel.image ? (
-                <img src={sel.image} alt="Selected variant" className="w-full h-full object-contain rounded" />
+                <img src={sel.image} alt="Selected variant" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-gray-400">No image</span>
+                <div className="w-full h-full flex items-center justify-center">
+                  <span className="text-gray-400 text-xs">Select options</span>
+                </div>
               )}
             </div>
-            <select
-              className="border rounded px-2 py-1 mb-2 w-full"
-              value={sel.color || ''}
-              onChange={e => handleChange(idx, 'color', e.target.value)}
-            >
-              <option value="">Color</option>
-              {colorOptions.map((color) => (
-                <option key={color} value={color}>{color}</option>
-              ))}
-            </select>
-            <select
-              className="border rounded px-2 py-1 w-full"
-              value={sel.size || ''}
-              onChange={e => handleChange(idx, 'size', e.target.value)}
-            >
-              <option value="">Size</option>
-              {sizeOptions.map((size) => (
-                <option key={size} value={size}>{size}</option>
-              ))}
-            </select>
+
+            {/* Color selection */}
+            <div className="product-options mb-3">
+              <h5 className="text-xs font-medium text-gray-900 mb-2">Color</h5>
+              <div className="flex flex-wrap gap-2 justify-start">
+                {colorOptions.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    className={`product-options-item transition-all w-6 h-6 flex items-center justify-center p-0 color-swatch
+                      ${sel.color === color
+                        ? 'border-2 border-gray-900'
+                        : 'border border-gray-200 hover:border-gray-400'
+                      }`}
+                    onClick={() => handleChange(idx, 'color', color)}
+                  >
+                    <div
+                      aria-label={color}
+                      className="w-full h-full"
+                      style={{
+                        backgroundColor: color.toLowerCase(),
+                        padding: 0,
+                        margin: 0,
+                        display: 'block',
+                      }}
+                    >
+                      {/* Add border for white/light colors */}
+                      {(color.toLowerCase() === 'white' || color.toLowerCase().includes('white')) && (
+                        <div className="w-full h-full border border-gray-300 pointer-events-none absolute top-0 left-0" />
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Size selection */}
+            <div className="product-options">
+              <h5 className="text-xs font-medium text-gray-900 mb-2">Size</h5>
+              <div className="flex flex-wrap gap-2 justify-start">
+                {sizeOptions.map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    className={`product-options-item transition-all px-2 py-1 text-xs font-medium
+                      ${sel.size === size
+                        ? 'text-gray-900 underline underline-offset-4'
+                        : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    onClick={() => handleChange(idx, 'size', size)}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         ))}
       </div>
-      {error && <div className="text-red-600 mt-4 text-center">{error}</div>}
-      <div className="mt-8 flex justify-center">
+
+      {error && <div className="text-red-600 mt-4 text-sm">{error}</div>}
+
+      <div className="mt-6">
         <AddToCartButton
           disabled={lines.length !== minQuantity}
           lines={lines}
@@ -313,7 +396,14 @@ export default function Product() {
             />
           </div>
 
-          <div className="product-description">
+          {/* Upsell Section: Moved before description, only show if upsells are configured for this product */}
+          {upsells.length > 0 && (
+            <div className="mt-">
+              <UpsellSection product={product} productOptions={productOptions} upsells={upsells} />
+            </div>
+          )}
+
+          <div className="product-description mt-">
             <h3 className="text-lg font-medium text-black mb-4">Description</h3>
             <div
               className="prose prose-sm max-w-none text-gray-700"
@@ -322,11 +412,6 @@ export default function Product() {
           </div>
         </div>
       </div>
-
-      {/* Upsell Section: Only show if upsells are configured for this product */}
-      {upsells.length > 0 && (
-        <UpsellSection product={product} productOptions={productOptions} upsells={upsells} />
-      )}
 
       <Analytics.ProductView
         data={{
