@@ -156,7 +156,7 @@ export function HeaderMenu({
   };
 
   const renderMenuItem = (item: any, level: number = 0) => {
-    if (!item.url && (!item.items || item.items.length === 0)) return null;
+    if (!item.url && (!item.items || item.items.length === 0) && item.type !== 'ACTION') return null;
 
     const hasSubItems = item.items && item.items.length > 0;
     const isExpanded = expandedItems.has(item.id);
@@ -317,6 +317,15 @@ const FALLBACK_HEADER_MENU = {
       title: 'Collections',
       type: 'HTTP',
       url: '/collections',
+      items: [],
+    },
+    {
+      id: 'shop-bundles-menu-item',
+      resourceId: null,
+      tags: [],
+      title: 'Shop Bundles',
+      type: 'HTTP',
+      url: '/bundles',
       items: [],
     },
     {
