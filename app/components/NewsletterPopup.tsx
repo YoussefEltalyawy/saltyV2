@@ -41,7 +41,8 @@ export function NewsletterPopup({ isOpen, onClose }: NewsletterPopupProps) {
   }, [actionData?.success, onClose]);
 
   const handleClose = () => {
-    safeLocalStorage.setItem('newsletterDismissed', 'true');
+    // Store the current timestamp when user dismisses the popup
+    safeLocalStorage.setItem('newsletterDismissedAt', Date.now().toString());
     onClose();
   };
 
