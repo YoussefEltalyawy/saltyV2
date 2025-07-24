@@ -1,6 +1,7 @@
 import { useLoaderData } from 'react-router';
 import BundleUpsellCard from './BundleUpsellCard';
 import CrossSellUpsellCard from './CrossSellUpsellCard';
+import TopsCapBundleCard from './TopsCapBundleCard';
 
 function UpsellSection({ product, productOptions, upsells }: {
   product: any;
@@ -25,7 +26,19 @@ function UpsellSection({ product, productOptions, upsells }: {
             />
           );
         } else if (upsell.type === 'crossSell') {
-          // Use real data from collections
+          // Check if this is the 4 tops + 1 cap bundle
+          if (upsell.minTopsQuantity && upsell.freeCapsQuantity) {
+            return (
+              <TopsCapBundleCard
+                key={idx}
+                product={product}
+                productOptions={productOptions}
+                upsell={upsell}
+              />
+            );
+          }
+          
+          // Regular cross-sell logic
           const complementaryProducts = productCollections?.complementaryProducts || [];
 
           if (complementaryProducts.length > 0) {

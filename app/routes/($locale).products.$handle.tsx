@@ -1,5 +1,5 @@
-import { type LoaderFunctionArgs } from '@shopify/remix-oxygen';
-import { useLoaderData, type MetaFunction } from 'react-router';
+import {type LoaderFunctionArgs} from '@shopify/remix-oxygen';
+import {useLoaderData, type MetaFunction} from 'react-router';
 import {
   getSelectedProductOptions,
   Analytics,
@@ -9,15 +9,18 @@ import {
   useSelectedOptionInUrlParam,
   Money,
 } from '@shopify/hydrogen';
-import { ProductPrice } from '~/components/ProductPrice';
-import { ProductImageCarousel } from '~/components/ProductImageCarousel';
-import { ProductForm } from '~/components/ProductForm';
-import { redirectIfHandleIsLocalized } from '~/lib/redirect';
-import { useState, useEffect } from 'react';
-import { AddToCartButton } from '~/components/AddToCartButton';
-import { useAside } from '~/components/Aside';
-import type { ProductFragment, ProductVariantFragment } from 'storefrontapi.generated';
-import type { MappedProductOptions } from '@shopify/hydrogen';
+import {ProductPrice} from '~/components/ProductPrice';
+import {ProductImageCarousel} from '~/components/ProductImageCarousel';
+import {ProductForm} from '~/components/ProductForm';
+import {redirectIfHandleIsLocalized} from '~/lib/redirect';
+import {useState, useEffect} from 'react';
+import {AddToCartButton} from '~/components/AddToCartButton';
+import {useAside} from '~/components/Aside';
+import type {
+  ProductFragment,
+  ProductVariantFragment,
+} from 'storefrontapi.generated';
+import type {MappedProductOptions} from '@shopify/hydrogen';
 import UpsellSection from '~/components/UpsellSection';
 import BundleUpsellCard from '~/components/BundleUpsellCard';
 import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
@@ -40,6 +43,8 @@ type UpsellConfig = {
 // These are the exact collection handles from the URLs: collections/denim and collections/oversized-polos
 const DENIM_COLLECTION = 'denim';
 const POLO_COLLECTION = 'oversized-polos';
+const CAPS_COLLECTION = 'caps';
+const TOPS_COLLECTION = 'tops';
 
 // No debug mode or test data - we'll fetch actual products from collections
 
@@ -56,7 +61,8 @@ const GLOBAL_UPSELLS = {
   poloBundle2: {
     type: 'bundle',
     title: '2 Polos Bundle – 10% Off!',
-    description: 'Pick any 2 polos (choose color and size for each) and get 10% off.',
+    description:
+      'Pick any 2 polos (choose color and size for each) and get 10% off.',
     minQuantity: 2,
     discountType: 'automatic',
     discountValue: 10,
@@ -65,12 +71,23 @@ const GLOBAL_UPSELLS = {
   poloBundle3: {
     type: 'bundle',
     title: '3 Polos Bundle – 15% Off!',
-    description: 'Pick any 3 polos (choose color and size for each) and get 15% off.',
+    description:
+      'Pick any 3 polos (choose color and size for each) and get 15% off.',
     minQuantity: 3,
     discountType: 'automatic',
     discountValue: 15,
     collectionRestriction: POLO_COLLECTION,
-  }
+  },
+  topsCapBundle: {
+    type: 'crossSell',
+    title: 'Buy 4 Tops Get 1 Cap Free!',
+    description: 'Choose 4 tops and get a cap of your choice absolutely free.',
+    discountType: 'automatic',
+    discountCode: '4TOPSFREECAP',
+    collections: [TOPS_COLLECTION, CAPS_COLLECTION],
+    minTopsQuantity: 4,
+    freeCapsQuantity: 1,
+  },
 };
 
 const UPSELLS: UpsellConfig = {
@@ -78,16 +95,17 @@ const UPSELLS: UpsellConfig = {
     {
       type: 'bundle',
       title: '3 Tops Bundle – 15% Off!',
-      description: 'Pick any 3 tops (choose color and size for each) and get 15% off.',
+      description:
+        'Pick any 3 tops (choose color and size for each) and get 15% off.',
       minQuantity: 3,
       discountType: 'automatic',
     },
   ],
 };
 
-export const meta: MetaFunction<typeof loader> = ({ data }) => {
+export const meta: MetaFunction<typeof loader> = ({data}) => {
   return [
-    { title: `SALTY | ${data?.product.title ?? ''}` },
+    {title: `SALTY | ${data?.product.title ?? ''}`},
     {
       rel: 'canonical',
       href: `/products/${data?.product.handle}`,
@@ -103,8 +121,11 @@ export async function loader(args: LoaderFunctionArgs) {
   const criticalData = await loadCriticalData(args);
 
   // Check if this product is in denim or polo collection and needs the crossSell upsell
-  const { product } = criticalData;
-  const productCollections = await fetchProductCollections(args, product.handle);
+  const {product} = criticalData;
+  const productCollections = await fetchProductCollections(
+    args,
+    product.handle,
+  );
 
   return {
     ...deferredData,
@@ -114,22 +135,29 @@ export async function loader(args: LoaderFunctionArgs) {
 }
 
 // Fetch collections for the current product and complementary products for cross-selling
-async function fetchProductCollections(args: LoaderFunctionArgs, productHandle: string) {
-  const { context } = args;
-  const { storefront } = context;
+async function fetchProductCollections(
+  args: LoaderFunctionArgs,
+  productHandle: string,
+) {
+  const {context} = args;
+  const {storefront} = context;
 
   try {
     // First, determine which collections the current product belongs to
-    const { product } = await storefront.query(PRODUCT_COLLECTIONS_QUERY, {
-      variables: { handle: productHandle },
+    const {product} = await storefront.query(PRODUCT_COLLECTIONS_QUERY, {
+      variables: {handle: productHandle},
     });
 
     // Get the collection handles the product belongs to
-    const productCollectionHandles = product?.collections?.nodes.map((collection: any) => collection.handle) || [];
+    const productCollectionHandles =
+      product?.collections?.nodes.map((collection: any) => collection.handle) ||
+      [];
 
     // Check if product is in denim or polo collection
     const isInDenim = productCollectionHandles.includes(DENIM_COLLECTION);
     const isInPolo = productCollectionHandles.includes(POLO_COLLECTION);
+    const isInCaps = productCollectionHandles.includes(CAPS_COLLECTION);
+    const isInTops = productCollectionHandles.includes(TOPS_COLLECTION);
 
     // Fetch products from the oversized-polos collection for polo bundles
     let polos: any[] = [];
@@ -195,9 +223,12 @@ async function fetchProductCollections(args: LoaderFunctionArgs, productHandle: 
     let complementaryProducts: any[] = [];
     if (isInDenim || isInPolo) {
       // Fetch products from the complementary collection
-      const complementaryCollection = isInDenim ? POLO_COLLECTION : DENIM_COLLECTION;
+      const complementaryCollection = isInDenim
+        ? POLO_COLLECTION
+        : DENIM_COLLECTION;
       try {
-        const result = await storefront.query(`
+        const result = await storefront.query(
+          `
           query GetCollectionProducts($handle: String!) {
             collection(handle: $handle) {
               products(first: 10) {
@@ -246,22 +277,156 @@ async function fetchProductCollections(args: LoaderFunctionArgs, productHandle: 
               }
             }
           }
-        `, {
-          variables: { handle: complementaryCollection },
-        });
+        `,
+          {
+            variables: {handle: complementaryCollection},
+          },
+        );
         if (result?.collection?.products?.nodes) {
           complementaryProducts = result.collection.products.nodes;
         }
       } catch (collectionError) {
-        console.error('Error fetching complementary products:', collectionError);
+        console.error(
+          'Error fetching complementary products:',
+          collectionError,
+        );
+      }
+    }
+
+    // Fetch caps and tops for the 4 tops + 1 cap bundle
+    let caps: any[] = [];
+    let tops: any[] = [];
+    
+    // Always fetch caps and tops for the bundle (not just when current product is in those collections)
+    if (true) {
+      // Fetch caps collection
+      try {
+        const capsResult = await storefront.query(`
+          query GetCaps {
+            collection(handle: "${CAPS_COLLECTION}") {
+              products(first: 50) {
+                nodes {
+                  id
+                  title
+                  handle
+                  description
+                  featuredImage {
+                    url
+                    altText
+                  }
+                  options {
+                    name
+                    optionValues {
+                      name
+                      swatch {
+                        color
+                        image {
+                          previewImage {
+                            url
+                          }
+                        }
+                      }
+                    }
+                  }
+                  variants(first: 100) {
+                    nodes {
+                      id
+                      availableForSale
+                      image {
+                        url
+                        altText
+                      }
+                      price {
+                        amount
+                        currencyCode
+                      }
+                      selectedOptions {
+                        name
+                        value
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `);
+        if (capsResult?.collection?.products?.nodes) {
+          caps = capsResult.collection.products.nodes;
+        }
+      } catch (err) {
+        console.error('Error fetching caps:', err);
+      }
+
+      // Fetch tops collection
+      try {
+        const topsResult = await storefront.query(`
+          query GetTops {
+            collection(handle: "${TOPS_COLLECTION}") {
+              products(first: 50) {
+                nodes {
+                  id
+                  title
+                  handle
+                  description
+                  featuredImage {
+                    url
+                    altText
+                  }
+                  options {
+                    name
+                    optionValues {
+                      name
+                      swatch {
+                        color
+                        image {
+                          previewImage {
+                            url
+                          }
+                        }
+                      }
+                    }
+                  }
+                  variants(first: 100) {
+                    nodes {
+                      id
+                      availableForSale
+                      image {
+                        url
+                        altText
+                      }
+                      price {
+                        amount
+                        currencyCode
+                      }
+                      selectedOptions {
+                        name
+                        value
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `);
+        if (topsResult?.collection?.products?.nodes) {
+          tops = topsResult.collection.products.nodes;
+        }
+      } catch (err) {
+        console.error('Error fetching tops:', err);
       }
     }
 
     return {
       isInDenim,
       isInPolo,
+      isInCaps,
+      isInTops,
       complementaryProducts, // for cross-sell
       polos, // for polo bundles
+      caps, // for 4 tops + 1 cap bundle
+      tops, // for 4 tops + 1 cap bundle
     };
   } catch (error) {
     console.error('Error fetching collections:', error);
@@ -283,26 +448,26 @@ async function loadCriticalData({
   params,
   request,
 }: LoaderFunctionArgs) {
-  const { handle } = params;
-  const { storefront } = context;
+  const {handle} = params;
+  const {storefront} = context;
 
   if (!handle) {
     throw new Error('Expected product handle to be defined');
   }
 
-  const [{ product }] = await Promise.all([
+  const [{product}] = await Promise.all([
     storefront.query(PRODUCT_QUERY, {
-      variables: { handle, selectedOptions: getSelectedProductOptions(request) },
+      variables: {handle, selectedOptions: getSelectedProductOptions(request)},
     }),
     // Add other queries here, so that they are loaded in parallel
   ]);
 
   if (!product?.id) {
-    throw new Response(null, { status: 404 });
+    throw new Response(null, {status: 404});
   }
 
   // The API handle might be localized, so redirect to the localized handle
-  redirectIfHandleIsLocalized(request, { handle, data: product });
+  redirectIfHandleIsLocalized(request, {handle, data: product});
 
   return {
     product,
@@ -314,25 +479,31 @@ async function loadCriticalData({
  * fetched after the initial page load. If it's unavailable, the page should still 200.
  * Make sure to not throw any errors here, as it will cause the page to 500.
  */
-function loadDeferredData({ context, params }: LoaderFunctionArgs) {
+function loadDeferredData({context, params}: LoaderFunctionArgs) {
   // Put any API calls that is not critical to be available on first page render
   // For example: product reviews, product recommendations, social feeds.
 
   return {};
 }
 
-function findVariant(product: ProductFragment, selectedOptions: { name: string; value: string }[]): ProductVariantFragment | undefined {
+function findVariant(
+  product: ProductFragment,
+  selectedOptions: {name: string; value: string}[],
+): ProductVariantFragment | undefined {
   return product.variants.nodes.find((variant: ProductVariantFragment) => {
-    return selectedOptions.every(({ name, value }: { name: string; value: string }) => {
-      return variant.selectedOptions.some(
-        (opt: { name: string; value: string }) => opt.name === name && opt.value === value
-      );
-    });
+    return selectedOptions.every(
+      ({name, value}: {name: string; value: string}) => {
+        return variant.selectedOptions.some(
+          (opt: {name: string; value: string}) =>
+            opt.name === name && opt.value === value,
+        );
+      },
+    );
   });
 }
 
 export default function Product() {
-  const { product } = useLoaderData<typeof loader>();
+  const {product} = useLoaderData<typeof loader>();
 
   // Optimistically selects a variant with given available variant information
   const selectedVariant = useOptimisticVariant(
@@ -350,10 +521,10 @@ export default function Product() {
     selectedOrFirstAvailableVariant: selectedVariant,
   });
 
-  const { title, descriptionHtml, handle } = product;
+  const {title, descriptionHtml, handle} = product;
 
   // Get product collections data
-  const { productCollections } = useLoaderData<typeof loader>();
+  const {productCollections} = useLoaderData<typeof loader>();
 
   // Find upsells for this product
   const upsellKey = handle?.toLowerCase().trim();
@@ -361,8 +532,10 @@ export default function Product() {
 
   // Add the denim + polo cross-sell upsell if the product is in one of those collections
   // and there are complementary products available
-  if ((productCollections?.isInDenim || productCollections?.isInPolo) &&
-    productCollections?.complementaryProducts?.length > 0) {
+  if (
+    (productCollections?.isInDenim || productCollections?.isInPolo) &&
+    productCollections?.complementaryProducts?.length > 0
+  ) {
     upsells = [...upsells, GLOBAL_UPSELLS.crossSellDenimPolo];
   }
 
@@ -370,6 +543,11 @@ export default function Product() {
   if (productCollections?.isInPolo) {
     upsells = [...upsells, GLOBAL_UPSELLS.poloBundle2];
     upsells = [...upsells, GLOBAL_UPSELLS.poloBundle3];
+  }
+
+  // Add 4 tops + 1 cap bundle if the product is in caps or tops collection, or if it's the cocktails baby tee
+  if (productCollections?.isInCaps || productCollections?.isInTops || handle === 'cocktails-baby-tee-pre-order') {
+    upsells = [...upsells, GLOBAL_UPSELLS.topsCapBundle];
   }
 
   // Debug logs
@@ -412,7 +590,11 @@ export default function Product() {
           {/* Upsell Section: Moved before description, only show if upsells are configured for this product */}
           {upsells.length > 0 && (
             <div className="mt-8">
-              <UpsellSection product={product} productOptions={productOptions} upsells={upsells} />
+              <UpsellSection
+                product={product}
+                productOptions={productOptions}
+                upsells={upsells}
+              />
             </div>
           )}
 
@@ -420,7 +602,7 @@ export default function Product() {
             <h3 className="text-lg font-medium text-black mb-4">Description</h3>
             <div
               className="prose prose-sm max-w-none text-gray-700"
-              dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+              dangerouslySetInnerHTML={{__html: descriptionHtml}}
             />
           </div>
         </div>
