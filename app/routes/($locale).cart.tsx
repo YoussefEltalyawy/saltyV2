@@ -31,9 +31,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
   let result: CartQueryDataReturn;
 
   switch (action) {
-    case CartForm.ACTIONS.LinesAdd:
+    case CartForm.ACTIONS.LinesAdd: {
       result = await cart.addLines(inputs.lines);
+      if (inputs.discountCode) {
+        const discountCodes = [inputs.discountCode] as string[];
+        discountCodes.push(...((inputs.discountCodes || []) as string[]));
+        result = await cart.updateDiscountCodes(discountCodes);
+      }
       break;
+    }
     case CartForm.ACTIONS.LinesUpdate:
       result = await cart.updateLines(inputs.lines);
       break;

@@ -7,15 +7,17 @@ export function AddToCartButton({
   disabled,
   lines,
   onClick,
+  discountCode,
 }: {
   analytics?: unknown;
   children: React.ReactNode;
   disabled?: boolean;
   lines: Array<OptimisticCartLineInput>;
   onClick?: () => void;
+  discountCode?: string;
 }) {
   return (
-    <CartForm route="/cart" inputs={{ lines }} action={CartForm.ACTIONS.LinesAdd}>
+    <CartForm route="/cart" inputs={{ lines, discountCode }} action={CartForm.ACTIONS.LinesAdd}>
       {(fetcher: FetcherWithComponents<any>) => {
         const isSubmitting = fetcher.state !== 'idle';
 
