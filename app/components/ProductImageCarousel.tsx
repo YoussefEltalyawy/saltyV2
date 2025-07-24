@@ -1,15 +1,16 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { Image } from '@shopify/hydrogen';
 import type { ProductFragment, ProductVariantFragment } from 'storefrontapi.generated';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 
 interface ProductImageCarouselProps {
   product: ProductFragment;
   selectedVariant: ProductVariantFragment;
+  allImages: Array<{ id: string; url: string; altText: string | null; width: number; height: number; }>;
 }
 
-export function ProductImageCarousel({ product, selectedVariant }: ProductImageCarouselProps) {
+export function ProductImageCarousel({ product, selectedVariant, allImages }: ProductImageCarouselProps) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
     slidesToScroll: 1,
@@ -30,7 +31,12 @@ export function ProductImageCarousel({ product, selectedVariant }: ProductImageC
   const [lastVariantId, setLastVariantId] = useState<string | null>(null);
 
   // Get all unique product images from variants
-  const getAllProductImages = useCallback(() => {
+  const productImages = useMemo(() => {
+    // Use allImages if provided, otherwise fallback to existing logic
+    if (allImages && allImages.length > 0) {
+      return allImages;
+    }
+
     const images: Array<{
       id: string;
       url: string;
@@ -40,11 +46,11 @@ export function ProductImageCarousel({ product, selectedVariant }: ProductImageC
     }> = [];
 
     // Add images from all variants - safely check for variants property
-    const productWithVariants = product as any;
+    const productWithVariants = product as ProductFragment;
     if (productWithVariants.variants?.nodes) {
-      productWithVariants.variants.nodes.forEach((variant: any) => {
+      productWithVariants.variants.nodes.forEach((variant) => {
         if (variant.image && variant.image.id && variant.image.url && variant.image.width && variant.image.height) {
-          if (!images.find(img => img.id === variant.image.id)) {
+          if (!images.find((img) => img.id === variant.image!.id)) {
             images.push({
               id: variant.image.id,
               url: variant.image.url,
@@ -61,7 +67,7 @@ export function ProductImageCarousel({ product, selectedVariant }: ProductImageC
     if (product.adjacentVariants) {
       product.adjacentVariants.forEach((variant) => {
         if (variant.image && variant.image.id && variant.image.url && variant.image.width && variant.image.height) {
-          if (!images.find(img => img.id === variant.image!.id)) {
+          if (!images.find((img) => img.id === variant.image!.id)) {
             images.push({
               id: variant.image.id,
               url: variant.image.url,
@@ -76,7 +82,7 @@ export function ProductImageCarousel({ product, selectedVariant }: ProductImageC
 
     // Add selected variant image if not already included
     if (selectedVariant.image && selectedVariant.image.id && selectedVariant.image.url && selectedVariant.image.width && selectedVariant.image.height) {
-      if (!images.find(img => img.id === selectedVariant.image!.id)) {
+      if (!images.find((img) => img.id === selectedVariant.image!.id)) {
         images.push({
           id: selectedVariant.image.id,
           url: selectedVariant.image.url,
@@ -88,9 +94,7 @@ export function ProductImageCarousel({ product, selectedVariant }: ProductImageC
     }
 
     return images;
-  }, [product, selectedVariant]);
-
-  const productImages = getAllProductImages();
+  }, [product, selectedVariant, allImages]);
 
   // Find the index of the current selected variant's image - only when variant actually changes
   useEffect(() => {
@@ -304,4 +308,4 @@ export function ProductImageCarousel({ product, selectedVariant }: ProductImageC
       )}
     </>
   );
-} 
+}

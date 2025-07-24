@@ -12,6 +12,7 @@ import {
 import {ProductPrice} from '~/components/ProductPrice';
 import {ProductImageCarousel} from '~/components/ProductImageCarousel';
 import {ProductForm} from '~/components/ProductForm';
+import {flattenConnection} from '@shopify/hydrogen';
 import {redirectIfHandleIsLocalized} from '~/lib/redirect';
 import {useState, useEffect} from 'react';
 import {AddToCartButton} from '~/components/AddToCartButton';
@@ -127,6 +128,7 @@ export async function loader(args: LoaderFunctionArgs) {
     product.handle,
   );
 
+  // Get all product images
   return {
     ...deferredData,
     ...criticalData,
@@ -296,7 +298,7 @@ async function fetchProductCollections(
     // Fetch caps and tops for the 4 tops + 1 cap bundle
     let caps: any[] = [];
     let tops: any[] = [];
-    
+
     // Always fetch caps and tops for the bundle (not just when current product is in those collections)
     if (true) {
       // Fetch caps collection
@@ -546,7 +548,11 @@ export default function Product() {
   }
 
   // Add 4 tops + 1 cap bundle if the product is in caps or tops collection, or if it's the cocktails baby tee
-  if (productCollections?.isInCaps || productCollections?.isInTops || handle === 'cocktails-baby-tee-pre-order') {
+  if (
+    productCollections?.isInCaps ||
+    productCollections?.isInTops ||
+    handle === 'cocktails-baby-tee-pre-order'
+  ) {
     upsells = [...upsells, GLOBAL_UPSELLS.topsCapBundle];
   }
 
@@ -565,6 +571,7 @@ export default function Product() {
           <ProductImageCarousel
             product={product}
             selectedVariant={selectedVariant}
+            allImages={product.images ? flattenConnection(product.images) as Array<{ id: string; url: string; altText: string | null; width: number; height: number; }> : []}
           />
         </div>
 
@@ -700,6 +707,15 @@ const PRODUCT_FRAGMENT = `#graphql
     variants(first: 100) {
       nodes {
         ...ProductVariant
+      }
+    }
+    images(first: 250) {
+      nodes {
+        id
+        url
+        altText
+        width
+        height
       }
     }
     seo {
