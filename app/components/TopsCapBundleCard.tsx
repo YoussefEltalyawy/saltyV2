@@ -511,11 +511,39 @@ function TopsCapBundleCard({
         return price;
       });
 
-    const originalTotal = topPrices.reduce((sum, price) => sum + price, 0);
+    // Calculate cap prices for the original total
+    const capPrices = capSelections
+      .filter((sel) => sel.variantId)
+      .map((sel) => {
+        const selectedProduct = availableCaps.find(
+          (p) => p.handle === sel.productHandle,
+        );
+        const variant = selectedProduct?.variants?.nodes.find(
+          (v: any) => v.id === sel.variantId,
+        );
+        const price = variant?.price?.amount
+          ? parseFloat(variant.price.amount)
+          : 0;
+        
+        // Get currency from the first variant that has one
+        if (variant?.price?.currencyCode && currencyCode === 'USD') {
+          currencyCode = variant.price.currencyCode;
+        }
+        
+        console.log(
+          `Price for cap: handle=${sel.productHandle}, variantId=${sel.variantId}, price=${price}, currency=${variant?.price?.currencyCode}`,
+        );
+        return price;
+      });
+
+    const topsTotal = topPrices.reduce((sum, price) => sum + price, 0);
+    const capsTotal = capPrices.reduce((sum, price) => sum + price, 0);
+    const originalTotal = topsTotal + capsTotal; // Original price includes caps
+    const discountedTotal = topsTotal; // Discounted price is just the tops (caps are free)
 
     return {
       original: originalTotal,
-      discounted: originalTotal,
+      discounted: discountedTotal,
       currencyCode: currencyCode,
     };
   };
@@ -745,12 +773,15 @@ function TopsCapBundleCard({
       <div className="mt-6 text-center">
         <div className="text-lg font-medium">Bundle Price:</div>
         <div className="flex items-center justify-center gap-2">
+          <span className="text-gray-500 line-through">
+            {bundlePrice.original.toFixed(2)} {bundlePrice.currencyCode}
+          </span>
           <span className="text-xl font-bold">
             {bundlePrice.discounted.toFixed(2)} {bundlePrice.currencyCode}
           </span>
-          <span className="text-green-600 text-sm">
-            + {freeCapsQuantity} Free Cap{freeCapsQuantity > 1 ? 's' : ''}!
-          </span>
+        </div>
+        <div className="text-green-600 text-sm mt-1">
+          Get {freeCapsQuantity} Cap{freeCapsQuantity > 1 ? 's' : ''} FREE!
         </div>
       </div>
 
