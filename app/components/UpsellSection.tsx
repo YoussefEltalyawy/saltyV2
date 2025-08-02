@@ -2,6 +2,7 @@ import { useLoaderData } from 'react-router';
 import BundleUpsellCard from './BundleUpsellCard';
 import CrossSellUpsellCard from './CrossSellUpsellCard';
 import TopsCapBundleCard from './TopsCapBundleCard';
+import LinenCrossSellCard from './LinenCrossSellCard';
 
 function UpsellSection({ product, productOptions, upsells }: {
   product: any;
@@ -22,6 +23,14 @@ function UpsellSection({ product, productOptions, upsells }: {
               key={idx}
               product={product}
               productOptions={productOptions}
+              upsell={upsell}
+            />
+          );
+        } else if (upsell.type === 'linenCrossSell') {
+          return (
+            <LinenCrossSellCard
+              key={idx}
+              currentProduct={product}
               upsell={upsell}
             />
           );

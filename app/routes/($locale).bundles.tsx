@@ -3,6 +3,7 @@ import {Suspense} from 'react';
 import BundleUpsellCard from '~/components/BundleUpsellCard';
 import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
 import TopsCapBundleCard from '~/components/TopsCapBundleCard';
+import LinenCrossSellCard from '~/components/LinenCrossSellCard';
 import {json} from '@shopify/remix-oxygen';
 import {useState} from 'react';
 import {AddToCartButton} from '~/components/AddToCartButton';
@@ -205,6 +206,15 @@ const CAPS_COLLECTION = 'caps';
 const TOPS_COLLECTION = 'tops';
 
 const BUNDLES = [
+  {
+    type: 'linenCrossSell',
+    title: 'Linen Shirt + Pants Bundle – 15% Off Pants!',
+    description: 'Complete your linen look with matching pants and save 15% on the pants.',
+    discountType: 'automatic',
+    discountValue: 15,
+    shirtHandle: 'linen-shirt',
+    pantsHandle: 'linen-pants',
+  },
   {
     type: 'crossSell',
     title: 'Denim + Polo Bundle – 10% Off!',
@@ -537,11 +547,118 @@ export async function loader({context}: any) {
   `);
   const tops = topsResult?.collection?.products?.nodes || [];
 
-  return {polos, denims, cocktailsBabyTee, caps, tops};
+  // Fetch linen products for the linen bundle
+  const [linenShirtResult, linenPantsResult] = await Promise.all([
+    storefront.query(`
+      query GetLinenShirt {
+        product(handle: "linen-shirt") {
+          id
+          title
+          handle
+          description
+          featuredImage {
+            url
+            altText
+          }
+          options {
+            name
+            optionValues {
+              name
+              swatch {
+                color
+                image {
+                  previewImage {
+                    url
+                  }
+                }
+              }
+            }
+          }
+          variants(first: 100) {
+            nodes {
+              id
+              availableForSale
+              image {
+                url
+                altText
+              }
+              price {
+                amount
+                currencyCode
+              }
+              compareAtPrice {
+                amount
+                currencyCode
+              }
+              selectedOptions {
+                name
+                value
+              }
+            }
+          }
+        }
+      }
+    `),
+    storefront.query(`
+      query GetLinenPants {
+        product(handle: "linen-pants") {
+          id
+          title
+          handle
+          description
+          featuredImage {
+            url
+            altText
+          }
+          options {
+            name
+            optionValues {
+              name
+              swatch {
+                color
+                image {
+                  previewImage {
+                    url
+                  }
+                }
+              }
+            }
+          }
+          variants(first: 100) {
+            nodes {
+              id
+              availableForSale
+              image {
+                url
+                altText
+              }
+              price {
+                amount
+                currencyCode
+              }
+              compareAtPrice {
+                amount
+                currencyCode
+              }
+              selectedOptions {
+                name
+                value
+              }
+            }
+          }
+        }
+      }
+    `)
+  ]);
+
+  const linenShirt = linenShirtResult?.product || null;
+  const linenPants = linenPantsResult?.product || null;
+
+  return {polos, denims, cocktailsBabyTee, caps, tops, linenShirt, linenPants};
 }
 
 export default function BundlesPage() {
-  const {polos, denims, cocktailsBabyTee, caps, tops} =
+  const {polos, denims, cocktailsBabyTee, caps, tops, linenShirt, linenPants} =
     useLoaderData<typeof loader>();
   const {open} = useAside();
 
@@ -608,7 +725,21 @@ export default function BundlesPage() {
     <div className="max-w-3xl mx-auto py-10 px-4">
       <h1 className="text-3xl font-bold mb-8 text-center">Shop Bundles</h1>
       <div className="flex flex-col gap-10">
-        {/* 1. Denim + Polo Bundle */}
+        {/* 1. Linen Shirt + Pants Bundle */}
+        {linenShirt && linenPants && (
+          <LinenCrossSellCard
+            currentProduct={linenShirt}
+            upsell={{
+              title: 'Linen Shirt + Pants Bundle – 15% Off Pants!',
+              description: 'Complete your linen look with matching pants and save 15% on the pants.',
+              discountValue: 15,
+              shirtHandle: 'linen-shirt',
+              pantsHandle: 'linen-pants',
+            }}
+          />
+        )}
+
+        {/* 2. Denim + Polo Bundle */}
         <div className="mb-4 border border-gray-200 p-6">
           <h2 className="text-2xl font-medium text-black mb-2">
             Denim + Polo Bundle – 10% Off!

@@ -59,6 +59,15 @@ const GLOBAL_UPSELLS = {
     discountValue: 10,
     collections: [DENIM_COLLECTION, POLO_COLLECTION],
   },
+  linenCrossell: {
+    type: 'linenCrossSell',
+    title: 'Linen Shirt + Pants Bundle – 15% Off Pants!',
+    description: 'Complete your linen look with matching pants and save 15% on the pants.',
+    discountType: 'automatic',
+    discountValue: 15,
+    shirtHandle: 'linen-shirt',
+    pantsHandle: 'linen-pants',
+  },
   poloBundle2: {
     type: 'bundle',
     title: '2 Polos Bundle – 10% Off!',
@@ -295,6 +304,120 @@ async function fetchProductCollections(
       }
     }
 
+    // Fetch linen products for the linen bundle
+    let linenShirt: any = null;
+    let linenPants: any = null;
+    
+    // Check if current product is one of the linen products
+    const isLinenShirt = productHandle === 'linen-shirt';
+    const isLinenPants = productHandle === 'linen-pants';
+    
+    // Always fetch linen products if we're on either linen product page
+    if (isLinenShirt || isLinenPants) {
+      // Fetch both linen products
+      try {
+        const [shirtResult, pantsResult] = await Promise.all([
+          storefront.query(`
+            query GetLinenShirt {
+              product(handle: "linen-shirt") {
+                id
+                title
+                handle
+                description
+                featuredImage {
+                  url
+                  altText
+                }
+                options {
+                  name
+                  optionValues {
+                    name
+                    swatch {
+                      color
+                      image {
+                        previewImage {
+                          url
+                        }
+                      }
+                    }
+                  }
+                }
+                variants(first: 100) {
+                  nodes {
+                    id
+                    availableForSale
+                    image {
+                      url
+                      altText
+                    }
+                    price {
+                      amount
+                      currencyCode
+                    }
+                    selectedOptions {
+                      name
+                      value
+                    }
+                  }
+                }
+              }
+            }
+          `),
+          storefront.query(`
+            query GetLinenPants {
+              product(handle: "linen-pants") {
+                id
+                title
+                handle
+                description
+                featuredImage {
+                  url
+                  altText
+                }
+                options {
+                  name
+                  optionValues {
+                    name
+                    swatch {
+                      color
+                      image {
+                        previewImage {
+                          url
+                        }
+                      }
+                    }
+                  }
+                }
+                variants(first: 100) {
+                  nodes {
+                    id
+                    availableForSale
+                    image {
+                      url
+                      altText
+                    }
+                    price {
+                      amount
+                      currencyCode
+                    }
+                    selectedOptions {
+                      name
+                      value
+                    }
+                  }
+                }
+              }
+            }
+          `)
+        ]);
+        
+        linenShirt = shirtResult?.product;
+        linenPants = pantsResult?.product;
+      } catch (err) {
+        console.error('Error fetching linen products:', err);
+      }
+    }
+
     // Fetch caps and tops for the 4 tops + 1 cap bundle
     let caps: any[] = [];
     let tops: any[] = [];
@@ -420,23 +543,37 @@ async function fetchProductCollections(
       }
     }
 
+
+
     return {
       isInDenim,
       isInPolo,
       isInCaps,
       isInTops,
+      isLinenShirt,
+      isLinenPants,
       complementaryProducts, // for cross-sell
       polos, // for polo bundles
       caps, // for 4 tops + 1 cap bundle
       tops, // for 4 tops + 1 cap bundle
+      linenShirt, // for linen bundle
+      linenPants, // for linen bundle
     };
   } catch (error) {
     console.error('Error fetching collections:', error);
     return {
       isInDenim: false,
       isInPolo: false,
+      isInCaps: false,
+      isInTops: false,
+      isLinenShirt: false,
+      isLinenPants: false,
       complementaryProducts: [],
       polos: [],
+      caps: [],
+      tops: [],
+      linenShirt: null,
+      linenPants: null,
     };
   }
 }
@@ -556,11 +693,13 @@ export default function Product() {
     upsells = [...upsells, GLOBAL_UPSELLS.topsCapBundle];
   }
 
-  // Debug logs
-  if (typeof window !== 'undefined') {
-    console.log('Product handle:', handle);
-    console.log('Upsell key:', upsellKey);
-    console.log('Upsells:', upsells);
+  // Add linen cross-sell bundle if the product is linen shirt or linen pants
+  if (
+    (productCollections?.isLinenShirt || productCollections?.isLinenPants) &&
+    productCollections?.linenShirt &&
+    productCollections?.linenPants
+  ) {
+    upsells = [...upsells, GLOBAL_UPSELLS.linenCrossell];
   }
 
   return (
