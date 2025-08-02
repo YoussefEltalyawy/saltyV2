@@ -38,8 +38,9 @@ function LinenCrossSellCard({
   const loaderData = useLoaderData() as any;
 
   // Get the linen products from loader data
-  const linenShirt = loaderData?.productCollections?.linenShirt;
-  const linenPants = loaderData?.productCollections?.linenPants;
+  // Handle both product pages (data in productCollections) and bundles page (data directly in loader)
+  const linenShirt = loaderData?.productCollections?.linenShirt || loaderData?.linenShirt;
+  const linenPants = loaderData?.productCollections?.linenPants || loaderData?.linenPants;
 
   // State for selections
   const [shirtSelection, setShirtSelection] = useState({
