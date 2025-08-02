@@ -208,8 +208,8 @@ const TOPS_COLLECTION = 'tops';
 const BUNDLES = [
   {
     type: 'linenCrossSell',
-    title: 'Linen Shirt + Pants Bundle – 15% Off Pants!',
-    description: 'Complete your linen look with matching pants and save 15% on the pants.',
+    title: 'Linen Shirt + Pants Bundle – 15% Off!',
+    description: 'Complete your linen look and save 15% on the total bundle price.',
     discountType: 'automatic',
     discountValue: 15,
     shirtHandle: 'linen-shirt',
@@ -730,8 +730,8 @@ export default function BundlesPage() {
           <LinenCrossSellCard
             currentProduct={linenShirt}
             upsell={{
-              title: 'Linen Shirt + Pants Bundle – 15% Off Pants!',
-              description: 'Complete your linen look with matching pants and save 15% on the pants.',
+              title: 'Linen Shirt + Pants Bundle – 15% Off!',
+              description: 'Complete your linen look and save 15% on the total bundle price.',
               discountValue: 15,
               shirtHandle: 'linen-shirt',
               pantsHandle: 'linen-pants',

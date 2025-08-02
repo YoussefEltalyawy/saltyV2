@@ -159,10 +159,11 @@ function LinenCrossSellCard({
     const pantsVariant = linenPants?.variants?.nodes?.find((v: any) => v.id === pantsSelection.variantId);
     const pantsPrice = pantsVariant?.price?.amount ? parseFloat(pantsVariant.price.amount) : 0;
 
-    // Apply 15% discount to pants only
-    const discountedPantsPrice = pantsPrice * (1 - upsell.discountValue / 100);
-    const bundleTotal = shirtPrice + discountedPantsPrice;
+    // Calculate original total
     const originalTotal = shirtPrice + pantsPrice;
+
+    // Apply 15% discount to the total sum
+    const bundleTotal = originalTotal * (1 - upsell.discountValue / 100);
 
     return {
       original: originalTotal,
@@ -170,7 +171,7 @@ function LinenCrossSellCard({
       currencyCode: shirtVariant?.price?.currencyCode || pantsVariant?.price?.currencyCode || 'USD',
       shirtPrice: shirtPrice || 0,
       pantsPrice: pantsPrice || 0,
-      discountedPantsPrice: discountedPantsPrice || 0,
+      savings: originalTotal - bundleTotal,
     };
   };
 
@@ -324,10 +325,7 @@ function LinenCrossSellCard({
 
         {/* Linen Pants */}
         <div className="flex flex-col border border-gray-100 p-3">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium">{linenPants.title}</h3>
-            <span className="text-xs text-green-600 font-medium">15% OFF</span>
-          </div>
+          <h3 className="text-sm font-medium mb-3">{linenPants.title}</h3>
 
           {/* Product image */}
           <div className="w-full aspect-[9/16] mb-3 bg-gray-100 max-h-88">
@@ -450,7 +448,9 @@ function LinenCrossSellCard({
         </div>
         <div className="text-sm text-gray-600">
           Shirt: {bundlePrice.shirtPrice.toFixed(2)} {bundlePrice.currencyCode} +
-          Pants: <span className="line-through">{bundlePrice.pantsPrice.toFixed(2)}</span> {bundlePrice.discountedPantsPrice.toFixed(2)} {bundlePrice.currencyCode} (15% off)
+          Pants: {bundlePrice.pantsPrice.toFixed(2)} {bundlePrice.currencyCode}
+          <br />
+          <span className="text-green-600 font-medium">Save {bundlePrice.savings.toFixed(2)} {bundlePrice.currencyCode} (15% off total)</span>
         </div>
       </div>
 
@@ -468,7 +468,7 @@ function LinenCrossSellCard({
         </AddToCartButton>
       </div>
       <div className="text-xs text-gray-500 mt-2 text-center">
-        15% discount on pants applied automatically at checkout.
+        15% discount on total bundle price applied automatically at checkout.
       </div>
     </div>
   );
