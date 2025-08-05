@@ -1,5 +1,5 @@
-import {type LoaderFunctionArgs} from '@shopify/remix-oxygen';
-import {useLoaderData, type MetaFunction} from 'react-router';
+import { type LoaderFunctionArgs } from '@shopify/remix-oxygen';
+import { useLoaderData, type MetaFunction } from 'react-router';
 import {
   getSelectedProductOptions,
   Analytics,
@@ -9,19 +9,19 @@ import {
   useSelectedOptionInUrlParam,
   Money,
 } from '@shopify/hydrogen';
-import {ProductPrice} from '~/components/ProductPrice';
-import {ProductImageCarousel} from '~/components/ProductImageCarousel';
-import {ProductForm} from '~/components/ProductForm';
-import {flattenConnection} from '@shopify/hydrogen';
-import {redirectIfHandleIsLocalized} from '~/lib/redirect';
-import {useState, useEffect} from 'react';
-import {AddToCartButton} from '~/components/AddToCartButton';
-import {useAside} from '~/components/Aside';
+import { ProductPrice } from '~/components/ProductPrice';
+import { ProductImageCarousel } from '~/components/ProductImageCarousel';
+import { ProductForm } from '~/components/ProductForm';
+import { flattenConnection } from '@shopify/hydrogen';
+import { redirectIfHandleIsLocalized } from '~/lib/redirect';
+import { useState, useEffect } from 'react';
+import { AddToCartButton } from '~/components/AddToCartButton';
+import { useAside } from '~/components/Aside';
 import type {
   ProductFragment,
   ProductVariantFragment,
 } from 'storefrontapi.generated';
-import type {MappedProductOptions} from '@shopify/hydrogen';
+import type { MappedProductOptions } from '@shopify/hydrogen';
 import UpsellSection from '~/components/UpsellSection';
 import BundleUpsellCard from '~/components/BundleUpsellCard';
 import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
@@ -113,9 +113,9 @@ const UPSELLS: UpsellConfig = {
   ],
 };
 
-export const meta: MetaFunction<typeof loader> = ({data}) => {
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
-    {title: `SALTY | ${data?.product.title ?? ''}`},
+    { title: `SALTY | ${data?.product.title ?? ''}` },
     {
       rel: 'canonical',
       href: `/products/${data?.product.handle}`,
@@ -131,7 +131,7 @@ export async function loader(args: LoaderFunctionArgs) {
   const criticalData = await loadCriticalData(args);
 
   // Check if this product is in denim or polo collection and needs the crossSell upsell
-  const {product} = criticalData;
+  const { product } = criticalData;
   const productCollections = await fetchProductCollections(
     args,
     product.handle,
@@ -150,13 +150,13 @@ async function fetchProductCollections(
   args: LoaderFunctionArgs,
   productHandle: string,
 ) {
-  const {context} = args;
-  const {storefront} = context;
+  const { context } = args;
+  const { storefront } = context;
 
   try {
     // First, determine which collections the current product belongs to
-    const {product} = await storefront.query(PRODUCT_COLLECTIONS_QUERY, {
-      variables: {handle: productHandle},
+    const { product } = await storefront.query(PRODUCT_COLLECTIONS_QUERY, {
+      variables: { handle: productHandle },
     });
 
     // Get the collection handles the product belongs to
@@ -290,7 +290,7 @@ async function fetchProductCollections(
           }
         `,
           {
-            variables: {handle: complementaryCollection},
+            variables: { handle: complementaryCollection },
           },
         );
         if (result?.collection?.products?.nodes) {
@@ -307,11 +307,11 @@ async function fetchProductCollections(
     // Fetch linen products for the linen bundle
     let linenShirt: any = null;
     let linenPants: any = null;
-    
+
     // Check if current product is one of the linen products
     const isLinenShirt = productHandle === 'linen-shirt';
     const isLinenPants = productHandle === 'linen-pants';
-    
+
     // Always fetch linen products if we're on either linen product page
     if (isLinenShirt || isLinenPants) {
       // Fetch both linen products
@@ -410,7 +410,7 @@ async function fetchProductCollections(
             }
           `)
         ]);
-        
+
         linenShirt = shirtResult?.product;
         linenPants = pantsResult?.product;
       } catch (err) {
@@ -587,26 +587,26 @@ async function loadCriticalData({
   params,
   request,
 }: LoaderFunctionArgs) {
-  const {handle} = params;
-  const {storefront} = context;
+  const { handle } = params;
+  const { storefront } = context;
 
   if (!handle) {
     throw new Error('Expected product handle to be defined');
   }
 
-  const [{product}] = await Promise.all([
+  const [{ product }] = await Promise.all([
     storefront.query(PRODUCT_QUERY, {
-      variables: {handle, selectedOptions: getSelectedProductOptions(request)},
+      variables: { handle, selectedOptions: getSelectedProductOptions(request) },
     }),
     // Add other queries here, so that they are loaded in parallel
   ]);
 
   if (!product?.id) {
-    throw new Response(null, {status: 404});
+    throw new Response(null, { status: 404 });
   }
 
   // The API handle might be localized, so redirect to the localized handle
-  redirectIfHandleIsLocalized(request, {handle, data: product});
+  redirectIfHandleIsLocalized(request, { handle, data: product });
 
   return {
     product,
@@ -618,7 +618,7 @@ async function loadCriticalData({
  * fetched after the initial page load. If it's unavailable, the page should still 200.
  * Make sure to not throw any errors here, as it will cause the page to 500.
  */
-function loadDeferredData({context, params}: LoaderFunctionArgs) {
+function loadDeferredData({ context, params }: LoaderFunctionArgs) {
   // Put any API calls that is not critical to be available on first page render
   // For example: product reviews, product recommendations, social feeds.
 
@@ -627,13 +627,13 @@ function loadDeferredData({context, params}: LoaderFunctionArgs) {
 
 function findVariant(
   product: ProductFragment,
-  selectedOptions: {name: string; value: string}[],
+  selectedOptions: { name: string; value: string }[],
 ): ProductVariantFragment | undefined {
   return product.variants.nodes.find((variant: ProductVariantFragment) => {
     return selectedOptions.every(
-      ({name, value}: {name: string; value: string}) => {
+      ({ name, value }: { name: string; value: string }) => {
         return variant.selectedOptions.some(
-          (opt: {name: string; value: string}) =>
+          (opt: { name: string; value: string }) =>
             opt.name === name && opt.value === value,
         );
       },
@@ -642,7 +642,7 @@ function findVariant(
 }
 
 export default function Product() {
-  const {product} = useLoaderData<typeof loader>();
+  const { product } = useLoaderData<typeof loader>();
 
   // Optimistically selects a variant with given available variant information
   const selectedVariant = useOptimisticVariant(
@@ -660,10 +660,10 @@ export default function Product() {
     selectedOrFirstAvailableVariant: selectedVariant,
   });
 
-  const {title, descriptionHtml, handle} = product;
+  const { title, descriptionHtml, handle } = product;
 
   // Get product collections data
-  const {productCollections} = useLoaderData<typeof loader>();
+  const { productCollections } = useLoaderData<typeof loader>();
 
   // Find upsells for this product
   const upsellKey = handle?.toLowerCase().trim();
@@ -748,7 +748,7 @@ export default function Product() {
             <h3 className="text-lg font-medium text-black mb-4">Description</h3>
             <div
               className="prose prose-sm max-w-none text-gray-700"
-              dangerouslySetInnerHTML={{__html: descriptionHtml}}
+              dangerouslySetInnerHTML={{ __html: descriptionHtml }}
             />
           </div>
         </div>

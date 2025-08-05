@@ -1,13 +1,13 @@
-import {Await, useLoaderData} from 'react-router';
-import {Suspense} from 'react';
+import { Await, useLoaderData } from 'react-router';
+import { Suspense } from 'react';
 import BundleUpsellCard from '~/components/BundleUpsellCard';
 import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
 import TopsCapBundleCard from '~/components/TopsCapBundleCard';
 import LinenCrossSellCard from '~/components/LinenCrossSellCard';
-import {json} from '@shopify/remix-oxygen';
-import {useState} from 'react';
-import {AddToCartButton} from '~/components/AddToCartButton';
-import {useAside} from '~/components/Aside';
+import { json } from '@shopify/remix-oxygen';
+import { useState } from 'react';
+import { AddToCartButton } from '~/components/AddToCartButton';
+import { useAside } from '~/components/Aside';
 
 function ProductBundleCard({
   products,
@@ -130,7 +130,7 @@ function ProductBundleCard({
                   ${selectedColor === color ? 'border-2 border-gray-900' : 'border border-gray-200 hover:border-gray-400'}
                   ${oos ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={() => !oos && handleColorChange(color)}
-                style={{borderRadius: '0'}}
+                style={{ borderRadius: '0' }}
                 disabled={oos}
               >
                 <div
@@ -239,7 +239,8 @@ const BUNDLES = [
     description:
       'Pick any 3 tops (choose color and size for each) and get 15% off.',
     minQuantity: 3,
-    discountType: 'automatic',
+    discountType: 'code',
+    discountCode: '3TOPS15',
     discountValue: 15,
     // For demo, you may want to restrict to a tops collection if available
   },
@@ -257,15 +258,15 @@ const BUNDLES = [
     type: 'topsCapBundle',
     title: 'Buy 4 Tops Get 1 Cap Free!',
     description: 'Choose 4 tops and get a cap of your choice absolutely free.',
-    discountType: 'automatic',
+    discountType: 'code',
     discountCode: '4TOPSFREECAP',
     minTopsQuantity: 4,
     freeCapsQuantity: 1,
   },
 ];
 
-export async function loader({context}: any) {
-  const {storefront} = context;
+export async function loader({ context }: any) {
+  const { storefront } = context;
   // Fetch all polos for polo bundles
   const polosResult = await storefront.query(`
     query GetPolos {
@@ -654,13 +655,13 @@ export async function loader({context}: any) {
   const linenShirt = linenShirtResult?.product || null;
   const linenPants = linenPantsResult?.product || null;
 
-  return {polos, denims, cocktailsBabyTee, caps, tops, linenShirt, linenPants};
+  return { polos, denims, cocktailsBabyTee, caps, tops, linenShirt, linenPants };
 }
 
 export default function BundlesPage() {
-  const {polos, denims, cocktailsBabyTee, caps, tops, linenShirt, linenPants} =
+  const { polos, denims, cocktailsBabyTee, caps, tops, linenShirt, linenPants } =
     useLoaderData<typeof loader>();
-  const {open} = useAside();
+  const { open } = useAside();
 
   // --- 1. Denim + Polo Bundle ---
   const [selectedDenim, setSelectedDenim] = useState(denims[0] || null);
@@ -686,9 +687,9 @@ export default function BundlesPage() {
 
   // --- 3. 3 Tops Bundle (Cocktails baby tee) ---
   const [topSelections, setTopSelections] = useState([
-    {variantId: cocktailsBabyTee?.variants.nodes[0]?.id || ''},
-    {variantId: cocktailsBabyTee?.variants.nodes[0]?.id || ''},
-    {variantId: cocktailsBabyTee?.variants.nodes[0]?.id || ''},
+    { variantId: cocktailsBabyTee?.variants.nodes[0]?.id || '' },
+    { variantId: cocktailsBabyTee?.variants.nodes[0]?.id || '' },
+    { variantId: cocktailsBabyTee?.variants.nodes[0]?.id || '' },
   ]);
 
   // --- 4. 3 Polos Bundle ---
@@ -710,7 +711,7 @@ export default function BundlesPage() {
 
   // Helper: get price info
   function getPriceInfo(variant) {
-    if (!variant) return {price: 0, compareAt: 0, currency: 'USD'};
+    if (!variant) return { price: 0, compareAt: 0, currency: 'USD' };
     return {
       price: parseFloat(variant.price.amount),
       compareAt: variant.compareAtPrice
@@ -868,8 +869,8 @@ export default function BundlesPage() {
           <div className="mt-6">
             <AddToCartButton
               lines={[
-                {merchandiseId: selectedDenimVariantId, quantity: 1},
-                {merchandiseId: selectedPoloVariantId, quantity: 1},
+                { merchandiseId: selectedDenimVariantId, quantity: 1 },
+                { merchandiseId: selectedPoloVariantId, quantity: 1 },
               ]}
               onClick={() => open('cart')}
             >
@@ -935,44 +936,44 @@ export default function BundlesPage() {
                 initialColor={
                   idx === 0
                     ? selectedPolo1?.options
-                        ?.find((o) => o.name.toLowerCase() === 'color')
-                        ?.optionValues.find(
-                          (v) =>
-                            v.name ===
-                            selectedPolo1?.options?.find(
-                              (o) => o.name.toLowerCase() === 'color',
-                            )?.optionValues[0]?.name,
-                        )?.name
+                      ?.find((o) => o.name.toLowerCase() === 'color')
+                      ?.optionValues.find(
+                        (v) =>
+                          v.name ===
+                          selectedPolo1?.options?.find(
+                            (o) => o.name.toLowerCase() === 'color',
+                          )?.optionValues[0]?.name,
+                      )?.name
                     : selectedPolo2?.options
-                        ?.find((o) => o.name.toLowerCase() === 'color')
-                        ?.optionValues.find(
-                          (v) =>
-                            v.name ===
-                            selectedPolo2?.options?.find(
-                              (o) => o.name.toLowerCase() === 'color',
-                            )?.optionValues[0]?.name,
-                        )?.name
+                      ?.find((o) => o.name.toLowerCase() === 'color')
+                      ?.optionValues.find(
+                        (v) =>
+                          v.name ===
+                          selectedPolo2?.options?.find(
+                            (o) => o.name.toLowerCase() === 'color',
+                          )?.optionValues[0]?.name,
+                      )?.name
                 }
                 initialSize={
                   idx === 0
                     ? selectedPolo1?.options
-                        ?.find((o) => o.name.toLowerCase() === 'size')
-                        ?.optionValues.find(
-                          (v) =>
-                            v.name ===
-                            selectedPolo1?.options?.find(
-                              (o) => o.name.toLowerCase() === 'size',
-                            )?.optionValues[0]?.name,
-                        )?.name
+                      ?.find((o) => o.name.toLowerCase() === 'size')
+                      ?.optionValues.find(
+                        (v) =>
+                          v.name ===
+                          selectedPolo1?.options?.find(
+                            (o) => o.name.toLowerCase() === 'size',
+                          )?.optionValues[0]?.name,
+                      )?.name
                     : selectedPolo2?.options
-                        ?.find((o) => o.name.toLowerCase() === 'size')
-                        ?.optionValues.find(
-                          (v) =>
-                            v.name ===
-                            selectedPolo2?.options?.find(
-                              (o) => o.name.toLowerCase() === 'size',
-                            )?.optionValues[0]?.name,
-                        )?.name
+                      ?.find((o) => o.name.toLowerCase() === 'size')
+                      ?.optionValues.find(
+                        (v) =>
+                          v.name ===
+                          selectedPolo2?.options?.find(
+                            (o) => o.name.toLowerCase() === 'size',
+                          )?.optionValues[0]?.name,
+                      )?.name
                 }
               />
             ))}
@@ -1002,8 +1003,8 @@ export default function BundlesPage() {
           <div className="mt-6">
             <AddToCartButton
               lines={[
-                {merchandiseId: selectedPolo1VariantId, quantity: 1},
-                {merchandiseId: selectedPolo2VariantId, quantity: 1},
+                { merchandiseId: selectedPolo1VariantId, quantity: 1 },
+                { merchandiseId: selectedPolo2VariantId, quantity: 1 },
               ]}
               onClick={() => open('cart')}
             >
@@ -1049,21 +1050,21 @@ export default function BundlesPage() {
                 initialColor={
                   topSelections[idx].variantId
                     ? getVariant(
-                        cocktailsBabyTee,
-                        topSelections[idx].variantId,
-                      )?.selectedOptions.find(
-                        (o) => o.name.toLowerCase() === 'color',
-                      )?.value
+                      cocktailsBabyTee,
+                      topSelections[idx].variantId,
+                    )?.selectedOptions.find(
+                      (o) => o.name.toLowerCase() === 'color',
+                    )?.value
                     : ''
                 }
                 initialSize={
                   topSelections[idx].variantId
                     ? getVariant(
-                        cocktailsBabyTee,
-                        topSelections[idx].variantId,
-                      )?.selectedOptions.find(
-                        (o) => o.name.toLowerCase() === 'size',
-                      )?.value
+                      cocktailsBabyTee,
+                      topSelections[idx].variantId,
+                    )?.selectedOptions.find(
+                      (o) => o.name.toLowerCase() === 'size',
+                    )?.value
                     : ''
                 }
               />
@@ -1100,11 +1101,15 @@ export default function BundlesPage() {
                 quantity: 1,
               }))}
               onClick={() => open('cart')}
+              discountCode="3TOPS15"
             >
               <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
                 Add Bundle to Cart
               </span>
             </AddToCartButton>
+          </div>
+          <div className="text-xs text-gray-500 mt-2 text-center">
+            Discount applied automatically with code 3TOPS15.
           </div>
         </div>
 

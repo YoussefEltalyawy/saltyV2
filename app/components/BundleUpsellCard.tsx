@@ -1,21 +1,21 @@
-import {useState, useEffect} from 'react';
-import {useLoaderData} from 'react-router';
-import {useAside} from './Aside';
-import {AddToCartButton} from './AddToCartButton';
-import type {ProductFragment} from 'storefrontapi.generated';
-import {loader} from '../routes/($locale).products.$handle';
+import { useState, useEffect } from 'react';
+import { useLoaderData } from 'react-router';
+import { useAside } from './Aside';
+import { AddToCartButton } from './AddToCartButton';
+import type { ProductFragment } from 'storefrontapi.generated';
+import { loader } from '../routes/($locale).products.$handle';
 
 const POLO_COLLECTION = 'oversized-polos';
 
 function findVariant(
   product: any,
-  selectedOptions: {name: string; value: string}[],
+  selectedOptions: { name: string; value: string }[],
 ): any {
   return product.variants.nodes.find((variant: any) => {
     return selectedOptions.every(
-      ({name, value}: {name: string; value: string}) => {
+      ({ name, value }: { name: string; value: string }) => {
         return variant.selectedOptions.some(
-          (opt: {name: string; value: string}) =>
+          (opt: { name: string; value: string }) =>
             opt.name === name && opt.value === value,
         );
       },
@@ -46,9 +46,9 @@ function BundleUpsellCard({
     discountValue = 15,
     collectionRestriction,
   } = upsell;
-  const {open} = useAside();
+  const { open } = useAside();
   const [error, setError] = useState('');
-  const {productCollections} = useLoaderData<typeof loader>();
+  const { productCollections } = useLoaderData<typeof loader>();
 
   // For polo bundles, we need to fetch other polos
   const [availablePolos, setAvailablePolos] = useState<any[]>([]);
@@ -113,8 +113,8 @@ function BundleUpsellCard({
       // Find variant for default selection
       if (defaultColor && defaultSize) {
         const variant = findVariant(product, [
-          {name: 'Color', value: defaultColor},
-          {name: 'Size', value: defaultSize},
+          { name: 'Color', value: defaultColor },
+          { name: 'Size', value: defaultSize },
         ]);
 
         if (variant) {
@@ -245,8 +245,8 @@ function BundleUpsellCard({
     // For regular bundles, use the current product
     else if (newSelections[idx].color && newSelections[idx].size) {
       const variant = findVariant(product, [
-        {name: 'Color', value: newSelections[idx].color},
-        {name: 'Size', value: newSelections[idx].size},
+        { name: 'Color', value: newSelections[idx].color },
+        { name: 'Size', value: newSelections[idx].size },
       ]);
       newSelections[idx].variantId = variant?.id;
       newSelections[idx].image = variant?.image?.url;
@@ -308,7 +308,7 @@ function BundleUpsellCard({
 
   // Prepare lines for AddToCartButton
   const lines = selections.every((sel) => sel.variantId)
-    ? selections.map((sel) => ({merchandiseId: sel.variantId!, quantity: 1}))
+    ? selections.map((sel) => ({ merchandiseId: sel.variantId!, quantity: 1 }))
     : [];
   // Check if any selected variant is out of stock
   const anyOutOfStock = selections.some((sel) => {
@@ -437,8 +437,8 @@ function BundleUpsellCard({
                   const productForSwatch =
                     isPoloBundle && sel.productHandle
                       ? availablePolos.find(
-                          (p) => p.handle === sel.productHandle,
-                        )
+                        (p) => p.handle === sel.productHandle,
+                      )
                       : product;
                   const swatchColor = getSwatchColor(productForSwatch, color);
                   // Find the variant for this color and current size
@@ -463,17 +463,16 @@ function BundleUpsellCard({
                       key={color}
                       type="button"
                       className={`product-options-item transition-all w-6 h-6 flex items-center justify-center p-0 color-swatch relative
-                        ${
-                          sel.color === color
-                            ? 'border-2 border-gray-900'
-                            : 'border border-gray-200 hover:border-gray-400'
+                        ${sel.color === color
+                          ? 'border-2 border-gray-900'
+                          : 'border border-gray-200 hover:border-gray-400'
                         }
                         ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}
                       `}
                       onClick={() =>
                         !outOfStock && handleChange(idx, 'color', color)
                       }
-                      style={{borderRadius: '0'}} // Make it square
+                      style={{ borderRadius: '0' }} // Make it square
                       disabled={outOfStock}
                     >
                       {swatchColor ? (
@@ -558,8 +557,8 @@ function BundleUpsellCard({
                   const polo =
                     isPoloBundle && sel.productHandle
                       ? availablePolos.find(
-                          (p) => p.handle === sel.productHandle,
-                        )
+                        (p) => p.handle === sel.productHandle,
+                      )
                       : product;
                   const variant = polo?.variants?.nodes.find(
                     (v: any) =>
@@ -582,10 +581,9 @@ function BundleUpsellCard({
                       key={size}
                       type="button"
                       className={`product-options-item transition-all px-2 py-1 text-xs font-medium relative
-                        ${
-                          sel.size === size
-                            ? 'text-gray-900 underline underline-offset-4'
-                            : 'text-gray-600 hover:text-gray-900'
+                        ${sel.size === size
+                          ? 'text-gray-900 underline underline-offset-4'
+                          : 'text-gray-600 hover:text-gray-900'
                         }
                         ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}
                       `}
