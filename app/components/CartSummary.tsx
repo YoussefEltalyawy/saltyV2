@@ -65,12 +65,44 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
     </div>
   );
 }
-function CartCheckoutActions({ checkoutUrl }: { checkoutUrl?: string }) {
+function CartCheckoutActions({ checkoutUrl, cart }: { checkoutUrl?: string; cart?: any }) {
   if (!checkoutUrl) return null;
 
   return (
     <div>
-      <a href={checkoutUrl} target="_self">
+      <a
+        href={checkoutUrl}
+        target="_self"
+        onClick={() => {
+          if (cart) {
+            const lines = (cart.lines as any[]) || [];
+            const ids = lines.map((l: any) => l?.merchandise?.id).filter(Boolean);
+            const contents = lines
+              .map((l: any) =>
+                l?.merchandise?.id
+                  ? {
+                    id: l.merchandise.id as string,
+                    quantity: Number(l.quantity || 1),
+                    item_price: Number(l?.merchandise?.price?.amount || 0),
+                  }
+                  : null,
+              )
+              .filter(Boolean) as Array<{ id: string; quantity: number; item_price: number }>;
+            const value = Number(cart.cost?.subtotalAmount?.amount || 0);
+            const currency = cart.cost?.subtotalAmount?.currencyCode || 'USD';
+            const eventId = generateEventId();
+            trackPixelEvent('InitiateCheckout', {
+              content_type: 'product',
+              content_ids: ids,
+              contents,
+              value,
+              currency,
+              num_items: contents.reduce((sum, c) => sum + (c.quantity || 0), 0),
+              eventID: eventId,
+            });
+          }
+        }}
+      >
         <p>Continue to Checkout &rarr;</p>
       </a>
       <br />
