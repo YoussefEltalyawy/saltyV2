@@ -1,23 +1,25 @@
-import {redirect, type LoaderFunctionArgs} from '@shopify/remix-oxygen';
-import {useLoaderData, type MetaFunction} from 'react-router';
-import {Money, Image, flattenConnection} from '@shopify/hydrogen';
-import type {OrderLineItemFullFragment} from 'customer-accountapi.generated';
-import {CUSTOMER_ORDER_QUERY} from '~/graphql/customer-account/CustomerOrderQuery';
+import { redirect, type LoaderFunctionArgs } from '@shopify/remix-oxygen';
+import { useLoaderData, type MetaFunction } from 'react-router';
+import { useEffect } from 'react';
+import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
+import { Money, Image, flattenConnection } from '@shopify/hydrogen';
+import type { OrderLineItemFullFragment } from 'customer-accountapi.generated';
+import { CUSTOMER_ORDER_QUERY } from '~/graphql/customer-account/CustomerOrderQuery';
 
-export const meta: MetaFunction<typeof loader> = ({data}) => {
-  return [{title: `Order ${data?.order?.name}`}];
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  return [{ title: `Order ${data?.order?.name}` }];
 };
 
-export async function loader({params, context}: LoaderFunctionArgs) {
+export async function loader({ params, context }: LoaderFunctionArgs) {
   if (!params.id) {
     return redirect('/account/orders');
   }
 
   const orderId = atob(params.id);
-  const {data, errors} = await context.customerAccount.query(
+  const { data, errors } = await context.customerAccount.query(
     CUSTOMER_ORDER_QUERY,
     {
-      variables: {orderId},
+      variables: { orderId },
     },
   );
 
@@ -25,7 +27,7 @@ export async function loader({params, context}: LoaderFunctionArgs) {
     throw new Error('Order not found');
   }
 
-  const {order} = data;
+  const { order } = data;
 
   const lineItems = flattenConnection(order.lineItems);
   const discountApplications = flattenConnection(order.discountApplications);
@@ -59,6 +61,29 @@ export default function OrderRoute() {
     discountPercentage,
     fulfillmentStatus,
   } = useLoaderData<typeof loader>();
+  useEffect(() => {
+    if (!order) return;
+    const currency = order.totalPrice?.currencyCode || 'USD';
+    const value = Number(order.totalPrice?.amount || 0);
+    const contents = (lineItems || [])
+      .map((l: any) => ({
+        id: l?.variant?.id || l?.variantId || l?.product?.id,
+        quantity: Number(l?.quantity || 1),
+        item_price: Number(l?.variant?.price?.amount || 0),
+      }))
+      .filter((c: any) => c.id);
+    const content_ids = contents.map((c: any) => c.id);
+    const eventID = generateEventId();
+    trackPixelEvent('Purchase', {
+      value,
+      currency,
+      content_type: 'product',
+      content_ids,
+      contents,
+      num_items: contents.reduce((s: number, c: any) => s + (c.quantity || 0), 0),
+      eventID,
+    });
+  }, [order?.id]);
   return (
     <div className="account-order">
       <h2>Order {order.name}</h2>
@@ -83,22 +108,22 @@ export default function OrderRoute() {
           <tfoot>
             {((discountValue && discountValue.amount) ||
               discountPercentage) && (
-              <tr>
-                <th scope="row" colSpan={3}>
-                  <p>Discounts</p>
-                </th>
-                <th scope="row">
-                  <p>Discounts</p>
-                </th>
-                <td>
-                  {discountPercentage ? (
-                    <span>-{discountPercentage}% OFF</span>
-                  ) : (
-                    discountValue && <Money data={discountValue!} />
-                  )}
-                </td>
-              </tr>
-            )}
+                <tr>
+                  <th scope="row" colSpan={3}>
+                    <p>Discounts</p>
+                  </th>
+                  <th scope="row">
+                    <p>Discounts</p>
+                  </th>
+                  <td>
+                    {discountPercentage ? (
+                      <span>-{discountPercentage}% OFF</span>
+                    ) : (
+                      discountValue && <Money data={discountValue!} />
+                    )}
+                  </td>
+                </tr>
+              )}
             <tr>
               <th scope="row" colSpan={3}>
                 <p>Subtotal</p>
@@ -169,7 +194,7 @@ export default function OrderRoute() {
   );
 }
 
-function OrderLineRow({lineItem}: {lineItem: OrderLineItemFullFragment}) {
+function OrderLineRow({ lineItem }: { lineItem: OrderLineItemFullFragment }) {
   return (
     <tr key={lineItem.id}>
       <td>

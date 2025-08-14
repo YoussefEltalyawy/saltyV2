@@ -15,6 +15,7 @@ import { ProductForm } from '~/components/ProductForm';
 import { flattenConnection } from '@shopify/hydrogen';
 import { redirectIfHandleIsLocalized } from '~/lib/redirect';
 import { useState, useEffect } from 'react';
+import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
 import { AddToCartButton } from '~/components/AddToCartButton';
 import { useAside } from '~/components/Aside';
 import type {
@@ -661,6 +662,21 @@ export default function Product() {
   });
 
   const { title, descriptionHtml, handle } = product;
+  useEffect(() => {
+    const variantId = selectedVariant?.id;
+    if (!product?.id || !variantId) return;
+    const priceAmount = Number(selectedVariant?.price?.amount || 0);
+    const currency = selectedVariant?.price?.currencyCode || 'USD';
+    const eventId = generateEventId();
+    trackPixelEvent('ViewContent', {
+      content_type: 'product',
+      content_ids: [variantId],
+      value: priceAmount,
+      currency,
+      eventID: eventId,
+    });
+  }, [product?.id, selectedVariant?.id]);
+
 
   // Get product collections data
   const { productCollections } = useLoaderData<typeof loader>();

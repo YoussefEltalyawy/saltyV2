@@ -1,5 +1,7 @@
-import {type FetcherWithComponents} from 'react-router';
-import {CartForm, type OptimisticCartLineInput} from '@shopify/hydrogen';
+import { type FetcherWithComponents } from 'react-router';
+import { CartForm, type OptimisticCartLineInput } from '@shopify/hydrogen';
+import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
+import { useRef } from 'react';
 
 export function AddToCartButton({
   analytics,
@@ -16,10 +18,11 @@ export function AddToCartButton({
   onClick?: () => void;
   discountCode?: string;
 }) {
+  const analyticsInputRef = useRef<HTMLInputElement>(null);
   return (
     <CartForm
       route="/cart"
-      inputs={{lines, discountCode}}
+      inputs={{ lines, discountCode }}
       action={CartForm.ACTIONS.LinesAdd}
     >
       {(fetcher: FetcherWithComponents<any>) => {
@@ -30,11 +33,33 @@ export function AddToCartButton({
             <input
               name="analytics"
               type="hidden"
+              ref={analyticsInputRef}
               value={JSON.stringify(analytics)}
             />
             <button
               type="submit"
-              onClick={onClick}
+              onClick={() => {
+                const first = lines?.[0] as any;
+                const merchandiseId: string | undefined = first?.merchandiseId;
+                const quantity: number | undefined = first?.quantity;
+                const eventId = generateEventId();
+                if (analyticsInputRef.current) {
+                  try {
+                    analyticsInputRef.current.value = JSON.stringify({
+                      event_id: eventId,
+                    });
+                  } catch { }
+                }
+                trackPixelEvent('AddToCart', {
+                  content_type: 'product',
+                  content_ids: merchandiseId ? [merchandiseId] : undefined,
+                  contents: merchandiseId
+                    ? [{ id: merchandiseId, quantity: quantity || 1 }]
+                    : undefined,
+                  eventID: eventId,
+                });
+                onClick?.();
+              }}
               disabled={disabled ?? isSubmitting}
               className="w-full"
             >

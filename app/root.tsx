@@ -25,6 +25,7 @@ import { LockScreen } from '~/components/LockScreen';
 import { safeLocalStorage } from '~/lib/localStorage';
 import { NewsletterPopup } from '~/components/NewsletterPopup';
 import { useNewsletterPopup } from '~/hooks/useNewsletterPopup';
+import { MetaPixel } from '~/components/MetaPixel';
 
 export type RootLoader = typeof loader;
 
@@ -87,6 +88,7 @@ export async function loader(args: LoaderFunctionArgs) {
     ...deferredData,
     ...criticalData,
     publicStoreDomain: env.PUBLIC_STORE_DOMAIN,
+    metaPixelId: '1023189219674873',
     shop: getShopAnalytics({
       storefront,
       publicStorefrontId: env.PUBLIC_STOREFRONT_ID,
@@ -223,6 +225,8 @@ export function Layout({ children }: { children?: React.ReactNode }) {
         <Links />
       </head>
       <body>
+        {/* Meta Pixel */}
+        <MetaPixel pixelId={data?.metaPixelId} />
         {data.storeLocked === true && typeof data.storePassword === 'string' && data.storePassword.trim() !== '' && isLocked ? (
           <LockScreen correctPassword={data.storePassword} onPasswordSuccess={handlePasswordSuccess} />
         ) : (

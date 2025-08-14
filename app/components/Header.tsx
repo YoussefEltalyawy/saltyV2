@@ -10,6 +10,7 @@ import { useAside } from '~/components/Aside';
 import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
 import { useHeaderColor } from './HeaderColorContext';
 import { Menu, User, Search, ShoppingCart, ChevronRight } from 'lucide-react';
+import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 

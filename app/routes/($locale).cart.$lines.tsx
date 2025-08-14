@@ -1,4 +1,4 @@
-import {redirect, type LoaderFunctionArgs} from '@shopify/remix-oxygen';
+import { redirect, type LoaderFunctionArgs } from '@shopify/remix-oxygen';
 
 /**
  * Automatically creates a new cart based on the URL and redirects straight to checkout.
@@ -18,9 +18,9 @@ import {redirect, type LoaderFunctionArgs} from '@shopify/remix-oxygen';
  *
  * ```
  */
-export async function loader({request, context, params}: LoaderFunctionArgs) {
-  const {cart} = context;
-  const {lines} = params;
+export async function loader({ request, context, params }: LoaderFunctionArgs) {
+  const { cart } = context;
+  const { lines } = params;
   if (!lines) return redirect('/cart');
   const linesMap = lines.split(',').map((line) => {
     const lineDetails = line.split(':');
@@ -58,7 +58,27 @@ export async function loader({request, context, params}: LoaderFunctionArgs) {
 
   // redirect to checkout
   if (cartResult.checkoutUrl) {
-    return redirect(cartResult.checkoutUrl, {headers});
+    try {
+      const origin = new URL(request.url).origin;
+      const event_id = crypto.randomUUID?.() || String(Date.now());
+      const ids = linesMap.map((l) => l.merchandiseId);
+      context.waitUntil?.(
+        fetch(`${origin}/api.meta-capi`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: 'InitiateCheckout',
+            event_id,
+            custom_data: {
+              content_type: 'product',
+              content_ids: ids,
+              contents: ids.map((id, idx) => ({ id, quantity: linesMap[idx].quantity })),
+            },
+          }),
+        }).catch(() => { }),
+      );
+    } catch { }
+    return redirect(cartResult.checkoutUrl, { headers });
   } else {
     throw new Error('No checkout URL found');
   }
