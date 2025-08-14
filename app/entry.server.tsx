@@ -32,7 +32,10 @@ export default async function handleRequest(
       'https://cdn.shopify.com',
       'https://www.facebook.com',
     ],
-    connectSrc: ['https://graph.facebook.com'],
+    connectSrc: [
+      'https://graph.facebook.com',
+      'https://www.facebook.com',
+    ],
   });
 
   const body = await renderToReadableStream(

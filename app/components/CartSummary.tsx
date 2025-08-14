@@ -25,12 +25,24 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
           )}
         </dd>
       </dl>
-      <a
-        href={cart.checkoutUrl}
-        className="block w-full bg-black text-white text-center py-3 rounded-none font-semibold text-base transition hover:opacity-90 focus:outline-none"
-        onClick={() => {
+      <button
+        type="button"
+        className="block w-full bg-black text-white text-center py-3 rounded-none font-semibold text-base transition hover:opacity-90 focus:outline-none cursor-pointer"
+        style={{ pointerEvents: 'auto' }}
+        onClick={async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          console.log('Checkout button clicked!'); // Debug log
+          
           publish('checkout_started', { cart });
-          const lines = (cart.lines as any[]) || [];
+          
+          // Safely get cart lines with proper validation
+          const cartLines = cart?.lines;
+          const lines = Array.isArray(cartLines) ? cartLines : [];
+          
+          console.log('Cart lines:', lines); // Debug log
+          
           const ids = lines.map((l: any) => l?.merchandise?.id).filter(Boolean);
           const contents = lines
             .map((l: any) =>
@@ -46,6 +58,10 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
           const value = Number(cart.cost?.subtotalAmount?.amount || 0);
           const currency = cart.cost?.subtotalAmount?.currencyCode || 'USD';
           const eventId = generateEventId();
+          
+          console.log('Tracking InitiateCheckout event:', { eventId, value, currency }); // Debug log
+          
+          // Track the pixel event first
           trackPixelEvent('InitiateCheckout', {
             content_type: 'product',
             content_ids: ids,
@@ -55,10 +71,20 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
             num_items: contents.reduce((sum, c) => sum + (c.quantity || 0), 0),
             eventID: eventId,
           });
+          
+          // Small delay to ensure pixel event is sent before navigation
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          console.log('Navigating to checkout:', cart.checkoutUrl); // Debug log
+          
+          // Navigate to checkout
+          if (cart.checkoutUrl) {
+            window.location.href = cart.checkoutUrl;
+          }
         }}
       >
         Checkout
-      </a>
+      </button>
       <div className="text-xs text-center text-gray-700 mt-4 mb-2 tracking-wide">
         SHIPPING & TAXES CALCULATED AT CHECKOUT
       </div>
@@ -70,10 +96,9 @@ function CartCheckoutActions({ checkoutUrl, cart }: { checkoutUrl?: string; cart
 
   return (
     <div>
-      <a
-        href={checkoutUrl}
-        target="_self"
-        onClick={() => {
+      <button
+        type="button"
+        onClick={async () => {
           if (cart) {
             const lines = (cart.lines as any[]) || [];
             const ids = lines.map((l: any) => l?.merchandise?.id).filter(Boolean);
@@ -91,6 +116,8 @@ function CartCheckoutActions({ checkoutUrl, cart }: { checkoutUrl?: string; cart
             const value = Number(cart.cost?.subtotalAmount?.amount || 0);
             const currency = cart.cost?.subtotalAmount?.currencyCode || 'USD';
             const eventId = generateEventId();
+            
+            // Track the pixel event first
             trackPixelEvent('InitiateCheckout', {
               content_type: 'product',
               content_ids: ids,
@@ -100,11 +127,19 @@ function CartCheckoutActions({ checkoutUrl, cart }: { checkoutUrl?: string; cart
               num_items: contents.reduce((sum, c) => sum + (c.quantity || 0), 0),
               eventID: eventId,
             });
+            
+            // Small delay to ensure pixel event is sent before navigation
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Navigate to checkout
+            if (checkoutUrl) {
+              window.location.href = checkoutUrl;
+            }
           }
         }}
       >
         <p>Continue to Checkout &rarr;</p>
-      </a>
+      </button>
       <br />
     </div>
   );
