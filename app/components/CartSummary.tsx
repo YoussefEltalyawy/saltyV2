@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { FetcherWithComponents } from 'react-router';
 import { useAnalytics } from '@shopify/hydrogen';
 import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
+import { toMetaContentId } from '~/lib/meta';
 
 type CartSummaryProps = {
   cart: OptimisticCart<CartApiQueryFragment | null>;
@@ -35,7 +36,7 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
           
           console.log('Checkout button clicked!'); // Debug log
           
-          publish('checkout_started', { cart });
+          publish('custom_checkout_started', { cart });
           
           // Safely get cart lines with proper validation
           const cartLines = cart?.lines;
@@ -43,12 +44,14 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
           
           console.log('Cart lines:', lines); // Debug log
           
-          const ids = lines.map((l: any) => l?.merchandise?.id).filter(Boolean);
+          const ids = lines
+            .map((l: any) => toMetaContentId(l?.merchandise?.id))
+            .filter(Boolean) as string[];
           const contents = lines
             .map((l: any) =>
               l?.merchandise?.id
                 ? {
-                  id: l.merchandise.id as string,
+                  id: toMetaContentId(l.merchandise.id) as string,
                   quantity: Number(l.quantity || 1),
                   item_price: Number(l?.merchandise?.price?.amount || 0),
                 }
@@ -101,12 +104,14 @@ function CartCheckoutActions({ checkoutUrl, cart }: { checkoutUrl?: string; cart
         onClick={async () => {
           if (cart) {
             const lines = (cart.lines as any[]) || [];
-            const ids = lines.map((l: any) => l?.merchandise?.id).filter(Boolean);
+            const ids = lines
+              .map((l: any) => toMetaContentId(l?.merchandise?.id))
+              .filter(Boolean) as string[];
             const contents = lines
               .map((l: any) =>
                 l?.merchandise?.id
                   ? {
-                    id: l.merchandise.id as string,
+                    id: toMetaContentId(l.merchandise.id) as string,
                     quantity: Number(l.quantity || 1),
                     item_price: Number(l?.merchandise?.price?.amount || 0),
                   }

@@ -1,6 +1,7 @@
 import { type FetcherWithComponents } from 'react-router';
 import { CartForm, type OptimisticCartLineInput } from '@shopify/hydrogen';
 import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
+import { toMetaContentId } from '~/lib/meta';
 import { useRef } from 'react';
 
 export function AddToCartButton({
@@ -41,6 +42,7 @@ export function AddToCartButton({
               onClick={() => {
                 const first = lines?.[0] as any;
                 const merchandiseId: string | undefined = first?.merchandiseId;
+                const mappedId = toMetaContentId(merchandiseId);
                 const quantity: number | undefined = first?.quantity;
                 const eventId = generateEventId();
                 if (analyticsInputRef.current) {
@@ -52,9 +54,9 @@ export function AddToCartButton({
                 }
                 trackPixelEvent('AddToCart', {
                   content_type: 'product',
-                  content_ids: merchandiseId ? [merchandiseId] : undefined,
-                  contents: merchandiseId
-                    ? [{ id: merchandiseId, quantity: quantity || 1 }]
+                  content_ids: mappedId ? [mappedId] : undefined,
+                  contents: mappedId
+                    ? [{ id: mappedId, quantity: quantity || 1 }]
                     : undefined,
                   eventID: eventId,
                 });

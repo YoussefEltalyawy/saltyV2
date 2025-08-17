@@ -1,4 +1,5 @@
 import { type LoaderFunctionArgs } from 'react-router';
+import { toMetaContentId } from '~/lib/meta';
 
 function verifyShopifyWebhook(request: Request, secret: string) {
   // Minimal check: in production, verify HMAC. Placeholder for brevity.
@@ -22,12 +23,23 @@ export async function action({ request, context }: LoaderFunctionArgs) {
       const order = body;
       const currency = order?.total_price_set?.shop_money?.currency_code || order?.currency || 'USD';
       const value = Number(order?.total_price || order?.total_price_set?.shop_money?.amount || 0);
-      const contents = (order?.line_items || []).map((l: any) => ({
-        id: l?.variant_id ? `gid://shopify/ProductVariant/${l.variant_id}` : l?.product_id ? `gid://shopify/Product/${l.product_id}` : undefined,
-        quantity: Number(l?.quantity || 1),
-        item_price: Number(l?.price || 0),
-      })).filter((c: any) => c.id);
-      const content_ids = contents.map((c: any) => c.id);
+      const contents = (order?.line_items || [])
+        .map((l: any) => {
+          const rawId = l?.variant_id
+            ? `gid://shopify/ProductVariant/${l.variant_id}`
+            : l?.product_id
+              ? `gid://shopify/Product/${l.product_id}`
+              : undefined;
+          const mapped = toMetaContentId(rawId);
+          if (!mapped) return null;
+          return {
+            id: mapped,
+            quantity: Number(l?.quantity || 1),
+            item_price: Number(l?.price || 0),
+          };
+        })
+        .filter(Boolean);
+      const content_ids = (contents as any[]).map((c: any) => c.id);
       const event_id = crypto.randomUUID?.() || String(Date.now());
       const origin = new URL(request.url).origin;
       await fetch(`${origin}/api.meta-capi`, {

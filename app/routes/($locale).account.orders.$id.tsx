@@ -2,6 +2,7 @@ import { redirect, type LoaderFunctionArgs } from '@shopify/remix-oxygen';
 import { useLoaderData, type MetaFunction } from 'react-router';
 import { useEffect } from 'react';
 import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
+import { toMetaContentId } from '~/lib/meta';
 import { Money, Image, flattenConnection } from '@shopify/hydrogen';
 import type { OrderLineItemFullFragment } from 'customer-accountapi.generated';
 import { CUSTOMER_ORDER_QUERY } from '~/graphql/customer-account/CustomerOrderQuery';
@@ -63,26 +64,34 @@ export default function OrderRoute() {
   } = useLoaderData<typeof loader>();
   useEffect(() => {
     if (!order) return;
-    const currency = order.totalPrice?.currencyCode || 'USD';
-    const value = Number(order.totalPrice?.amount || 0);
-    const contents = (lineItems || [])
-      .map((l: any) => ({
-        id: l?.variant?.id || l?.variantId || l?.product?.id,
-        quantity: Number(l?.quantity || 1),
-        item_price: Number(l?.variant?.price?.amount || 0),
-      }))
-      .filter((c: any) => c.id);
-    const content_ids = contents.map((c: any) => c.id);
-    const eventID = generateEventId();
-    trackPixelEvent('Purchase', {
-      value,
-      currency,
-      content_type: 'product',
-      content_ids,
-      contents,
-      num_items: contents.reduce((s: number, c: any) => s + (c.quantity || 0), 0),
-      eventID,
-    });
+    try {
+      const contents = (order?.lineItems?.nodes || [])
+        .map((l: any) => {
+          const id = l?.variant?.id || l?.product?.id;
+          const mapped = toMetaContentId(id);
+          if (!mapped) return null;
+          return {
+            id: mapped,
+            quantity: Number(l?.quantity || 1),
+            item_price: Number(l?.originalTotalPrice?.amount || 0),
+          };
+        })
+        .filter(Boolean) as Array<{ id: string; quantity: number; item_price: number }>;
+      const content_ids = contents.map((c) => c.id);
+      const value = Number(order?.totalPrice?.amount || 0);
+      const currency = order?.totalPrice?.currencyCode || 'USD';
+      const num_items = contents.reduce((s, c) => s + (c.quantity || 0), 0);
+      const eventID = generateEventId();
+      trackPixelEvent('Purchase', {
+        content_type: 'product',
+        content_ids,
+        contents,
+        value,
+        currency,
+        num_items,
+        eventID,
+      });
+    } catch {}
   }, [order?.id]);
   return (
     <div className="account-order">

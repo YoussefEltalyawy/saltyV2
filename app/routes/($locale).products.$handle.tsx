@@ -16,6 +16,7 @@ import { flattenConnection } from '@shopify/hydrogen';
 import { redirectIfHandleIsLocalized } from '~/lib/redirect';
 import { useState, useEffect } from 'react';
 import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
+import { toMetaContentId } from '~/lib/meta';
 import { AddToCartButton } from '~/components/AddToCartButton';
 import { useAside } from '~/components/Aside';
 import type {
@@ -668,9 +669,10 @@ export default function Product() {
     const priceAmount = Number(selectedVariant?.price?.amount || 0);
     const currency = selectedVariant?.price?.currencyCode || 'USD';
     const eventId = generateEventId();
+    const mappedId = toMetaContentId(variantId);
     trackPixelEvent('ViewContent', {
       content_type: 'product',
-      content_ids: [variantId],
+      content_ids: mappedId ? [mappedId] : undefined,
       value: priceAmount,
       currency,
       eventID: eventId,

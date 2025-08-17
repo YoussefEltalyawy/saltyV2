@@ -49,26 +49,22 @@ export function MetaPixel({ pixelId }: MetaPixelProps) {
         'script',
         'https://connect.facebook.net/en_US/fbevents.js',
       );
-
-      window.fbq?.('init', pixelId);
-      window.fbq?.('track', 'PageView');
     }
+    // Always ensure pixel is initialized once script is there
+    window.fbq?.('init', pixelId);
+    window.fbq?.('track', 'PageView');
   }, [pixelId]);
 
   // Track SPA navigations as PageView
   useEffect(() => {
     if (!pixelId) return;
-    window.fbq?.('track', 'PageView');
+    if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+      window.fbq('track', 'PageView');
+    }
   }, [pixelId, location.pathname, location.search]);
 
   return (
     <>
-      <script
-        // @ts-expect-error React HTMLAttributes accepts nonce at runtime
-        nonce={nonce}
-        async
-        src="https://connect.facebook.net/en_US/fbevents.js"
-      />
       {/* Noscript image fallback */}
       <noscript>
         {/* eslint-disable-next-line jsx-a11y/alt-text */}
@@ -79,14 +75,6 @@ export function MetaPixel({ pixelId }: MetaPixelProps) {
           src={`https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`}
         />
       </noscript>
-      {/* Provide a nonced inline script so CSP strict-dynamic trusts the loader above */}
-      <script
-        // @ts-expect-error React HTMLAttributes accepts nonce at runtime
-        nonce={nonce}
-        dangerouslySetInnerHTML={{
-          __html: `window.fbq=window.fbq||undefined;`,
-        }}
-      />
     </>
   );
 }

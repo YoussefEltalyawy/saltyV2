@@ -9,6 +9,7 @@ import {
 } from '@shopify/remix-oxygen';
 import { CartMain } from '~/components/CartMain';
 import { Analytics } from '@shopify/hydrogen';
+import { toMetaContentId } from '~/lib/meta';
 
 export const meta: MetaFunction = () => {
   return [{ title: `SALTY | Cart` }];
@@ -47,6 +48,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         const lines = Array.isArray(inputs.lines) ? inputs.lines : [];
         const first = lines?.[0];
         const merchandiseId = first?.merchandiseId as string | undefined;
+        const mappedId = toMetaContentId(merchandiseId);
         const quantity = Number(first?.quantity || 1);
         const price = Number(first?.selectedVariant?.price?.amount || 0);
         const currency = first?.selectedVariant?.price?.currencyCode || 'USD';
@@ -61,8 +63,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
               event_id,
               custom_data: {
                 content_type: 'product',
-                content_ids: merchandiseId ? [merchandiseId] : undefined,
-                contents: merchandiseId ? [{ id: merchandiseId, quantity, item_price: price }] : undefined,
+                content_ids: mappedId ? [mappedId] : undefined,
+                contents: mappedId ? [{ id: mappedId, quantity, item_price: price }] : undefined,
                 value: price * quantity,
                 currency,
               },
