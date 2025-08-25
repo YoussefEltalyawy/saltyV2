@@ -280,7 +280,6 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                                   variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'color' && opt.value === selectedColor) &&
                                   variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'size' && opt.value === value.name)
                                 );
-                                console.log(`[UI STOCK] Product: ${product.title}, Color: ${selectedColor}, Size: ${value.name}, UI In Stock: ${isAvailableForColor}`);
                                 return (
                                   <div className="relative inline-block" key={value.name}>
                                     <button

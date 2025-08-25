@@ -15,9 +15,6 @@ function findVariant(
   if (!selectedOptions || selectedOptions.length === 0) {
     // For products with no options (single variant)
     const variant = product.variants.nodes[0];
-    console.log(
-      `findVariant: product=${product.handle}, no options, variantId=${variant?.id}, available=${variant?.availableForSale}`,
-    );
     return variant;
   }
   const variant = product.variants.nodes.find((variant: any) => {
@@ -30,9 +27,6 @@ function findVariant(
       },
     );
   });
-  console.log(
-    `findVariant: product=${product.handle}, options=${JSON.stringify(selectedOptions)}, variantId=${variant?.id}, available=${variant?.availableForSale}`,
-  );
   return variant;
 }
 
@@ -83,67 +77,39 @@ function TopsCapBundleCard({
 
   // Initialize available products
   useEffect(() => {
-    console.log('Initializing available products...');
     let topsToUse: ProductFragment[] = [];
 
     // Always use tops from the tops collection if available
     if (productCollections?.tops && productCollections.tops.length > 0) {
       topsToUse = [...productCollections.tops];
-      console.log(
-        'Using tops from productCollections:',
-        topsToUse.map((p) => p.handle),
-      );
     } else if (loaderData?.tops && loaderData.tops.length > 0) {
       topsToUse = [...loaderData.tops];
-      console.log(
-        'Using tops from loaderData:',
-        topsToUse.map((p) => p.handle),
-      );
     }
 
     // Only add current product if it's actually a top (not a cap)
     if (productCollections?.isInTops && !topsToUse.some((p) => p.handle === product.handle)) {
       topsToUse = [product, ...topsToUse];
-      console.log('Adding current product to tops:', product.handle);
     }
 
     // Special case for cocktails baby tee
     if (product.handle === 'cocktails-baby-tee-pre-order') {
       if (!topsToUse.some((p) => p.handle === product.handle)) {
         topsToUse = [product, ...topsToUse];
-        console.log('Adding cocktails baby tee to tops:', product.handle);
       }
     }
 
     // If we still don't have any tops, use the cocktails baby tee from loader data as fallback
     if (topsToUse.length === 0 && loaderData?.cocktailsBabyTee) {
       topsToUse = [loaderData.cocktailsBabyTee];
-      console.log(
-        'Fallback: Using cocktailsBabyTee from loaderData:',
-        topsToUse[0]?.handle,
-      );
     }
-
-    console.log(
-      'Available tops:',
-      topsToUse.map((p) => p.handle),
-    );
     setAvailableTops(topsToUse);
 
     let capsToUse: ProductFragment[] = [];
 
     if (productCollections?.caps && productCollections.caps.length > 0) {
       capsToUse = [...productCollections.caps];
-      console.log(
-        'Using caps from productCollections:',
-        capsToUse.map((p) => p.handle),
-      );
     } else if (loaderData?.caps && loaderData.caps.length > 0) {
       capsToUse = [...loaderData.caps];
-      console.log(
-        'Using caps from loaderData:',
-        capsToUse.map((p) => p.handle),
-      );
     }
 
     if (
@@ -151,20 +117,13 @@ function TopsCapBundleCard({
       !capsToUse.some((p) => p.handle === product.handle)
     ) {
       capsToUse = [product, ...capsToUse];
-      console.log('Adding current product to caps:', product.handle);
     }
-
-    console.log(
-      'Available caps:',
-      capsToUse.map((p) => p.handle),
-    );
     setAvailableCaps(capsToUse);
   }, [loaderData, productCollections, product]);
 
   // Initialize selections
   useEffect(() => {
     if (availableTops.length > 0 && topSelections.length === 0) {
-      console.log('Initializing top selections...');
       const initialTopSelections: SelectionType[] = [];
       for (let i = 0; i < minTopsQuantity; i++) {
         // Always use the first available top for each slot
@@ -180,9 +139,7 @@ function TopsCapBundleCard({
               ])
             : null;
 
-        console.log(
-          `Top ${i}: handle=${defaultTop?.handle}, color=${defaultColor}, size=${defaultSize}, variantId=${variant?.id}, available=${variant?.availableForSale}`,
-        );
+
 
         initialTopSelections.push({
           color: defaultColor || null,
@@ -197,7 +154,6 @@ function TopsCapBundleCard({
     }
 
     if (availableCaps.length > 0 && capSelections.length === 0) {
-      console.log('Initializing cap selections...');
       const initialCapSelections: SelectionType[] = [];
       for (let i = 0; i < freeCapsQuantity; i++) {
         const defaultCap =
@@ -215,9 +171,7 @@ function TopsCapBundleCard({
             : null,
         );
 
-        console.log(
-          `Cap ${i}: handle=${defaultCap?.handle}, color=${defaultColor}, size=${defaultSize}, variantId=${variant?.id}, available=${variant?.availableForSale}`,
-        );
+
 
         initialCapSelections.push({
           color: defaultColor || null,
@@ -247,7 +201,6 @@ function TopsCapBundleCard({
       (opt: any) => opt.name.toLowerCase() === 'color',
     );
     const color = colorOption?.optionValues?.[0]?.name || null;
-    console.log(`getFirstColor: product=${product?.handle}, color=${color}`);
     return color;
   };
 
@@ -256,7 +209,6 @@ function TopsCapBundleCard({
       (opt: any) => opt.name.toLowerCase() === 'size',
     );
     const size = sizeOption?.optionValues?.[0]?.name || null;
-    console.log(`getFirstSize: product=${product?.handle}, size=${size}`);
     return size;
   };
 
@@ -270,9 +222,6 @@ function TopsCapBundleCard({
       (opt: any) => opt.name.toLowerCase() === 'color',
     );
     const colors = colorOption?.optionValues?.map((v: any) => v.name) || [];
-    console.log(
-      `getProductColorOptions: handle=${productHandle}, colors=${colors}`,
-    );
     return colors;
   };
 
@@ -286,9 +235,6 @@ function TopsCapBundleCard({
       (opt: any) => opt.name.toLowerCase() === 'size',
     );
     const sizes = sizeOption?.optionValues?.map((v: any) => v.name) || [];
-    console.log(
-      `getProductSizeOptions: handle=${productHandle}, sizes=${sizes}`,
-    );
     return sizes;
   };
 
@@ -306,9 +252,6 @@ function TopsCapBundleCard({
     );
     const value = colorOption?.optionValues?.find((v: any) => v.name === color);
     const swatchColor = value?.swatch?.color;
-    console.log(
-      `getSwatchColor: handle=${productHandle}, color=${color}, swatch=${swatchColor}`,
-    );
     return swatchColor;
   };
 
@@ -351,9 +294,7 @@ function TopsCapBundleCard({
       type: isTop ? 'top' : 'cap',
     };
 
-    console.log(
-      `handleProductChange: idx=${idx}, handle=${handle}, isTop=${isTop}, variantId=${defaultVariant?.id}, available=${defaultVariant?.availableForSale}`,
-    );
+
 
     if (isTop) {
       const newSelections = [...topSelections];
@@ -406,9 +347,7 @@ function TopsCapBundleCard({
         newSelections[idx].image = selectedProduct.featuredImage?.url;
       }
 
-      console.log(
-        `handleOptionChange: idx=${idx}, field=${field}, value=${value}, isTop=${isTop}, variantId=${variant?.id}, available=${variant?.availableForSale}`,
-      );
+
     }
 
     setSelections(newSelections);
@@ -446,9 +385,6 @@ function TopsCapBundleCard({
     }
 
     if (selectedProduct.handle === 'bundle-cap') {
-      console.log(
-        `Bypassing availability check for bundle-cap: ${sel.productHandle}`,
-      );
       return false;
     }
 
@@ -463,9 +399,7 @@ function TopsCapBundleCard({
       return true;
     }
 
-    console.log(
-      `Checking stock: product=${selectedProduct.handle}, variantId=${variant.id}, available=${variant.availableForSale}`,
-    );
+
 
     return !variant.availableForSale;
   });
@@ -479,7 +413,6 @@ function TopsCapBundleCard({
     }
     setError('');
     open('cart');
-    console.log('Adding to cart:', lines);
     return true;
   };
 
@@ -505,9 +438,6 @@ function TopsCapBundleCard({
           currencyCode = variant.price.currencyCode;
         }
         
-        console.log(
-          `Price for top: handle=${sel.productHandle}, variantId=${sel.variantId}, price=${price}, currency=${variant?.price?.currencyCode}`,
-        );
         return price;
       });
 
@@ -530,9 +460,6 @@ function TopsCapBundleCard({
           currencyCode = variant.price.currencyCode;
         }
         
-        console.log(
-          `Price for cap: handle=${sel.productHandle}, variantId=${sel.variantId}, price=${price}, currency=${variant?.price?.currencyCode}`,
-        );
         return price;
       });
 

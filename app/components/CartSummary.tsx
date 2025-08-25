@@ -34,15 +34,11 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
           e.preventDefault();
           e.stopPropagation();
           
-          console.log('Checkout button clicked!'); // Debug log
-          
           publish('custom_checkout_started', { cart });
           
           // Safely get cart lines with proper validation
           const cartLines = cart?.lines;
           const lines = Array.isArray(cartLines) ? cartLines : [];
-          
-          console.log('Cart lines:', lines); // Debug log
           
           const ids = lines
             .map((l: any) => toMetaContentId(l?.merchandise?.id))
@@ -62,8 +58,6 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
           const currency = cart.cost?.subtotalAmount?.currencyCode || 'USD';
           const eventId = generateEventId();
           
-          console.log('Tracking InitiateCheckout event:', { eventId, value, currency }); // Debug log
-          
           // Track the pixel event first
           trackPixelEvent('InitiateCheckout', {
             content_type: 'product',
@@ -77,8 +71,6 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
           
           // Small delay to ensure pixel event is sent before navigation
           await new Promise(resolve => setTimeout(resolve, 100));
-          
-          console.log('Navigating to checkout:', cart.checkoutUrl); // Debug log
           
           // Navigate to checkout
           if (cart.checkoutUrl) {
