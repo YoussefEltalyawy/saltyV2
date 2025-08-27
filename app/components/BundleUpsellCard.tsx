@@ -45,6 +45,7 @@ function BundleUpsellCard({
     description,
     discountValue = 15,
     collectionRestriction,
+    discountCode,
   } = upsell;
   const { open } = useAside();
   const [error, setError] = useState('');
@@ -627,7 +628,7 @@ function BundleUpsellCard({
           disabled={lines.length !== minQuantity || anyOutOfStock}
           lines={lines}
           onClick={handleClick}
-          discountCode="3TOPS15"
+          discountCode={discountCode}
         >
           <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
             {anyOutOfStock ? 'Out of Stock' : 'Add Bundle to Cart'}

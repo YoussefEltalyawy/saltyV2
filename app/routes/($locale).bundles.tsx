@@ -5,7 +5,7 @@ import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
 import TopsCapBundleCard from '~/components/TopsCapBundleCard';
 import LinenCrossSellCard from '~/components/LinenCrossSellCard';
 import { json } from '@shopify/remix-oxygen';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AddToCartButton } from '~/components/AddToCartButton';
 import { useAside } from '~/components/Aside';
 
@@ -232,6 +232,17 @@ const BUNDLES = [
     discountType: 'automatic',
     discountValue: 10,
     collectionRestriction: POLO_COLLECTION,
+  },
+  {
+    type: 'bundle',
+    title: '2 Tops Bundle – 10% Off!',
+    description:
+      'Pick any 2 tops (choose color and size for each) and get 10% off.',
+    minQuantity: 2,
+    discountType: 'code',
+    discountCode: '2TOPS10',
+    discountValue: 10,
+    // For demo, you may want to restrict to a tops collection if available
   },
   {
     type: 'bundle',
@@ -692,6 +703,12 @@ export default function BundlesPage() {
     { variantId: cocktailsBabyTee?.variants.nodes[0]?.id || '' },
   ]);
 
+  // --- 4. 2 Tops Bundle (Cocktails baby tee) ---
+  const [topSelections2, setTopSelections2] = useState([
+    { variantId: '' },
+    { variantId: '' },
+  ]);
+
   // --- 4. 3 Polos Bundle ---
   const [selectedPolos, setSelectedPolos] = useState([
     polos[0] || null,
@@ -721,7 +738,28 @@ export default function BundlesPage() {
     };
   }
 
+  // Initialize topSelections2 when cocktailsBabyTee becomes available
+  useEffect(() => {
+    if (cocktailsBabyTee?.variants?.nodes?.[0]?.id) {
+      const defaultVariantId = cocktailsBabyTee.variants.nodes[0].id;
+      setTopSelections2([
+        { variantId: defaultVariantId },
+        { variantId: defaultVariantId },
+      ]);
+    }
+  }, [cocktailsBabyTee]);
+
   // --- Render ---
+  // Don't render until cocktailsBabyTee is available
+  if (!cocktailsBabyTee) {
+    return (
+      <div className="max-w-3xl mx-auto py-10 px-4">
+        <h1 className="text-3xl font-bold mb-8 text-center">Shop Bundles</h1>
+        <div className="text-center text-gray-500">Loading bundles...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto py-10 px-4">
       <h1 className="text-3xl font-bold mb-8 text-center">Shop Bundles</h1>
@@ -1048,7 +1086,7 @@ export default function BundlesPage() {
                   setTopSelections(newSelections);
                 }}
                 initialColor={
-                  topSelections[idx].variantId
+                  topSelections[idx]?.variantId
                     ? getVariant(
                       cocktailsBabyTee,
                       topSelections[idx].variantId,
@@ -1058,7 +1096,7 @@ export default function BundlesPage() {
                     : ''
                 }
                 initialSize={
-                  topSelections[idx].variantId
+                  topSelections[idx]?.variantId
                     ? getVariant(
                       cocktailsBabyTee,
                       topSelections[idx].variantId,
@@ -1073,7 +1111,7 @@ export default function BundlesPage() {
           {/* Price calculation */}
           <div className="mt-6 text-center">
             {(() => {
-              const prices = topSelections.map((sel) =>
+              const prices = topSelections.filter(sel => sel?.variantId).map((sel) =>
                 getPriceInfo(getVariant(cocktailsBabyTee, sel.variantId)),
               );
               const original = prices.reduce(
@@ -1096,7 +1134,7 @@ export default function BundlesPage() {
           </div>
           <div className="mt-6">
             <AddToCartButton
-              lines={topSelections.map((sel) => ({
+              lines={topSelections.filter(sel => sel?.variantId).map((sel) => ({
                 merchandiseId: sel.variantId,
                 quantity: 1,
               }))}
@@ -1216,7 +1254,105 @@ export default function BundlesPage() {
           </div>
         </div>
 
-        {/* 5. 4 Tops + 1 Cap Bundle */}
+        {/* 5. 2 Tops Bundle */}
+        <div className="mb-4 border border-gray-200 p-6">
+          <h2 className="text-2xl font-medium text-black mb-2">
+            2 Tops Bundle – 10% Off!
+          </h2>
+          <p className="mb-6 text-gray-700">
+            Pick any 2 tops (choose color and size for each) and get 10% off.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[0, 1].map((idx) => (
+              <ProductBundleCard
+                key={idx}
+                products={[cocktailsBabyTee]} // Only one product, so no dropdown
+                initialProduct={cocktailsBabyTee}
+                title={`Top ${idx + 1}`}
+                onChange={(product, color, size) => {
+                  const newSelections = [...topSelections2];
+                  newSelections[idx].variantId =
+                    product?.variants.nodes.find(
+                      (v) =>
+                        v.selectedOptions.some(
+                          (o) =>
+                            o.name.toLowerCase() === 'color' &&
+                            o.value === color,
+                        ) &&
+                        v.selectedOptions.some(
+                          (o) =>
+                            o.name.toLowerCase() === 'size' && o.value === size,
+                        ),
+                    )?.id || '';
+                  setTopSelections2(newSelections);
+                }}
+                initialColor={
+                  topSelections2[idx].variantId
+                    ? getVariant(
+                      cocktailsBabyTee,
+                      topSelections2[idx].variantId,
+                    )?.selectedOptions.find(
+                      (o) => o.name.toLowerCase() === 'color',
+                    )?.value
+                    : ''
+                }
+                initialSize={
+                  topSelections2[idx].variantId
+                    ? getVariant(
+                      cocktailsBabyTee,
+                      topSelections2[idx].variantId,
+                    )?.selectedOptions.find(
+                      (o) => o.name.toLowerCase() === 'size',
+                    )?.value
+                    : ''
+                }
+              />
+            ))}
+          </div>
+          {/* Price calculation */}
+          <div className="mt-6 text-center">
+            {(() => {
+              const prices = topSelections2.filter(sel => sel?.variantId).map((sel) =>
+                getPriceInfo(getVariant(cocktailsBabyTee, sel.variantId)),
+              );
+              const original = prices.reduce(
+                (sum, p) => sum + (p.price || 0),
+                0,
+              );
+              const discounted = original * 0.9;
+              return (
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-gray-500 line-through">
+                    {original.toFixed(2)} {prices[0]?.currency}
+                  </span>
+                  <span className="text-xl font-bold">
+                    {discounted.toFixed(2)} {prices[0]?.currency}
+                  </span>
+                  <span className="text-green-600 text-sm">(Save 10%)</span>
+                </div>
+              );
+            })()}
+          </div>
+          <div className="mt-6">
+            <AddToCartButton
+              lines={topSelections2.filter(sel => sel?.variantId).map((sel) => ({
+                merchandiseId: sel.variantId,
+                quantity: 1,
+              }))}
+              onClick={() => open('cart')}
+              discountCode="2TOPS10"
+            >
+              <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
+                Add Bundle to Cart
+              </span>
+            </AddToCartButton>
+          </div>
+          <div className="text-xs text-gray-500 mt-2 text-center">
+            Discount applied automatically with code 2TOPS10.
+          </div>
+        </div>
+
+        {/* 6. 4 Tops + 1 Cap Bundle */}
         {caps.length > 0 && tops.length > 0 && (
           <TopsCapBundleCard
             product={tops[0] || caps[0]} // Use first available product as base

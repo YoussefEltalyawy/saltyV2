@@ -90,6 +90,28 @@ const GLOBAL_UPSELLS = {
     discountValue: 15,
     collectionRestriction: POLO_COLLECTION,
   },
+  topsBundle2: {
+    type: 'bundle',
+    title: '2 Tops Bundle – 10% Off!',
+    description:
+      'Pick any 2 tops (choose color and size for each) and get 10% off.',
+    minQuantity: 2,
+    discountType: 'code',
+    discountCode: '2TOPS10',
+    discountValue: 10,
+    collectionRestriction: TOPS_COLLECTION,
+  },
+  topsBundle3: {
+    type: 'bundle',
+    title: '3 Tops Bundle – 15% Off!',
+    description:
+      'Pick any 3 tops (choose color and size for each) and get 15% off.',
+    minQuantity: 3,
+    discountType: 'code',
+    discountCode: '3TOPS15',
+    discountValue: 15,
+    collectionRestriction: TOPS_COLLECTION,
+  },
   topsCapBundle: {
     type: 'crossSell',
     title: 'Buy 4 Tops Get 1 Cap Free!',
@@ -110,7 +132,8 @@ const UPSELLS: UpsellConfig = {
       description:
         'Pick any 3 tops (choose color and size for each) and get 15% off.',
       minQuantity: 3,
-      discountType: 'automatic',
+      discountType: 'code',
+      discountCode: '3TOPS15',
     },
   ],
 };
@@ -687,10 +710,40 @@ export default function Product() {
   const upsellKey = handle?.toLowerCase().trim();
   let upsells = [...(UPSELLS[upsellKey] || [])];
 
+  // Add tops bundles first if the product is in tops collection
+  if (productCollections?.isInTops) {
+    // Avoid duplicates by checking if bundle with same title already exists
+    const existingTitles = upsells.map(u => u.title);
+    const topsBundles = [];
+
+    if (!existingTitles.includes(GLOBAL_UPSELLS.topsBundle3.title)) {
+      topsBundles.push(GLOBAL_UPSELLS.topsBundle3);
+    }
+    if (!existingTitles.includes(GLOBAL_UPSELLS.topsBundle2.title)) {
+      topsBundles.push(GLOBAL_UPSELLS.topsBundle2);
+    }
+
+    if (topsBundles.length > 0) {
+      upsells = [...topsBundles, ...upsells];
+    }
+  }
+
   // Add polo bundle offers if the product is in the polo collection
   if (productCollections?.isInPolo) {
-    upsells = [...upsells, GLOBAL_UPSELLS.poloBundle3];
-    upsells = [...upsells, GLOBAL_UPSELLS.poloBundle2];
+    // Avoid duplicates by checking if bundle with same title already exists
+    const existingTitles = upsells.map(u => u.title);
+    const poloBundles = [];
+
+    if (!existingTitles.includes(GLOBAL_UPSELLS.poloBundle3.title)) {
+      poloBundles.push(GLOBAL_UPSELLS.poloBundle3);
+    }
+    if (!existingTitles.includes(GLOBAL_UPSELLS.poloBundle2.title)) {
+      poloBundles.push(GLOBAL_UPSELLS.poloBundle2);
+    }
+
+    if (poloBundles.length > 0) {
+      upsells = [...upsells, ...poloBundles];
+    }
   }
 
   // Add the denim + polo cross-sell upsell if the product is in one of those collections

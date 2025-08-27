@@ -17,6 +17,57 @@ export const meta: MetaFunction = () => {
 
 export const headers: HeadersFunction = ({ actionHeaders }) => actionHeaders;
 
+// Helper function to update bundle discount codes based on cart contents
+async function updateBundleDiscountCodes(cart: any, cartResult: any) {
+  if (!cartResult.cart || !cartResult.cart.lines || cartResult.cart.lines.nodes.length === 0) {
+    // Cart is empty, remove all discount codes
+    return await cart.updateDiscountCodes([]);
+  }
+
+  // Check what items remain in the cart
+  const remainingItems = cartResult.cart.lines.nodes;
+
+  // Check if cart still qualifies for bundle discounts
+  const applicableDiscountCodes: string[] = [];
+
+  // Check for 2 tops bundle (needs 2+ tops)
+  const topsInCart = remainingItems.filter((line: any) =>
+    line.merchandise?.product?.handle?.includes('top') ||
+    line.merchandise?.product?.collections?.nodes?.some((collection: any) =>
+      collection.handle === 'tops'
+    )
+  );
+  if (topsInCart.length >= 2) {
+    applicableDiscountCodes.push('2TOPS10');
+  }
+
+  // Check for 3 tops bundle (needs 3+ tops)
+  if (topsInCart.length >= 3) {
+    applicableDiscountCodes.push('3TOPS15');
+  }
+
+  // Check for polo bundles
+  const polosInCart = remainingItems.filter((line: any) =>
+    line.merchandise?.product?.collections?.nodes?.some((collection: any) =>
+      collection.handle === 'oversized-polos'
+    )
+  );
+  if (polosInCart.length >= 2) {
+    applicableDiscountCodes.push('POLO2BUNDLE10');
+  }
+  if (polosInCart.length >= 3) {
+    applicableDiscountCodes.push('POLO3BUNDLE15');
+  }
+
+  // Update discount codes based on remaining items
+  if (applicableDiscountCodes.length > 0) {
+    return await cart.updateDiscountCodes(applicableDiscountCodes);
+  } else {
+    // Remove all bundle discount codes if no bundles qualify
+    return await cart.updateDiscountCodes([]);
+  }
+}
+
 export async function action({ request, context }: ActionFunctionArgs) {
   const { cart } = context;
 
@@ -81,9 +132,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
     case CartForm.ACTIONS.LinesUpdate:
       result = await cart.updateLines(inputs.lines);
+      // Update bundle discount codes based on remaining cart contents
+      result = await updateBundleDiscountCodes(cart, result);
       break;
     case CartForm.ACTIONS.LinesRemove:
       result = await cart.removeLines(inputs.lineIds);
+      // Update bundle discount codes based on remaining cart contents
+      result = await updateBundleDiscountCodes(cart, result);
       break;
     case CartForm.ACTIONS.DiscountCodesUpdate: {
       const formDiscountCode = inputs.discountCode;
