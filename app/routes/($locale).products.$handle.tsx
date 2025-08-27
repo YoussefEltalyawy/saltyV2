@@ -687,6 +687,12 @@ export default function Product() {
   const upsellKey = handle?.toLowerCase().trim();
   let upsells = [...(UPSELLS[upsellKey] || [])];
 
+  // Add polo bundle offers if the product is in the polo collection
+  if (productCollections?.isInPolo) {
+    upsells = [...upsells, GLOBAL_UPSELLS.poloBundle3];
+    upsells = [...upsells, GLOBAL_UPSELLS.poloBundle2];
+  }
+
   // Add the denim + polo cross-sell upsell if the product is in one of those collections
   // and there are complementary products available
   if (
@@ -694,12 +700,6 @@ export default function Product() {
     productCollections?.complementaryProducts?.length > 0
   ) {
     upsells = [...upsells, GLOBAL_UPSELLS.crossSellDenimPolo];
-  }
-
-  // Add polo bundle offers if the product is in the polo collection
-  if (productCollections?.isInPolo) {
-    upsells = [...upsells, GLOBAL_UPSELLS.poloBundle2];
-    upsells = [...upsells, GLOBAL_UPSELLS.poloBundle3];
   }
 
   // Add 4 tops + 1 cap bundle if the product is in caps or tops collection, or if it's the cocktails baby tee
