@@ -34,19 +34,17 @@ function UpsellSection({ product, productOptions, upsells }: {
               upsell={upsell}
             />
           );
+        } else if (upsell.type === 'topsCapBundle') {
+          // Handle the 4 tops + 1 cap bundle specifically
+          return (
+            <TopsCapBundleCard
+              key={idx}
+              product={product}
+              productOptions={productOptions}
+              upsell={upsell}
+            />
+          );
         } else if (upsell.type === 'crossSell') {
-          // Check if this is the 4 tops + 1 cap bundle
-          if (upsell.minTopsQuantity && upsell.freeCapsQuantity) {
-            return (
-              <TopsCapBundleCard
-                key={idx}
-                product={product}
-                productOptions={productOptions}
-                upsell={upsell}
-              />
-            );
-          }
-          
           // Regular cross-sell logic
           const complementaryProducts = productCollections?.complementaryProducts || [];
 

@@ -97,8 +97,24 @@ function BundleUpsellCard({
   // Initialize selections with default values (first color and size)
   const initializeSelections = (): SelectionType[] => {
     const defaultSelections: SelectionType[] = [];
-    const defaultColor = colorOptions.length > 0 ? colorOptions[0] : '';
-    const defaultSize = sizeOptions.length > 0 ? sizeOptions[0] : '';
+
+    // Find first available variant to get default color and size
+    let defaultColor = '';
+    let defaultSize = '';
+
+    if (product.variants?.nodes) {
+      const firstAvailableVariant = product.variants.nodes.find((v: any) => v.availableForSale);
+      if (firstAvailableVariant) {
+        const colorOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
+          opt.name.toLowerCase() === 'color'
+        );
+        const sizeOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
+          opt.name.toLowerCase() === 'size'
+        );
+        defaultColor = colorOption?.value || '';
+        defaultSize = sizeOption?.value || '';
+      }
+    }
 
     for (let i = 0; i < minQuantity; i++) {
       const selection: SelectionType = {
@@ -148,48 +164,24 @@ function BundleUpsellCard({
     newSelectedPolos[idx] = selectedPolo;
     setSelectedPolos(newSelectedPolos);
 
-    // Get default color and size for this polo
+    // Get default color and size for this polo from first available variant
     let defaultColor = '';
     let defaultSize = '';
     let defaultVariant;
 
-    if (selectedPolo.options) {
-      // Find color option
-      const colorOption = selectedPolo.options.find(
-        (opt: any) => opt.name.toLowerCase() === 'color',
-      );
-      if (
-        colorOption &&
-        colorOption.optionValues &&
-        colorOption.optionValues.length > 0
-      ) {
-        defaultColor = colorOption.optionValues[0].name;
-      }
-      // Find size option
-      const sizeOption = selectedPolo.options.find(
-        (opt: any) => opt.name.toLowerCase() === 'size',
-      );
-      if (
-        sizeOption &&
-        sizeOption.optionValues &&
-        sizeOption.optionValues.length > 0
-      ) {
-        defaultSize = sizeOption.optionValues[0].name;
-      }
-      // Find default variant
-      if (defaultColor && defaultSize && selectedPolo.variants?.nodes) {
-        defaultVariant = selectedPolo.variants.nodes.find(
-          (v: any) =>
-            v.selectedOptions.some(
-              (opt: any) =>
-                opt.name.toLowerCase() === 'color' &&
-                opt.value === defaultColor,
-            ) &&
-            v.selectedOptions.some(
-              (opt: any) =>
-                opt.name.toLowerCase() === 'size' && opt.value === defaultSize,
-            ),
+    if (selectedPolo.variants?.nodes) {
+      // Find first available variant
+      const firstAvailableVariant = selectedPolo.variants.nodes.find((v: any) => v.availableForSale);
+      if (firstAvailableVariant) {
+        const colorOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
+          opt.name.toLowerCase() === 'color'
         );
+        const sizeOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
+          opt.name.toLowerCase() === 'size'
+        );
+        defaultColor = colorOption?.value || '';
+        defaultSize = sizeOption?.value || '';
+        defaultVariant = firstAvailableVariant;
       }
     }
 
@@ -425,179 +417,89 @@ function BundleUpsellCard({
               )}
             </div>
 
-            {/* Color selection */}
+            {/* Variant Selection Dropdown */}
             <div className="product-options mb-3">
-              <h5 className="text-xs font-medium text-gray-900 mb-2">Color</h5>
-              <div className="flex flex-wrap gap-2 justify-start">
-                {(
-                  (isPoloBundle
-                    ? getPoloColorOptions(sel.productHandle || '')
-                    : colorOptions) ?? []
-                ).map((color: string) => {
-                  // Find the correct product (polo or top)
-                  const productForSwatch =
-                    isPoloBundle && sel.productHandle
-                      ? availablePolos.find(
-                        (p) => p.handle === sel.productHandle,
-                      )
-                      : product;
-                  const swatchColor = getSwatchColor(productForSwatch, color);
-                  // Find the variant for this color and current size
-                  const variant = productForSwatch?.variants?.nodes.find(
-                    (v: any) =>
-                      v.selectedOptions.some(
-                        (opt: any) =>
-                          opt.name.toLowerCase() === 'color' &&
-                          opt.value === color,
-                      ) &&
-                      v.selectedOptions.some(
-                        (opt: any) =>
-                          opt.name.toLowerCase() === 'size' &&
-                          opt.value === sel.size,
-                      ),
-                  );
-                  const outOfStock = variant
-                    ? !variant.availableForSale
-                    : false;
-                  return (
-                    <button
-                      key={color}
-                      type="button"
-                      className={`product-options-item transition-all w-6 h-6 flex items-center justify-center p-0 color-swatch relative
-                        ${sel.color === color
-                          ? 'border-2 border-gray-900'
-                          : 'border border-gray-200 hover:border-gray-400'
-                        }
-                        ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}
-                      `}
-                      onClick={() =>
-                        !outOfStock && handleChange(idx, 'color', color)
-                      }
-                      style={{ borderRadius: '0' }} // Make it square
-                      disabled={outOfStock}
-                    >
-                      {swatchColor ? (
-                        <div
-                          aria-label={color}
-                          className="w-full h-full relative"
-                          style={{
-                            backgroundColor: swatchColor,
-                            padding: 0,
-                            margin: 0,
-                            display: 'block',
-                          }}
-                        >
-                          {outOfStock && (
-                            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <svg
-                                width="100%"
-                                height="100%"
-                                viewBox="0 0 24 24"
-                                className="absolute inset-0"
-                              >
-                                <line
-                                  x1="4"
-                                  y1="20"
-                                  x2="20"
-                                  y2="4"
-                                  stroke="#b91c1c"
-                                  strokeWidth="2.5"
-                                  strokeLinecap="round"
-                                />
-                              </svg>
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <div
-                          aria-label={color}
-                          className="w-full h-full relative bg-gray-200"
-                          style={{
-                            padding: 0,
-                            margin: 0,
-                            display: 'block',
-                          }}
-                        >
-                          {outOfStock && (
-                            <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <svg
-                                width="100%"
-                                height="100%"
-                                viewBox="0 0 24 24"
-                                className="absolute inset-0"
-                              >
-                                <line
-                                  x1="4"
-                                  y1="20"
-                                  x2="20"
-                                  y2="4"
-                                  stroke="#b91c1c"
-                                  strokeWidth="2.5"
-                                  strokeLinecap="round"
-                                />
-                              </svg>
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+              <h5 className="text-xs font-medium text-gray-900 mb-2">Select Variant</h5>
+              <select
+                className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                value={`${sel.color}/${sel.size}`}
+                onChange={(e) => {
+                  if (e.target.value === '') return;
+                  const [color, size] = e.target.value.split('/');
+                  if (color && size) {
+                    // Update both color and size at once to avoid race conditions
+                    const newSelections = [...selections];
+                    newSelections[idx] = {
+                      ...newSelections[idx],
+                      color,
+                      size,
+                    };
 
-            {/* Size selection */}
-            <div className="product-options">
-              <h5 className="text-xs font-medium text-gray-900 mb-2">Size</h5>
-              <div className="flex flex-wrap gap-2 justify-start">
-                {(
-                  (isPoloBundle
-                    ? getPoloSizeOptions(sel.productHandle || '')
-                    : sizeOptions) ?? []
-                ).map((size: string) => {
-                  const polo =
-                    isPoloBundle && sel.productHandle
-                      ? availablePolos.find(
-                        (p) => p.handle === sel.productHandle,
-                      )
+                    // Find the variant for this color/size combination
+                    const productForVariants = isPoloBundle && sel.productHandle
+                      ? availablePolos.find((p) => p.handle === sel.productHandle)
                       : product;
-                  const variant = polo?.variants?.nodes.find(
-                    (v: any) =>
-                      v.selectedOptions.some(
-                        (opt: any) =>
-                          opt.name.toLowerCase() === 'color' &&
-                          opt.value === sel.color,
-                      ) &&
-                      v.selectedOptions.some(
-                        (opt: any) =>
-                          opt.name.toLowerCase() === 'size' &&
-                          opt.value === size,
-                      ),
-                  );
-                  const outOfStock = variant
-                    ? !variant.availableForSale
-                    : false;
-                  return (
-                    <button
-                      key={size}
-                      type="button"
-                      className={`product-options-item transition-all px-2 py-1 text-xs font-medium relative
-                        ${sel.size === size
-                          ? 'text-gray-900 underline underline-offset-4'
-                          : 'text-gray-600 hover:text-gray-900'
-                        }
-                        ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}
-                      `}
-                      onClick={() =>
-                        !outOfStock && handleChange(idx, 'size', size)
+
+                    if (productForVariants?.variants?.nodes) {
+                      const variant = productForVariants.variants.nodes.find((v: any) => {
+                        const hasColor = v.selectedOptions.some((opt: any) =>
+                          opt.name.toLowerCase() === 'color' && opt.value === color
+                        );
+                        const hasSize = v.selectedOptions.some((opt: any) =>
+                          opt.name.toLowerCase() === 'size' && opt.value === size
+                        );
+                        return hasColor && hasSize;
+                      });
+
+                      if (variant) {
+                        newSelections[idx].variantId = variant.id;
+                        newSelections[idx].image = variant.image?.url || productForVariants.featuredImage?.url;
                       }
-                      disabled={outOfStock}
-                    >
-                      {size}
-                    </button>
-                  );
-                })}
-              </div>
+                    }
+
+                    setSelections(newSelections);
+                  }
+                }}
+              >
+                <option value="">Choose color/size...</option>
+                {(() => {
+                  const productForVariants = isPoloBundle && sel.productHandle
+                    ? availablePolos.find((p) => p.handle === sel.productHandle)
+                    : product;
+
+                  if (!productForVariants?.variants?.nodes) return [];
+
+                  return productForVariants.variants.nodes.map((variant: any) => {
+                    const colorOption = variant.selectedOptions.find((opt: any) =>
+                      opt.name.toLowerCase() === 'color'
+                    );
+                    const sizeOption = variant.selectedOptions.find((opt: any) =>
+                      opt.name.toLowerCase() === 'size'
+                    );
+
+                    if (colorOption && sizeOption) {
+                      const value = `${colorOption.value}/${sizeOption.value}`;
+                      const label = `${colorOption.value}/${sizeOption.value}`;
+                      const available = variant.availableForSale;
+
+                      return (
+                        <option
+                          key={value}
+                          value={value}
+                          disabled={!available}
+                          style={{
+                            color: available ? '#000' : '#9CA3AF',
+                            backgroundColor: available ? '#fff' : '#F3F4F6',
+                          }}
+                        >
+                          {label} {!available ? '(Out of Stock)' : ''}
+                        </option>
+                      );
+                    }
+                    return null;
+                  }).filter(Boolean);
+                })()}
+              </select>
             </div>
           </div>
         ))}

@@ -57,49 +57,55 @@ function LinenCrossSellCard({
     image: '',
   });
 
-  // Initialize selections with default values
+  // Initialize selections with default values from first available variants
   useEffect(() => {
-    if (linenShirt && linenShirt.options) {
-      const colorOption = linenShirt.options.find((opt: any) => opt.name.toLowerCase() === 'color');
-      const sizeOption = linenShirt.options.find((opt: any) => opt.name.toLowerCase() === 'size');
+    if (linenShirt && linenShirt.variants?.nodes) {
+      // Find first available variant
+      const firstAvailableVariant = linenShirt.variants.nodes.find((v: any) => v.availableForSale);
+      if (firstAvailableVariant) {
+        const colorOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
+          opt.name.toLowerCase() === 'color'
+        );
+        const sizeOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
+          opt.name.toLowerCase() === 'size'
+        );
 
-      const defaultColor = colorOption?.optionValues?.[0]?.name || '';
-      const defaultSize = sizeOption?.optionValues?.[0]?.name || '';
+        const defaultColor = colorOption?.value || '';
+        const defaultSize = sizeOption?.value || '';
 
-      if (defaultColor && defaultSize) {
-        const variant = findVariant(linenShirt, [
-          { name: 'Color', value: defaultColor },
-          { name: 'Size', value: defaultSize },
-        ]);
-
-        setShirtSelection({
-          color: defaultColor,
-          size: defaultSize,
-          variantId: variant?.id || '',
-          image: variant?.image?.url || linenShirt.featuredImage?.url || '',
-        });
+        if (defaultColor && defaultSize) {
+          setShirtSelection({
+            color: defaultColor,
+            size: defaultSize,
+            variantId: firstAvailableVariant.id,
+            image: firstAvailableVariant.image?.url || linenShirt.featuredImage?.url || '',
+          });
+        }
       }
     }
 
-    if (linenPants && linenPants.options) {
-      const colorOption = linenPants.options.find((opt: any) => opt.name.toLowerCase() === 'color');
-      const sizeOption = linenPants.options.find((opt: any) => opt.name.toLowerCase() === 'size');
+    if (linenPants && linenPants.variants?.nodes) {
+      // Find first available variant
+      const firstAvailableVariant = linenPants.variants.nodes.find((v: any) => v.availableForSale);
+      if (firstAvailableVariant) {
+        const colorOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
+          opt.name.toLowerCase() === 'color'
+        );
+        const sizeOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
+          opt.name.toLowerCase() === 'size'
+        );
 
-      const defaultColor = colorOption?.optionValues?.[0]?.name || '';
-      const defaultSize = sizeOption?.optionValues?.[0]?.name || '';
+        const defaultColor = colorOption?.value || '';
+        const defaultSize = sizeOption?.value || '';
 
-      if (defaultColor && defaultSize) {
-        const variant = findVariant(linenPants, [
-          { name: 'Color', value: defaultColor },
-          { name: 'Size', value: defaultSize },
-        ]);
-
-        setPantsSelection({
-          color: defaultColor,
-          size: defaultSize,
-          variantId: variant?.id || '',
-          image: variant?.image?.url || linenPants.featuredImage?.url || '',
-        });
+        if (defaultColor && defaultSize) {
+          setPantsSelection({
+            color: defaultColor,
+            size: defaultSize,
+            variantId: firstAvailableVariant.id,
+            image: firstAvailableVariant.image?.url || linenPants.featuredImage?.url || '',
+          });
+        }
       }
     }
   }, [linenShirt, linenPants]);
@@ -231,95 +237,81 @@ function LinenCrossSellCard({
             )}
           </div>
 
-          {/* Color selection */}
+          {/* Variant Selection Dropdown */}
           <div className="product-options mb-3">
-            <h5 className="text-xs font-medium text-gray-900 mb-2">Color</h5>
-            <div className="flex flex-wrap gap-2 justify-start">
-              {getOptionValues(linenShirt, 'color').map((color) => {
-                const swatchColor = getSwatchColor(linenShirt, color);
-                const variant = linenShirt.variants.nodes.find((v: any) =>
-                  v.selectedOptions.some((opt: any) =>
-                    opt.name.toLowerCase() === 'color' && opt.value === color
-                  ) &&
-                  v.selectedOptions.some((opt: any) =>
-                    opt.name.toLowerCase() === 'size' && opt.value === shirtSelection.size
-                  )
-                );
-                const outOfStock = variant ? !variant.availableForSale : false;
+            <h5 className="text-xs font-medium text-gray-900 mb-2">Select Variant</h5>
+            <select
+              className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+              value={`${shirtSelection.color}/${shirtSelection.size}`}
+              onChange={(e) => {
+                if (e.target.value === '') return;
+                const [color, size] = e.target.value.split('/');
+                if (color && size) {
+                  // Update both color and size at once to avoid race conditions
+                  setShirtSelection(prev => ({
+                    ...prev,
+                    color,
+                    size,
+                  }));
 
-                return (
-                  <button
-                    key={color}
-                    type="button"
-                    className={`product-options-item transition-all w-6 h-6 flex items-center justify-center p-0 color-swatch relative
-                      ${shirtSelection.color === color
-                        ? 'border-2 border-gray-900'
-                        : 'border border-gray-200 hover:border-gray-400'
-                      }
-                      ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                    onClick={() => !outOfStock && handleSelectionChange('shirt', 'color', color)}
-                    style={{ borderRadius: '0' }}
-                    disabled={outOfStock}
-                  >
-                    <div
-                      aria-label={color}
-                      className="w-full h-full relative"
-                      style={{
-                        backgroundColor: swatchColor || color.toLowerCase(),
-                        padding: 0,
-                        margin: 0,
-                        display: 'block',
-                      }}
-                    >
-                      {outOfStock && (
-                        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <svg width="100%" height="100%" viewBox="0 0 24 24" className="absolute inset-0">
-                            <line x1="4" y1="20" x2="20" y2="4" stroke="#b91c1c" strokeWidth="2.5" strokeLinecap="round" />
-                          </svg>
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+                  // Find the variant for this color/size combination
+                  if (linenShirt?.variants?.nodes) {
+                    const variant = linenShirt.variants.nodes.find((v: any) => {
+                      const hasColor = v.selectedOptions.some((opt: any) =>
+                        opt.name.toLowerCase() === 'color' && opt.value === color
+                      );
+                      const hasSize = v.selectedOptions.some((opt: any) =>
+                        opt.name.toLowerCase() === 'size' && opt.value === size
+                      );
+                      return hasColor && hasSize;
+                    });
 
-          {/* Size selection */}
-          <div className="product-options">
-            <h5 className="text-xs font-medium text-gray-900 mb-2">Size</h5>
-            <div className="flex flex-wrap gap-2 justify-start">
-              {getOptionValues(linenShirt, 'size').map((size) => {
-                const variant = linenShirt.variants.nodes.find((v: any) =>
-                  v.selectedOptions.some((opt: any) =>
-                    opt.name.toLowerCase() === 'color' && opt.value === shirtSelection.color
-                  ) &&
-                  v.selectedOptions.some((opt: any) =>
-                    opt.name.toLowerCase() === 'size' && opt.value === size
-                  )
-                );
-                const outOfStock = variant ? !variant.availableForSale : false;
+                    if (variant) {
+                      setShirtSelection(prev => ({
+                        ...prev,
+                        variantId: variant.id,
+                        image: variant.image?.url || linenShirt.featuredImage?.url,
+                      }));
+                    }
+                  }
+                }
+              }}
+            >
+              <option value="">Choose color/size...</option>
+              {(() => {
+                if (!linenShirt?.variants?.nodes) return [];
 
-                return (
-                  <button
-                    key={size}
-                    type="button"
-                    className={`product-options-item transition-all px-2 py-1 text-xs font-medium relative
-                      ${shirtSelection.size === size
-                        ? 'text-gray-900 underline underline-offset-4'
-                        : 'text-gray-600 hover:text-gray-900'
-                      }
-                      ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                    onClick={() => !outOfStock && handleSelectionChange('shirt', 'size', size)}
-                    disabled={outOfStock}
-                  >
-                    {size}
-                  </button>
-                );
-              })}
-            </div>
+                return linenShirt.variants.nodes.map((variant: any) => {
+                  const colorOption = variant.selectedOptions.find((opt: any) =>
+                    opt.name.toLowerCase() === 'color'
+                  );
+                  const sizeOption = variant.selectedOptions.find((opt: any) =>
+                    opt.name.toLowerCase() === 'size'
+                  );
+
+                  if (colorOption && sizeOption) {
+                    const value = `${colorOption.value}/${sizeOption.value}`;
+                    const label = `${colorOption.value}/${sizeOption.value}`;
+                    const available = variant.availableForSale;
+
+                    return (
+                      <option
+                        key={value}
+                        value={value}
+                        disabled={!available}
+                        style={{
+                          color: available ? '#000' : '#9CA3AF',
+                          backgroundColor: available ? '#fff' : '#F3F4F6',
+                        }}
+                      >
+                        {label} {!available ? '(Out of Stock)' : ''}
+                      </option>
+                    );
+                  }
+                  return null;
+                }).filter(Boolean);
+              })()}
+            </select>
           </div>
         </div>
 
@@ -342,95 +334,81 @@ function LinenCrossSellCard({
             )}
           </div>
 
-          {/* Color selection */}
+          {/* Variant Selection Dropdown */}
           <div className="product-options mb-3">
-            <h5 className="text-xs font-medium text-gray-900 mb-2">Color</h5>
-            <div className="flex flex-wrap gap-2 justify-start">
-              {getOptionValues(linenPants, 'color').map((color) => {
-                const swatchColor = getSwatchColor(linenPants, color);
-                const variant = linenPants.variants.nodes.find((v: any) =>
-                  v.selectedOptions.some((opt: any) =>
-                    opt.name.toLowerCase() === 'color' && opt.value === color
-                  ) &&
-                  v.selectedOptions.some((opt: any) =>
-                    opt.name.toLowerCase() === 'size' && opt.value === pantsSelection.size
-                  )
-                );
-                const outOfStock = variant ? !variant.availableForSale : false;
+            <h5 className="text-xs font-medium text-gray-900 mb-2">Select Variant</h5>
+            <select
+              className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+              value={`${pantsSelection.color}/${pantsSelection.size}`}
+              onChange={(e) => {
+                if (e.target.value === '') return;
+                const [color, size] = e.target.value.split('/');
+                if (color && size) {
+                  // Update both color and size at once to avoid race conditions
+                  setPantsSelection(prev => ({
+                    ...prev,
+                    color,
+                    size,
+                  }));
 
-                return (
-                  <button
-                    key={color}
-                    type="button"
-                    className={`product-options-item transition-all w-6 h-6 flex items-center justify-center p-0 color-swatch relative
-                      ${pantsSelection.color === color
-                        ? 'border-2 border-gray-900'
-                        : 'border border-gray-200 hover:border-gray-400'
-                      }
-                      ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                    onClick={() => !outOfStock && handleSelectionChange('pants', 'color', color)}
-                    style={{ borderRadius: '0' }}
-                    disabled={outOfStock}
-                  >
-                    <div
-                      aria-label={color}
-                      className="w-full h-full relative"
-                      style={{
-                        backgroundColor: swatchColor || color.toLowerCase(),
-                        padding: 0,
-                        margin: 0,
-                        display: 'block',
-                      }}
-                    >
-                      {outOfStock && (
-                        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <svg width="100%" height="100%" viewBox="0 0 24 24" className="absolute inset-0">
-                            <line x1="4" y1="20" x2="20" y2="4" stroke="#b91c1c" strokeWidth="2.5" strokeLinecap="round" />
-                          </svg>
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+                  // Find the variant for this color/size combination
+                  if (linenPants?.variants?.nodes) {
+                    const variant = linenPants.variants.nodes.find((v: any) => {
+                      const hasColor = v.selectedOptions.some((opt: any) =>
+                        opt.name.toLowerCase() === 'color' && opt.value === color
+                      );
+                      const hasSize = v.selectedOptions.some((opt: any) =>
+                        opt.name.toLowerCase() === 'size' && opt.value === size
+                      );
+                      return hasColor && hasSize;
+                    });
 
-          {/* Size selection */}
-          <div className="product-options">
-            <h5 className="text-xs font-medium text-gray-900 mb-2">Size</h5>
-            <div className="flex flex-wrap gap-2 justify-start">
-              {getOptionValues(linenPants, 'size').map((size) => {
-                const variant = linenPants.variants.nodes.find((v: any) =>
-                  v.selectedOptions.some((opt: any) =>
-                    opt.name.toLowerCase() === 'color' && opt.value === pantsSelection.color
-                  ) &&
-                  v.selectedOptions.some((opt: any) =>
-                    opt.name.toLowerCase() === 'size' && opt.value === size
-                  )
-                );
-                const outOfStock = variant ? !variant.availableForSale : false;
+                    if (variant) {
+                      setPantsSelection(prev => ({
+                        ...prev,
+                        variantId: variant.id,
+                        image: variant.image?.url || linenPants.featuredImage?.url,
+                      }));
+                    }
+                  }
+                }
+              }}
+            >
+              <option value="">Choose color/size...</option>
+              {(() => {
+                if (!linenPants?.variants?.nodes) return [];
 
-                return (
-                  <button
-                    key={size}
-                    type="button"
-                    className={`product-options-item transition-all px-2 py-1 text-xs font-medium relative
-                      ${pantsSelection.size === size
-                        ? 'text-gray-900 underline underline-offset-4'
-                        : 'text-gray-600 hover:text-gray-900'
-                      }
-                      ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                    onClick={() => !outOfStock && handleSelectionChange('pants', 'size', size)}
-                    disabled={outOfStock}
-                  >
-                    {size}
-                  </button>
-                );
-              })}
-            </div>
+                return linenPants.variants.nodes.map((variant: any) => {
+                  const colorOption = variant.selectedOptions.find((opt: any) =>
+                    opt.name.toLowerCase() === 'color'
+                  );
+                  const sizeOption = variant.selectedOptions.find((opt: any) =>
+                    opt.name.toLowerCase() === 'size'
+                  );
+
+                  if (colorOption && sizeOption) {
+                    const value = `${colorOption.value}/${sizeOption.value}`;
+                    const label = `${colorOption.value}/${sizeOption.value}`;
+                    const available = variant.availableForSale;
+
+                    return (
+                      <option
+                        key={value}
+                        value={value}
+                        disabled={!available}
+                        style={{
+                          color: available ? '#000' : '#9CA3AF',
+                          backgroundColor: available ? '#fff' : '#F3F4F6',
+                        }}
+                      >
+                        {label} {!available ? '(Out of Stock)' : ''}
+                      </option>
+                    );
+                  }
+                  return null;
+                }).filter(Boolean);
+              })()}
+            </select>
           </div>
         </div>
       </div>

@@ -20,14 +20,17 @@ function CrossSellUpsellCard({ currentProduct, complementaryProducts, upsell }: 
       const product = complementaryProducts[0];
       setSelectedProduct(product);
       if (product.variants.nodes.length > 0) {
-        const firstVariant = product.variants.nodes[0];
-        setSelectedVariantId(firstVariant.id);
-        setSelectedVariant(firstVariant);
-        const initialOptions: { [key: string]: string } = {};
-        firstVariant.selectedOptions.forEach((option: any) => {
-          initialOptions[option.name] = option.value;
-        });
-        setSelectedOptions(initialOptions);
+        // Find first available variant instead of just first variant
+        const firstAvailableVariant = product.variants.nodes.find((v: any) => v.availableForSale);
+        if (firstAvailableVariant) {
+          setSelectedVariantId(firstAvailableVariant.id);
+          setSelectedVariant(firstAvailableVariant);
+          const initialOptions: { [key: string]: string } = {};
+          firstAvailableVariant.selectedOptions.forEach((option: any) => {
+            initialOptions[option.name] = option.value;
+          });
+          setSelectedOptions(initialOptions);
+        }
       }
     }
   }, [complementaryProducts, selectedProduct]);
@@ -38,14 +41,21 @@ function CrossSellUpsellCard({ currentProduct, complementaryProducts, upsell }: 
     if (product) {
       setSelectedProduct(product);
       if (product.variants.nodes.length > 0) {
-        const firstVariant = product.variants.nodes[0];
-        setSelectedVariantId(firstVariant.id);
-        setSelectedVariant(firstVariant);
-        const initialOptions: { [key: string]: string } = {};
-        firstVariant.selectedOptions.forEach((option: any) => {
-          initialOptions[option.name] = option.value;
-        });
-        setSelectedOptions(initialOptions);
+        // Find first available variant instead of just first variant
+        const firstAvailableVariant = product.variants.nodes.find((v: any) => v.availableForSale);
+        if (firstAvailableVariant) {
+          setSelectedVariantId(firstAvailableVariant.id);
+          setSelectedVariant(firstAvailableVariant);
+          const initialOptions: { [key: string]: string } = {};
+          firstAvailableVariant.selectedOptions.forEach((option: any) => {
+            initialOptions[option.name] = option.value;
+          });
+          setSelectedOptions(initialOptions);
+        } else {
+          setSelectedVariantId(null);
+          setSelectedVariant(null);
+          setSelectedOptions({});
+        }
       } else {
         setSelectedVariantId(null);
         setSelectedVariant(null);
@@ -197,104 +207,78 @@ function CrossSellUpsellCard({ currentProduct, complementaryProducts, upsell }: 
               </div>
               <div className="text-sm font-medium">{selectedProduct.title}</div>
               {/* Variant options */}
-              {getProductOptions().map((option: any) => (
-                <div key={option.name} className="product-options mb-3">
-                  <h5 className="text-xs font-medium text-gray-900 mb-2">{option.name}</h5>
-                  <div className="flex flex-wrap gap-2 justify-start">
-                    {(getOptionValues(option.name) ?? []).map((value: string) => {
-                      // Color swatch logic
-                      if (option.name.toLowerCase() === 'color') {
-                        // Find the variant for this color and current size
-                        const swatchColor = getSwatchColor(selectedProduct, value);
-                        const variant = selectedProduct.variants.nodes.find((v: any) =>
-                          v.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'color' && opt.value === value) &&
-                          v.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'size' && opt.value === selectedOptions['Size'])
-                        );
-                        const outOfStock = variant ? !variant.availableForSale : false;
+              {/* Variant Selection Dropdown */}
+              <div className="product-options mb-3">
+                <h5 className="text-xs font-medium text-gray-900 mb-2">Select Variant</h5>
+                <select
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  value={`${selectedOptions['Color'] || ''}/${selectedOptions['Size'] || ''}`}
+                  onChange={(e) => {
+                    if (e.target.value === '') return;
+                    const [color, size] = e.target.value.split('/');
+                    if (color && size) {
+                      // Update both color and size at once to avoid race conditions
+                      setSelectedOptions(prev => ({
+                        ...prev,
+                        Color: color,
+                        Size: size,
+                      }));
+
+                      // Find the variant for this color/size combination
+                      if (selectedProduct?.variants?.nodes) {
+                        const variant = selectedProduct.variants.nodes.find((v: any) => {
+                          const hasColor = v.selectedOptions.some((opt: any) =>
+                            opt.name.toLowerCase() === 'color' && opt.value === color
+                          );
+                          const hasSize = v.selectedOptions.some((opt: any) =>
+                            opt.name.toLowerCase() === 'size' && opt.value === size
+                          );
+                          return hasColor && hasSize;
+                        });
+
+                        if (variant) {
+                          setSelectedVariant(variant);
+                        }
+                      }
+                    }
+                  }}
+                >
+                  <option value="">Choose color/size...</option>
+                  {(() => {
+                    if (!selectedProduct?.variants?.nodes) return [];
+
+                    return selectedProduct.variants.nodes.map((variant: any) => {
+                      const colorOption = variant.selectedOptions.find((opt: any) =>
+                        opt.name.toLowerCase() === 'color'
+                      );
+                      const sizeOption = variant.selectedOptions.find((opt: any) =>
+                        opt.name.toLowerCase() === 'size'
+                      );
+
+                      if (colorOption && sizeOption) {
+                        const value = `${colorOption.value}/${sizeOption.value}`;
+                        const label = `${colorOption.value}/${sizeOption.value}`;
+                        const available = variant.availableForSale;
+
                         return (
-                          <button
+                          <option
                             key={value}
-                            type="button"
-                            className={`product-options-item transition-all w-6 h-6 flex items-center justify-center p-0 color-swatch relative
-                              ${selectedOptions[option.name] === value
-                                ? 'border-2 border-gray-900'
-                                : 'border border-gray-200 hover:border-gray-400'
-                              }
-                              ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}
-                            `}
-                            onClick={() => !outOfStock && handleOptionChange(option.name, value)}
-                            style={{ borderRadius: '0' }}
-                            disabled={outOfStock}
+                            value={value}
+                            disabled={!available}
+                            style={{
+                              color: available ? '#000' : '#9CA3AF',
+                              backgroundColor: available ? '#fff' : '#F3F4F6',
+                            }}
                           >
-                            {swatchColor ? (
-                              <div
-                                aria-label={value}
-                                className="w-full h-full relative"
-                                style={{
-                                  backgroundColor: swatchColor,
-                                  padding: 0,
-                                  margin: 0,
-                                  display: 'block',
-                                }}
-                              >
-                                {outOfStock && (
-                                  <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                    <svg width="100%" height="100%" viewBox="0 0 24 24" className="absolute inset-0">
-                                      <line x1="4" y1="20" x2="20" y2="4" stroke="#b91c1c" strokeWidth="2.5" strokeLinecap="round" />
-                                    </svg>
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <div
-                                aria-label={value}
-                                className="w-full h-full relative bg-gray-200"
-                                style={{
-                                  padding: 0,
-                                  margin: 0,
-                                  display: 'block',
-                                }}
-                              >
-                                {outOfStock && (
-                                  <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                    <svg width="100%" height="100%" viewBox="0 0 24 24" className="absolute inset-0">
-                                      <line x1="4" y1="20" x2="20" y2="4" stroke="#b91c1c" strokeWidth="2.5" strokeLinecap="round" />
-                                    </svg>
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </button>
-                        );
-                      } else {
-                        // Size button logic
-                        const variant = selectedProduct.variants.nodes.find((v: any) =>
-                          v.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'color' && opt.value === selectedOptions['Color']) &&
-                          v.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'size' && opt.value === value)
-                        );
-                        const outOfStock = variant ? !variant.availableForSale : false;
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            className={`product-options-item transition-all px-2 py-1 text-xs font-medium relative
-                              ${selectedOptions[option.name] === value
-                                ? 'text-gray-900 underline underline-offset-4'
-                                : 'text-gray-600 hover:text-gray-900'
-                              }
-                              ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}
-                            `}
-                            onClick={() => !outOfStock && handleOptionChange(option.name, value)}
-                            disabled={outOfStock}
-                          >
-                            {value}
-                          </button>
+                            {label} {!available ? '(Out of Stock)' : ''}
+                          </option>
                         );
                       }
-                    })}
-                  </div>
-                </div>
-              ))}
+                      return null;
+                    }).filter(Boolean);
+                  })()}
+                </select>
+              </div>
               <div className="mt-2 text-sm font-medium">
                 {selectedVariant?.price?.amount} {selectedVariant?.price?.currencyCode}
               </div>

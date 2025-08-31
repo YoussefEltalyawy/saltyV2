@@ -1,12 +1,12 @@
-import {useState, useEffect} from 'react';
-import {useLoaderData} from 'react-router';
-import {useAside} from './Aside';
-import {AddToCartButton} from './AddToCartButton';
-import type {ProductFragment} from 'storefrontapi.generated';
+import { useState, useEffect } from 'react';
+import { useLoaderData } from 'react-router';
+import { useAside } from './Aside';
+import { AddToCartButton } from './AddToCartButton';
+import type { ProductFragment } from 'storefrontapi.generated';
 
 function findVariant(
   product: any,
-  selectedOptions: {name: string; value: string}[] | null,
+  selectedOptions: { name: string; value: string }[] | null,
 ): any {
   if (!product?.variants?.nodes) {
     console.warn(`No variants found for product: ${product?.handle}`);
@@ -19,9 +19,9 @@ function findVariant(
   }
   const variant = product.variants.nodes.find((variant: any) => {
     return selectedOptions.every(
-      ({name, value}: {name: string; value: string}) => {
+      ({ name, value }: { name: string; value: string }) => {
         return variant.selectedOptions.some(
-          (opt: {name: string; value: string}) =>
+          (opt: { name: string; value: string }) =>
             opt.name === name && opt.value === value,
         );
       },
@@ -53,7 +53,7 @@ function TopsCapBundleCard({
     minTopsQuantity = 4,
     freeCapsQuantity = 1,
   } = upsell;
-  const {open} = useAside();
+  const { open } = useAside();
   const [error, setError] = useState('');
   const loaderData = useLoaderData() as any;
   const productCollections = loaderData?.productCollections;
@@ -128,15 +128,15 @@ function TopsCapBundleCard({
       for (let i = 0; i < minTopsQuantity; i++) {
         // Always use the first available top for each slot
         const defaultTop = availableTops[0];
-        const defaultColor = getFirstColor(defaultTop);
-        const defaultSize = getFirstSize(defaultTop);
+        const defaultColor = getFirstAvailableColor(defaultTop);
+        const defaultSize = getFirstAvailableSize(defaultTop);
 
         const variant =
           defaultColor && defaultSize
             ? findVariant(defaultTop, [
-                {name: 'Color', value: defaultColor},
-                {name: 'Size', value: defaultSize},
-              ])
+              { name: 'Color', value: defaultColor },
+              { name: 'Size', value: defaultSize },
+            ])
             : null;
 
 
@@ -158,16 +158,16 @@ function TopsCapBundleCard({
       for (let i = 0; i < freeCapsQuantity; i++) {
         const defaultCap =
           i === 0 && productCollections?.isInCaps ? product : availableCaps[0];
-        const defaultColor = getFirstColor(defaultCap);
-        const defaultSize = getFirstSize(defaultCap);
+        const defaultColor = getFirstAvailableColor(defaultCap);
+        const defaultSize = getFirstAvailableSize(defaultCap);
 
         const variant = findVariant(
           defaultCap,
           defaultColor && defaultSize
             ? [
-                {name: 'Color', value: defaultColor},
-                {name: 'Size', value: defaultSize},
-              ]
+              { name: 'Color', value: defaultColor },
+              { name: 'Size', value: defaultSize },
+            ]
             : null,
         );
 
@@ -195,27 +195,39 @@ function TopsCapBundleCard({
     capSelections.length,
   ]);
 
-  // Helper functions
-  const getFirstColor = (product: any): string | null => {
-    const colorOption = product?.options?.find(
-      (opt: any) => opt.name.toLowerCase() === 'color',
-    );
-    const color = colorOption?.optionValues?.[0]?.name || null;
-    return color;
+  // Helper functions to get first available color and size
+  const getFirstAvailableColor = (product: any): string | null => {
+    if (!product?.variants?.nodes) return null;
+
+    // Find the first variant that's available
+    const firstAvailableVariant = product.variants.nodes.find((v: any) => v.availableForSale);
+    if (firstAvailableVariant) {
+      const colorOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
+        opt.name.toLowerCase() === 'color'
+      );
+      return colorOption?.value || null;
+    }
+    return null;
   };
 
-  const getFirstSize = (product: any): string | null => {
-    const sizeOption = product?.options?.find(
-      (opt: any) => opt.name.toLowerCase() === 'size',
-    );
-    const size = sizeOption?.optionValues?.[0]?.name || null;
-    return size;
+  const getFirstAvailableSize = (product: any): string | null => {
+    if (!product?.variants?.nodes) return null;
+
+    // Find the first variant that's available
+    const firstAvailableVariant = product.variants.nodes.find((v: any) => v.availableForSale);
+    if (firstAvailableVariant) {
+      const sizeOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
+        opt.name.toLowerCase() === 'size'
+      );
+      return sizeOption?.value || null;
+    }
+    return null;
   };
 
   const getProductColorOptions = (productHandle: string) => {
     const productList = productHandle
       ? availableTops.find((p) => p.handle === productHandle) ||
-        availableCaps.find((p) => p.handle === productHandle)
+      availableCaps.find((p) => p.handle === productHandle)
       : null;
     if (!productList?.options) return [];
     const colorOption = productList.options.find(
@@ -228,7 +240,7 @@ function TopsCapBundleCard({
   const getProductSizeOptions = (productHandle: string) => {
     const productList = productHandle
       ? availableTops.find((p) => p.handle === productHandle) ||
-        availableCaps.find((p) => p.handle === productHandle)
+      availableCaps.find((p) => p.handle === productHandle)
       : null;
     if (!productList?.options) return [];
     const sizeOption = productList.options.find(
@@ -244,7 +256,7 @@ function TopsCapBundleCard({
   ): string | undefined => {
     const productList = productHandle
       ? availableTops.find((p) => p.handle === productHandle) ||
-        availableCaps.find((p) => p.handle === productHandle)
+      availableCaps.find((p) => p.handle === productHandle)
       : null;
     if (!productList?.options) return undefined;
     const colorOption = productList.options.find(
@@ -273,15 +285,15 @@ function TopsCapBundleCard({
       return;
     }
 
-    const defaultColor = getFirstColor(selectedProduct);
-    const defaultSize = getFirstSize(selectedProduct);
+    const defaultColor = getFirstAvailableColor(selectedProduct);
+    const defaultSize = getFirstAvailableSize(selectedProduct);
     const defaultVariant = findVariant(
       selectedProduct,
       defaultColor && defaultSize
         ? [
-            {name: 'Color', value: defaultColor},
-            {name: 'Size', value: defaultSize},
-          ]
+          { name: 'Color', value: defaultColor },
+          { name: 'Size', value: defaultSize },
+        ]
         : null,
     );
 
@@ -334,8 +346,8 @@ function TopsCapBundleCard({
       newSelections[idx].size
     ) {
       const variant = findVariant(selectedProduct, [
-        {name: 'Color', value: newSelections[idx].color},
-        {name: 'Size', value: newSelections[idx].size},
+        { name: 'Color', value: newSelections[idx].color },
+        { name: 'Size', value: newSelections[idx].size },
       ]);
 
       if (variant) {
@@ -356,7 +368,7 @@ function TopsCapBundleCard({
   // Prepare lines for AddToCartButton
   const allSelections = [...topSelections, ...capSelections];
   const lines = allSelections.every((sel) => sel.variantId)
-    ? allSelections.map((sel) => ({merchandiseId: sel.variantId!, quantity: 1}))
+    ? allSelections.map((sel) => ({ merchandiseId: sel.variantId!, quantity: 1 }))
     : [];
 
   // Check if any selected variant is out of stock
@@ -419,7 +431,7 @@ function TopsCapBundleCard({
   // Calculate bundle price
   const calculateBundlePrice = () => {
     let currencyCode = 'USD'; // Default fallback
-    
+
     const topPrices = topSelections
       .filter((sel) => sel.variantId)
       .map((sel) => {
@@ -432,12 +444,12 @@ function TopsCapBundleCard({
         const price = variant?.price?.amount
           ? parseFloat(variant.price.amount)
           : 0;
-        
+
         // Get currency from the first variant that has one
         if (variant?.price?.currencyCode && currencyCode === 'USD') {
           currencyCode = variant.price.currencyCode;
         }
-        
+
         return price;
       });
 
@@ -454,12 +466,12 @@ function TopsCapBundleCard({
         const price = variant?.price?.amount
           ? parseFloat(variant.price.amount)
           : 0;
-        
+
         // Get currency from the first variant that has one
         if (variant?.price?.currencyCode && currencyCode === 'USD') {
           currencyCode = variant.price.currencyCode;
         }
-        
+
         return price;
       });
 
@@ -511,133 +523,89 @@ function TopsCapBundleCard({
                 )}
               </div>
 
+              {/* Variant Selection Dropdown */}
               <div className="product-options mb-3">
-                <h5 className="text-xs font-medium text-gray-900 mb-2">
-                  Color
-                </h5>
-                <div className="flex flex-wrap gap-2 justify-start">
-                  {getProductColorOptions(sel.productHandle || '').map(
-                    (color: string) => {
-                      const swatchColor = getSwatchColor(
-                        sel.productHandle || '',
+                <h5 className="text-xs font-medium text-gray-900 mb-2">Select Variant</h5>
+                <select
+                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  value={`${sel.color}/${sel.size}`}
+                  onChange={(e) => {
+                    if (e.target.value === '') return;
+                    const [color, size] = e.target.value.split('/');
+                    if (color && size) {
+                      // Update both color and size at once to avoid race conditions
+                      const newSelections = [...topSelections];
+                      newSelections[idx] = {
+                        ...newSelections[idx],
                         color,
-                      );
+                        size,
+                      };
+
+                      // Find the variant for this color/size combination
                       const selectedProduct = availableTops.find(
                         (p) => p.handle === sel.productHandle,
                       );
-                      const variant = selectedProduct?.variants?.nodes.find(
-                        (v: any) =>
-                          v.selectedOptions.some(
-                            (opt: any) =>
-                              opt.name.toLowerCase() === 'color' &&
-                              opt.value === color,
-                          ) &&
-                          v.selectedOptions.some(
-                            (opt: any) =>
-                              opt.name.toLowerCase() === 'size' &&
-                              opt.value === sel.size,
-                          ),
-                      );
-                      const outOfStock = variant
-                        ? !variant.availableForSale
-                        : false;
 
-                      return (
-                        <button
-                          key={color}
-                          type="button"
-                          className={`product-options-item transition-all w-6 h-6 flex items-center justify-center p-0 color-swatch relative
-                          ${sel.color === color ? 'border-2 border-gray-900' : 'border border-gray-200 hover:border-gray-400'}
-                          ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          onClick={() =>
-                            !outOfStock &&
-                            handleOptionChange(idx, 'color', color, true)
-                          }
-                          style={{borderRadius: '0'}}
-                          disabled={outOfStock}
-                        >
-                          <div
-                            aria-label={color}
-                            className="w-full h-full relative"
+                      if (selectedProduct?.variants?.nodes) {
+                        const variant = selectedProduct.variants.nodes.find((v: any) => {
+                          const hasColor = v.selectedOptions.some((opt: any) =>
+                            opt.name.toLowerCase() === 'color' && opt.value === color
+                          );
+                          const hasSize = v.selectedOptions.some((opt: any) =>
+                            opt.name.toLowerCase() === 'size' && opt.value === size
+                          );
+                          return hasColor && hasSize;
+                        });
+
+                        if (variant) {
+                          newSelections[idx].variantId = variant.id;
+                          newSelections[idx].image = variant.image?.url || selectedProduct.featuredImage?.url;
+                        }
+                      }
+
+                      setTopSelections(newSelections);
+                    }
+                  }}
+                >
+                  <option value="">Choose color/size...</option>
+                  {(() => {
+                    const selectedProduct = availableTops.find(
+                      (p) => p.handle === sel.productHandle,
+                    );
+
+                    if (!selectedProduct?.variants?.nodes) return [];
+
+                    return selectedProduct.variants.nodes.map((variant: any) => {
+                      const colorOption = variant.selectedOptions.find((opt: any) =>
+                        opt.name.toLowerCase() === 'color'
+                      );
+                      const sizeOption = variant.selectedOptions.find((opt: any) =>
+                        opt.name.toLowerCase() === 'size'
+                      );
+
+                      if (colorOption && sizeOption) {
+                        const value = `${colorOption.value}/${sizeOption.value}`;
+                        const label = `${colorOption.value}/${sizeOption.value}`;
+                        const available = variant.availableForSale;
+
+                        return (
+                          <option
+                            key={value}
+                            value={value}
+                            disabled={!available}
                             style={{
-                              backgroundColor: swatchColor || '#f3f4f6',
-                              padding: 0,
-                              margin: 0,
-                              display: 'block',
+                              color: available ? '#000' : '#9CA3AF',
+                              backgroundColor: available ? '#fff' : '#F3F4F6',
                             }}
                           >
-                            {outOfStock && (
-                              <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <svg
-                                  width="100%"
-                                  height="100%"
-                                  viewBox="0 0 24 24"
-                                  className="absolute inset-0"
-                                >
-                                  <line
-                                    x1="4"
-                                    y1="20"
-                                    x2="20"
-                                    y2="4"
-                                    stroke="#b91c1c"
-                                    strokeWidth="2.5"
-                                    strokeLinecap="round"
-                                  />
-                                </svg>
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    },
-                  )}
-                </div>
-              </div>
-
-              <div className="product-options">
-                <h5 className="text-xs font-medium text-gray-900 mb-2">Size</h5>
-                <div className="flex flex-wrap gap-2 justify-start">
-                  {getProductSizeOptions(sel.productHandle || '').map(
-                    (size: string) => {
-                      const selectedProduct = availableTops.find(
-                        (p) => p.handle === sel.productHandle,
-                      );
-                      const variant = selectedProduct?.variants?.nodes.find(
-                        (v: any) =>
-                          v.selectedOptions.some(
-                            (opt: any) =>
-                              opt.name.toLowerCase() === 'color' &&
-                              opt.value === sel.color,
-                          ) &&
-                          v.selectedOptions.some(
-                            (opt: any) =>
-                              opt.name.toLowerCase() === 'size' &&
-                              opt.value === size,
-                          ),
-                      );
-                      const outOfStock = variant
-                        ? !variant.availableForSale
-                        : false;
-
-                      return (
-                        <button
-                          key={size}
-                          type="button"
-                          className={`product-options-item transition-all px-2 py-1 text-xs font-medium relative
-                          ${sel.size === size ? 'text-gray-900 underline underline-offset-4' : 'text-gray-600 hover:text-gray-900'}
-                          ${outOfStock ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          onClick={() =>
-                            !outOfStock &&
-                            handleOptionChange(idx, 'size', size, true)
-                          }
-                          disabled={outOfStock}
-                        >
-                          {size}
-                        </button>
-                      );
-                    },
-                  )}
-                </div>
+                            {label} {!available ? '(Out of Stock)' : ''}
+                          </option>
+                        );
+                      }
+                      return null;
+                    }).filter(Boolean);
+                  })()}
+                </select>
               </div>
             </div>
           ))}

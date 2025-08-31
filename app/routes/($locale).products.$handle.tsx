@@ -28,115 +28,11 @@ import UpsellSection from '~/components/UpsellSection';
 import BundleUpsellCard from '~/components/BundleUpsellCard';
 import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
 
-// --- Upsell Config ---
-type UpsellConfig = {
-  [key: string]: Array<{
-    type: string;
-    title: string;
-    description: string;
-    minQuantity?: number;
-    discountType: string;
-    discountValue?: number;
-    collections?: string[];
-    [key: string]: any;
-  }>;
-};
-
-// Collection handles for the denim + polo bundle - using the exact collection handles from the store
-// These are the exact collection handles from the URLs: collections/denim and collections/oversized-polos
-const DENIM_COLLECTION = 'denim';
-const POLO_COLLECTION = 'oversized-polos';
-const CAPS_COLLECTION = 'caps';
-const TOPS_COLLECTION = 'tops';
-
-// No debug mode or test data - we'll fetch actual products from collections
-
-// Global upsells that apply to specific collections rather than product handles
-const GLOBAL_UPSELLS = {
-  crossSellDenimPolo: {
-    type: 'crossSell',
-    title: 'Denim + Polo Bundle – 10% Off!',
-    description: 'Add a matching piece to complete your look and save 10%.',
-    discountType: 'automatic',
-    discountValue: 10,
-    collections: [DENIM_COLLECTION, POLO_COLLECTION],
-  },
-  linenCrossell: {
-    type: 'linenCrossSell',
-    title: 'Linen Shirt + Pants Bundle – 15% Off!',
-    description: 'Complete your linen look and save 15% on the total bundle price.',
-    discountType: 'automatic',
-    discountValue: 15,
-    shirtHandle: 'linen-shirt',
-    pantsHandle: 'linen-pants',
-  },
-  poloBundle2: {
-    type: 'bundle',
-    title: '2 Polos Bundle – 10% Off!',
-    description:
-      'Pick any 2 polos (choose color and size for each) and get 10% off.',
-    minQuantity: 2,
-    discountType: 'automatic',
-    discountValue: 10,
-    collectionRestriction: POLO_COLLECTION,
-  },
-  poloBundle3: {
-    type: 'bundle',
-    title: '3 Polos Bundle – 15% Off!',
-    description:
-      'Pick any 3 polos (choose color and size for each) and get 15% off.',
-    minQuantity: 3,
-    discountType: 'automatic',
-    discountValue: 15,
-    collectionRestriction: POLO_COLLECTION,
-  },
-  topsBundle2: {
-    type: 'bundle',
-    title: '2 Tops Bundle – 10% Off!',
-    description:
-      'Pick any 2 tops (choose color and size for each) and get 10% off.',
-    minQuantity: 2,
-    discountType: 'code',
-    discountCode: '2TOPS10',
-    discountValue: 10,
-    collectionRestriction: TOPS_COLLECTION,
-  },
-  topsBundle3: {
-    type: 'bundle',
-    title: '3 Tops Bundle – 15% Off!',
-    description:
-      'Pick any 3 tops (choose color and size for each) and get 15% off.',
-    minQuantity: 3,
-    discountType: 'code',
-    discountCode: '3TOPS15',
-    discountValue: 15,
-    collectionRestriction: TOPS_COLLECTION,
-  },
-  topsCapBundle: {
-    type: 'crossSell',
-    title: 'Buy 4 Tops Get 1 Cap Free!',
-    description: 'Choose 4 tops and get a cap of your choice absolutely free.',
-    discountType: 'automatic',
-    discountCode: '4TOPSFREECAP',
-    collections: [TOPS_COLLECTION, CAPS_COLLECTION],
-    minTopsQuantity: 4,
-    freeCapsQuantity: 1,
-  },
-};
-
-const UPSELLS: UpsellConfig = {
-  'cocktails-baby-tee-pre-order': [
-    {
-      type: 'bundle',
-      title: '3 Tops Bundle – 15% Off!',
-      description:
-        'Pick any 3 tops (choose color and size for each) and get 15% off.',
-      minQuantity: 3,
-      discountType: 'code',
-      discountCode: '3TOPS15',
-    },
-  ],
-};
+import {
+  getProductUpsells,
+  getBundleDefinition,
+  BUNDLE_COLLECTIONS
+} from '~/lib/bundleConfig';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
@@ -190,17 +86,17 @@ async function fetchProductCollections(
       [];
 
     // Check if product is in denim or polo collection
-    const isInDenim = productCollectionHandles.includes(DENIM_COLLECTION);
-    const isInPolo = productCollectionHandles.includes(POLO_COLLECTION);
-    const isInCaps = productCollectionHandles.includes(CAPS_COLLECTION);
-    const isInTops = productCollectionHandles.includes(TOPS_COLLECTION);
+    const isInDenim = productCollectionHandles.includes(BUNDLE_COLLECTIONS.DENIM);
+    const isInPolo = productCollectionHandles.includes(BUNDLE_COLLECTIONS.POLO);
+    const isInCaps = productCollectionHandles.includes(BUNDLE_COLLECTIONS.CAPS);
+    const isInTops = productCollectionHandles.includes(BUNDLE_COLLECTIONS.TOPS);
 
     // Fetch products from the oversized-polos collection for polo bundles
     let polos: any[] = [];
     try {
       const result = await storefront.query(`
         query GetPolos {
-          collection(handle: "${POLO_COLLECTION}") {
+          collection(handle: "${BUNDLE_COLLECTIONS.POLO}") {
             products(first: 50) {
               nodes {
                 id
@@ -260,8 +156,8 @@ async function fetchProductCollections(
     if (isInDenim || isInPolo) {
       // Fetch products from the complementary collection
       const complementaryCollection = isInDenim
-        ? POLO_COLLECTION
-        : DENIM_COLLECTION;
+        ? BUNDLE_COLLECTIONS.POLO
+        : BUNDLE_COLLECTIONS.DENIM;
       try {
         const result = await storefront.query(
           `
@@ -448,12 +344,11 @@ async function fetchProductCollections(
     let tops: any[] = [];
 
     // Always fetch caps and tops for the bundle (not just when current product is in those collections)
-    if (true) {
-      // Fetch caps collection
-      try {
-        const capsResult = await storefront.query(`
+    // Fetch caps collection
+    try {
+      const capsResult = await storefront.query(`
           query GetCaps {
-            collection(handle: "${CAPS_COLLECTION}") {
+            collection(handle: "${BUNDLE_COLLECTIONS.CAPS}") {
               products(first: 50) {
                 nodes {
                   id
@@ -501,74 +396,71 @@ async function fetchProductCollections(
             }
           }
         `);
-        if (capsResult?.collection?.products?.nodes) {
-          caps = capsResult.collection.products.nodes;
-        }
-      } catch (err) {
-        console.error('Error fetching caps:', err);
+      if (capsResult?.collection?.products?.nodes) {
+        caps = capsResult.collection.products.nodes;
       }
-
-      // Fetch tops collection
-      try {
-        const topsResult = await storefront.query(`
-          query GetTops {
-            collection(handle: "${TOPS_COLLECTION}") {
-              products(first: 50) {
-                nodes {
-                  id
-                  title
-                  handle
-                  description
-                  featuredImage {
-                    url
-                    altText
-                  }
-                  options {
-                    name
-                    optionValues {
-                      name
-                      swatch {
-                        color
-                        image {
-                          previewImage {
-                            url
-                          }
-                        }
-                      }
-                    }
-                  }
-                  variants(first: 100) {
-                    nodes {
-                      id
-                      availableForSale
-                      image {
-                        url
-                        altText
-                      }
-                      price {
-                        amount
-                        currencyCode
-                      }
-                      selectedOptions {
-                        name
-                        value
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        `);
-        if (topsResult?.collection?.products?.nodes) {
-          tops = topsResult.collection.products.nodes;
-        }
-      } catch (err) {
-        console.error('Error fetching tops:', err);
-      }
+    } catch (err) {
+      console.error('Error fetching caps:', err);
     }
 
-
+    // Fetch tops collection
+    try {
+      const topsResult = await storefront.query(`
+          query GetTops {
+            collection(handle: "${BUNDLE_COLLECTIONS.TOPS}") {
+              products(first: 50) {
+                nodes {
+                  id
+                  title
+                  handle
+                  description
+                  featuredImage {
+                    url
+                    altText
+                  }
+                  options {
+                    name
+                    optionValues {
+                      name
+                      swatch {
+                        color
+                        image {
+                          previewImage {
+                            url
+                          }
+                        }
+                      }
+                    }
+                  }
+                  variants(first: 100) {
+                    nodes {
+                      id
+                      availableForSale
+                      image {
+                        url
+                        altText
+                      }
+                      price {
+                        amount
+                        currencyCode
+                      }
+                      selectedOptions {
+                        name
+                        value
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `);
+      if (topsResult?.collection?.products?.nodes) {
+        tops = topsResult.collection.products.nodes;
+      }
+    } catch (err) {
+      console.error('Error fetching tops:', err);
+    }
 
     return {
       isInDenim,
@@ -706,72 +598,20 @@ export default function Product() {
   // Get product collections data
   const { productCollections } = useLoaderData<typeof loader>();
 
-  // Find upsells for this product
+  // Find upsells for this product using centralized configuration
   const upsellKey = handle?.toLowerCase().trim();
-  let upsells = [...(UPSELLS[upsellKey] || [])];
+  const collectionHandles = [];
+  if (productCollections?.isInDenim) collectionHandles.push(BUNDLE_COLLECTIONS.DENIM);
+  if (productCollections?.isInPolo) collectionHandles.push(BUNDLE_COLLECTIONS.POLO);
+  if (productCollections?.isInCaps) collectionHandles.push(BUNDLE_COLLECTIONS.CAPS);
+  if (productCollections?.isInTops) collectionHandles.push(BUNDLE_COLLECTIONS.TOPS);
 
-  // Add tops bundles first if the product is in tops collection
-  if (productCollections?.isInTops) {
-    // Avoid duplicates by checking if bundle with same title already exists
-    const existingTitles = upsells.map(u => u.title);
-    const topsBundles = [];
+  // Get all bundles this product is eligible for
+  const upsellKeys = getProductUpsells(upsellKey || '', collectionHandles);
+  const upsells = upsellKeys.map(key => getBundleDefinition(key)).filter(Boolean);
 
-    if (!existingTitles.includes(GLOBAL_UPSELLS.topsBundle3.title)) {
-      topsBundles.push(GLOBAL_UPSELLS.topsBundle3);
-    }
-    if (!existingTitles.includes(GLOBAL_UPSELLS.topsBundle2.title)) {
-      topsBundles.push(GLOBAL_UPSELLS.topsBundle2);
-    }
-
-    if (topsBundles.length > 0) {
-      upsells = [...topsBundles, ...upsells];
-    }
-  }
-
-  // Add polo bundle offers if the product is in the polo collection
-  if (productCollections?.isInPolo) {
-    // Avoid duplicates by checking if bundle with same title already exists
-    const existingTitles = upsells.map(u => u.title);
-    const poloBundles = [];
-
-    if (!existingTitles.includes(GLOBAL_UPSELLS.poloBundle3.title)) {
-      poloBundles.push(GLOBAL_UPSELLS.poloBundle3);
-    }
-    if (!existingTitles.includes(GLOBAL_UPSELLS.poloBundle2.title)) {
-      poloBundles.push(GLOBAL_UPSELLS.poloBundle2);
-    }
-
-    if (poloBundles.length > 0) {
-      upsells = [...upsells, ...poloBundles];
-    }
-  }
-
-  // Add the denim + polo cross-sell upsell if the product is in one of those collections
-  // and there are complementary products available
-  if (
-    (productCollections?.isInDenim || productCollections?.isInPolo) &&
-    productCollections?.complementaryProducts?.length > 0
-  ) {
-    upsells = [...upsells, GLOBAL_UPSELLS.crossSellDenimPolo];
-  }
-
-  // Add 4 tops + 1 cap bundle if the product is in caps or tops collection, or if it's the cocktails baby tee
-  if (
-    productCollections?.isInCaps ||
-    productCollections?.isInTops ||
-    handle === 'cocktails-baby-tee-pre-order'
-  ) {
-    upsells = [...upsells, GLOBAL_UPSELLS.topsCapBundle];
-  }
-
-  // Add linen cross-sell bundle if the product is linen shirt or linen pants
-  if (
-    (productCollections?.isLinenShirt || productCollections?.isLinenPants) &&
-    productCollections?.linenShirt &&
-    productCollections?.linenPants
-  ) {
-    upsells = [...upsells, GLOBAL_UPSELLS.linenCrossell];
-  }
+  // The centralized configuration already handles all the bundle logic
+  // No need to manually add bundles - they're all configured in bundleConfig.ts
 
   return (
     <div className="max-w-6xl mx-auto">
