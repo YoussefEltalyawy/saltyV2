@@ -1,5 +1,7 @@
 import { BUNDLE_COLLECTIONS } from './bundleConfig';
 
+const SALTY_CLUB_COLLECTION_HANDLE = 'salty-club';
+
 // Centralized data fetching for bundles
 export class BundleDataService {
   private storefront: any;
@@ -219,6 +221,7 @@ export class BundleDataService {
     isInPolo: boolean;
     isInCaps: boolean;
     isInTops: boolean;
+    isInSaltyClub: boolean;
     isLinenShirt: boolean;
     isLinenPants: boolean;
     complementaryProducts: any[];
@@ -234,6 +237,7 @@ export class BundleDataService {
     const isInPolo = handles.includes(BUNDLE_COLLECTIONS.POLO);
     const isInCaps = handles.includes(BUNDLE_COLLECTIONS.CAPS);
     const isInTops = handles.includes(BUNDLE_COLLECTIONS.TOPS);
+    const isInSaltyClub = handles.includes(SALTY_CLUB_COLLECTION_HANDLE);
 
     const isLinenShirt = productHandle === 'linen-shirt';
     const isLinenPants = productHandle === 'linen-pants';
@@ -252,6 +256,7 @@ export class BundleDataService {
       isInPolo,
       isInCaps,
       isInTops,
+      isInSaltyClub,
       isLinenShirt,
       isLinenPants,
       complementaryProducts,

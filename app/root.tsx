@@ -24,6 +24,7 @@ import { HeaderAnimationProvider } from './components/HeaderAnimationContext';
 import { LockScreen } from '~/components/LockScreen';
 import { safeLocalStorage } from '~/lib/localStorage';
 import { NewsletterPopup } from '~/components/NewsletterPopup';
+import { NewsletterPopupProvider } from '~/components/NewsletterPopupContext';
 import { useNewsletterPopup } from '~/hooks/useNewsletterPopup';
 import { MetaPixel } from '~/components/MetaPixel';
 
@@ -177,7 +178,11 @@ export function Layout({ children }: { children?: React.ReactNode }) {
   const data = useRouteLoaderData<RootLoader>('root');
   const [isChecking, setIsChecking] = useState(true);
   const [isLocked, setIsLocked] = useState(true);
-  const { isOpen: isNewsletterOpen, closePopup: closeNewsletterPopup } = useNewsletterPopup();
+  const {
+    isOpen: isNewsletterOpen,
+    openPopup: openNewsletterPopup,
+    closePopup: closeNewsletterPopup,
+  } = useNewsletterPopup();
 
   useEffect(() => {
     if (data) {
@@ -227,24 +232,29 @@ export function Layout({ children }: { children?: React.ReactNode }) {
       <body>
         {/* Meta Pixel */}
         <MetaPixel pixelId={data?.metaPixelId} />
-        {data.storeLocked === true && typeof data.storePassword === 'string' && data.storePassword.trim() !== '' && isLocked ? (
-          <LockScreen correctPassword={data.storePassword} onPasswordSuccess={handlePasswordSuccess} />
-        ) : (
-          data ? (
-            <Analytics.Provider
-              cart={data.cart}
-              shop={data.shop}
-              consent={data.consent}
-            >
-              <PageLayout {...data}>{children}</PageLayout>
-            </Analytics.Provider>
+        <NewsletterPopupProvider
+          openPopup={openNewsletterPopup}
+          closePopup={closeNewsletterPopup}
+        >
+          {data.storeLocked === true && typeof data.storePassword === 'string' && data.storePassword.trim() !== '' && isLocked ? (
+            <LockScreen correctPassword={data.storePassword} onPasswordSuccess={handlePasswordSuccess} />
           ) : (
-            <HeaderAnimationProvider>
-              <Aside.Provider>{children}</Aside.Provider>
-            </HeaderAnimationProvider>
-          )
-        )}
-        <NewsletterPopup isOpen={isNewsletterOpen} onClose={closeNewsletterPopup} />
+            data ? (
+              <Analytics.Provider
+                cart={data.cart}
+                shop={data.shop}
+                consent={data.consent}
+              >
+                <PageLayout {...data}>{children}</PageLayout>
+              </Analytics.Provider>
+            ) : (
+              <HeaderAnimationProvider>
+                <Aside.Provider>{children}</Aside.Provider>
+              </HeaderAnimationProvider>
+            )
+          )}
+          <NewsletterPopup isOpen={isNewsletterOpen} onClose={closeNewsletterPopup} />
+        </NewsletterPopupProvider>
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />
       </body>

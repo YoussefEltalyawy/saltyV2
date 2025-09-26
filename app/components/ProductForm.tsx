@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router';
+import { useNewsletterPopupControls } from './NewsletterPopupContext';
 import { type MappedProductOptions } from '@shopify/hydrogen';
 import type {
   Maybe,
@@ -8,15 +9,23 @@ import { AddToCartButton } from './AddToCartButton';
 import { useAside } from './Aside';
 import type { ProductFragment } from 'storefrontapi.generated';
 
+interface ProductFormProps {
+  productOptions: MappedProductOptions[];
+  selectedVariant: ProductFragment['selectedOrFirstAvailableVariant'];
+  isInSaltyClub?: boolean;
+}
+
 export function ProductForm({
   productOptions,
   selectedVariant,
-}: {
-  productOptions: MappedProductOptions[];
-  selectedVariant: ProductFragment['selectedOrFirstAvailableVariant'];
-}) {
+  isInSaltyClub = false,
+}: ProductFormProps) {
   const navigate = useNavigate();
   const { open } = useAside();
+  const { open: openNewsletterPopup } = useNewsletterPopupControls();
+
+  const isVariantAvailable = selectedVariant?.availableForSale;
+  const shouldShowNotifyButton = Boolean(selectedVariant && !isVariantAvailable && isInSaltyClub);
 
   return (
     <div className="product-form space-y-6">
@@ -123,9 +132,9 @@ export function ProductForm({
         );
       })}
 
-      <div className="pt-4">
+      <div className="pt-4 space-y-3">
         <AddToCartButton
-          disabled={!selectedVariant || !selectedVariant.availableForSale}
+          disabled={!selectedVariant || !isVariantAvailable}
           onClick={() => {
             open('cart');
           }}
@@ -145,6 +154,15 @@ export function ProductForm({
             {selectedVariant?.availableForSale ? 'Add to cart' : 'Sold out'}
           </span>
         </AddToCartButton>
+        {shouldShowNotifyButton && (
+          <button
+            type="button"
+            onClick={openNewsletterPopup}
+            className="w-full py-3 px-6 text-center tracking-wide text-base font-semibold transition-all duration-200 bg-[#beb1a1] text-black hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#beb1a1] active:opacity-80 border border-transparent"
+          >
+            Notify me when back in stock
+          </button>
+        )}
       </div>
     </div>
   );

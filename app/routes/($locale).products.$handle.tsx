@@ -640,6 +640,7 @@ export default function Product() {
             <ProductForm
               productOptions={productOptions}
               selectedVariant={selectedVariant}
+              isInSaltyClub={Boolean(productCollections?.isInSaltyClub)}
             />
           </div>
 
