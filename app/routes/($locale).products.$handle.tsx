@@ -27,6 +27,7 @@ import type { MappedProductOptions } from '@shopify/hydrogen';
 import UpsellSection from '~/components/UpsellSection';
 import BundleUpsellCard from '~/components/BundleUpsellCard';
 import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
+import { createBundleDataService } from '~/lib/bundleDataService';
 
 import {
   getProductUpsells,
@@ -53,10 +54,8 @@ export async function loader(args: LoaderFunctionArgs) {
 
   // Check if this product is in denim or polo collection and needs the crossSell upsell
   const { product } = criticalData;
-  const productCollections = await fetchProductCollections(
-    args,
-    product.handle,
-  );
+  const dataService = createBundleDataService(args.context.storefront);
+  const productCollections = await dataService.fetchProductPageBundleData(product.handle);
 
   // Get all product images
   return {

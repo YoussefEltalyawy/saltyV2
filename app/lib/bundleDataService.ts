@@ -160,6 +160,110 @@ export class BundleDataService {
   }
 
   /**
+   * Fetch collection handles for a given product handle
+   */
+  async fetchProductCollectionHandles(productHandle: string): Promise<string[]> {
+    const cacheKey = `product_collections_${productHandle}`;
+
+    if (this.cache.has(cacheKey)) {
+      return this.cache.get(cacheKey);
+    }
+
+    try {
+      const result = await this.storefront.query(`
+        query ProductCollections($handle: String!) {
+          product(handle: $handle) {
+            collections(first: 10) {
+              nodes { handle }
+            }
+          }
+        }
+      `, { variables: { handle: productHandle } });
+
+      const handles = result?.product?.collections?.nodes?.map((c: any) => c.handle) || [];
+      this.cache.set(cacheKey, handles);
+      return handles;
+    } catch (err) {
+      console.error(`Error fetching collections for product ${productHandle}:`, err);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch complementary products for cross-selling based on membership in denim/polo
+   */
+  async fetchComplementaryProductsByHandle(productHandle: string): Promise<any[]> {
+    try {
+      const handles = await this.fetchProductCollectionHandles(productHandle);
+      const isInDenim = handles.includes(BUNDLE_COLLECTIONS.DENIM);
+      const isInPolo = handles.includes(BUNDLE_COLLECTIONS.POLO);
+
+      if (!isInDenim && !isInPolo) return [];
+
+      const complementaryCollection = isInDenim
+        ? BUNDLE_COLLECTIONS.POLO
+        : BUNDLE_COLLECTIONS.DENIM;
+
+      return await this.fetchCollectionProducts(complementaryCollection);
+    } catch (err) {
+      console.error('Error fetching complementary products:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Product page bundle-related data in one call to mirror existing loader shape
+   */
+  async fetchProductPageBundleData(productHandle: string): Promise<{
+    isInDenim: boolean;
+    isInPolo: boolean;
+    isInCaps: boolean;
+    isInTops: boolean;
+    isLinenShirt: boolean;
+    isLinenPants: boolean;
+    complementaryProducts: any[];
+    polos: any[];
+    caps: any[];
+    tops: any[];
+    linenShirt: any;
+    linenPants: any;
+  }> {
+    const handles = await this.fetchProductCollectionHandles(productHandle);
+
+    const isInDenim = handles.includes(BUNDLE_COLLECTIONS.DENIM);
+    const isInPolo = handles.includes(BUNDLE_COLLECTIONS.POLO);
+    const isInCaps = handles.includes(BUNDLE_COLLECTIONS.CAPS);
+    const isInTops = handles.includes(BUNDLE_COLLECTIONS.TOPS);
+
+    const isLinenShirt = productHandle === 'linen-shirt';
+    const isLinenPants = productHandle === 'linen-pants';
+
+    const [polos, caps, tops, linenShirt, linenPants, complementaryProducts] = await Promise.all([
+      this.fetchCollectionProducts(BUNDLE_COLLECTIONS.POLO),
+      this.fetchCollectionProducts(BUNDLE_COLLECTIONS.CAPS),
+      this.fetchCollectionProducts(BUNDLE_COLLECTIONS.TOPS),
+      (isLinenShirt || isLinenPants) ? this.fetchProduct('linen-shirt') : Promise.resolve(null),
+      (isLinenShirt || isLinenPants) ? this.fetchProduct('linen-pants') : Promise.resolve(null),
+      this.fetchComplementaryProductsByHandle(productHandle),
+    ]);
+
+    return {
+      isInDenim,
+      isInPolo,
+      isInCaps,
+      isInTops,
+      isLinenShirt,
+      isLinenPants,
+      complementaryProducts,
+      polos,
+      caps,
+      tops,
+      linenShirt,
+      linenPants,
+    };
+  }
+
+  /**
    * Fetch all bundle-related data
    */
   async fetchAllBundleData(): Promise<{
