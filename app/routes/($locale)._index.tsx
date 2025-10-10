@@ -8,6 +8,7 @@ import type {
 } from 'storefrontapi.generated';
 import { ProductItem } from '~/components/ProductItem';
 import { HeroSection } from '~/components/HeroSection';
+import { HERO_METAOBJECT_QUERY, parseHeroMetaobject } from '~/lib/graphql/hero';
 import { BrowseCollectionsSection } from '~/components/BrowseCollectionsSection';
 import { FeaturedProductsCarousel } from '~/components/FeaturedProductsCarousel';
 import { BrowseCategoriesSection } from '~/components/BrowseCategoriesSection';
@@ -32,7 +33,7 @@ export async function loader(args: LoaderFunctionArgs) {
  */
 async function loadCriticalData({ context }: LoaderFunctionArgs) {
   const { storefront } = context;
-  const [{ collection }] = await Promise.all([
+  const [{ collection }, heroData] = await Promise.all([
     storefront.query(FEATURED_COLLECTION_PRODUCTS_QUERY, {
       variables: {
         handle: 'featured',
@@ -40,6 +41,14 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
         language: storefront.i18n.language,
         first: 8,
       },
+    }),
+    storefront.query(HERO_METAOBJECT_QUERY, {
+      variables: {
+        handle: 'hero-handle',
+        country: storefront.i18n.country,
+        language: storefront.i18n.language,
+      },
+      cache: storefront.CacheShort(),
     }),
   ]);
 
@@ -49,6 +58,7 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
 
   return {
     featuredCollection: collection,
+    hero: heroData?.metaobject ?? null,
   };
 }
 
@@ -65,7 +75,7 @@ export default function Homepage() {
   const data = useLoaderData<typeof loader>();
   return (
     <div className="home">
-      <HeroSection />
+      <HeroSection hero={parseHeroMetaobject(data.hero)} />
       <BrowseCollectionsSection />
       <BrowseCategoriesSection />
       {data.featuredCollection?.products?.nodes?.length > 0 ? (

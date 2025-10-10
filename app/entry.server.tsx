@@ -36,6 +36,14 @@ export default async function handleRequest(
       'https://graph.facebook.com',
       'https://www.facebook.com',
     ],
+    mediaSrc: [
+      "'self'",
+      'data:',
+      'blob:',
+      'https://cdn.shopify.com',
+      // Allow video files served from the store domain (e.g. https://<store>.myshopify.com)
+      `https://${context.env.PUBLIC_STORE_DOMAIN}`,
+    ],
   });
 
   const body = await renderToReadableStream(
