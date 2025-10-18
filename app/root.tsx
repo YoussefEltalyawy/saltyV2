@@ -120,13 +120,13 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
       },
     }),
     storefront.query(FOOTER_QUERY, {
-      cache: storefront.CacheLong(),
+      cache: storefront.CacheNone(),
       variables: {
         footerMenuHandle: 'browse-collections', // Menu handle for browse collections
       },
     }),
     storefront.query(FOOTER_QUERY, {
-      cache: storefront.CacheLong(),
+      cache: storefront.CacheNone(),
       variables: {
         footerMenuHandle: 'browse-categories', // Menu handle for browse categories
       },
