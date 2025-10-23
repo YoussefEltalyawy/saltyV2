@@ -934,6 +934,15 @@ const RELATED_PRODUCTS_QUERY = `#graphql
       width
       height
     }
+    images(first: 10) {
+      nodes {
+        id
+        url
+        altText
+        width
+        height
+      }
+    }
     priceRange {
       minVariantPrice {
         amount
