@@ -27,6 +27,7 @@ import type { MappedProductOptions } from '@shopify/hydrogen';
 import UpsellSection from '~/components/UpsellSection';
 import BundleUpsellCard from '~/components/BundleUpsellCard';
 import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
+import { YouMayAlsoLike } from '~/components/YouMayAlsoLike';
 import { createBundleDataService } from '~/lib/bundleDataService';
 
 import {
@@ -494,6 +495,59 @@ async function fetchProductCollections(
   }
 }
 
+// Fetch related products from the same collections as the current product
+async function fetchRelatedProducts(args: LoaderFunctionArgs) {
+  const { context, params } = args;
+  const { storefront } = context;
+  const { handle } = params;
+
+  if (!handle) {
+    return [];
+  }
+
+  try {
+    // First get the current product to find its collections
+    const { product } = await storefront.query(PRODUCT_QUERY, {
+      variables: {
+        handle,
+        selectedOptions: getSelectedProductOptions(args.request)
+      },
+    });
+
+    if (!product?.id) {
+      return [];
+    }
+
+    // Fetch related products from the same collections
+    const { product: productWithCollections } = await storefront.query(RELATED_PRODUCTS_QUERY, {
+      variables: {
+        productId: product.id,
+        first: 8 // Get 8 products per collection
+      },
+    });
+
+    if (!productWithCollections?.collections?.nodes) {
+      return [];
+    }
+
+    // Flatten all products from all collections and remove the current product
+    const allRelatedProducts = productWithCollections.collections.nodes
+      .flatMap((collection: any) => collection.products.nodes)
+      .filter((relatedProduct: any) => relatedProduct.id !== product.id);
+
+    // Remove duplicates based on product ID
+    const uniqueProducts = allRelatedProducts.filter((product: any, index: number, self: any[]) =>
+      index === self.findIndex((p: any) => p.id === product.id)
+    );
+
+    // Return up to 6 related products
+    return uniqueProducts.slice(0, 6);
+  } catch (error) {
+    console.error('Error fetching related products:', error);
+    return [];
+  }
+}
+
 /**
  * Load data necessary for rendering content above the fold. This is the critical data
  * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
@@ -510,10 +564,11 @@ async function loadCriticalData({
     throw new Error('Expected product handle to be defined');
   }
 
-  const [{ product }] = await Promise.all([
+  const [{ product }, relatedProducts] = await Promise.all([
     storefront.query(PRODUCT_QUERY, {
       variables: { handle, selectedOptions: getSelectedProductOptions(request) },
     }),
+    fetchRelatedProducts({ context, params, request }),
     // Add other queries here, so that they are loaded in parallel
   ]);
 
@@ -526,6 +581,7 @@ async function loadCriticalData({
 
   return {
     product,
+    relatedProducts,
   };
 }
 
@@ -558,7 +614,7 @@ function findVariant(
 }
 
 export default function Product() {
-  const { product } = useLoaderData<typeof loader>();
+  const { product, relatedProducts } = useLoaderData<typeof loader>();
 
   // Optimistically selects a variant with given available variant information
   const selectedVariant = useOptimisticVariant(
@@ -665,6 +721,9 @@ export default function Product() {
           </div>
         </div>
       </div>
+
+      {/* You May Also Like Section */}
+      <YouMayAlsoLike products={relatedProducts} />
 
       <Analytics.ProductView
         data={{
@@ -855,6 +914,68 @@ const COLLECTION_PRODUCTS_QUERY = `#graphql
                 name
                 value
               }
+            }
+          }
+        }
+      }
+    }
+  }
+` as const;
+
+const RELATED_PRODUCTS_QUERY = `#graphql
+  fragment RelatedProduct on Product {
+    id
+    handle
+    title
+    featuredImage {
+      id
+      altText
+      url
+      width
+      height
+    }
+    priceRange {
+      minVariantPrice {
+        amount
+        currencyCode
+      }
+      maxVariantPrice {
+        amount
+        currencyCode
+      }
+    }
+    options {
+      name
+      optionValues {
+        name
+        swatch {
+          color
+          image {
+            previewImage {
+              url
+            }
+          }
+        }
+      }
+    }
+    selectedOrFirstAvailableVariant {
+      price {
+        amount
+        currencyCode
+      }
+      compareAtPrice {
+        amount
+        currencyCode
+      }
+    }
+  }
+  query RelatedProducts($productId: ID!, $first: Int!) {
+    product(id: $productId) {
+      collections(first: 3) {
+        nodes {
+          products(first: $first, sortKey: CREATED, reverse: true) {
+            nodes {
+              ...RelatedProduct
             }
           }
         }

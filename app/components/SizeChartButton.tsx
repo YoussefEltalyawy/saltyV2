@@ -2,9 +2,8 @@ import { useState } from 'react';
 
 interface SizeChartButtonProps {
   sizeChartImage?: {
-    id: string;
     url: string;
-    altText: string | null;
+    altText?: string | null;
     width: number;
     height: number;
   } | null;
