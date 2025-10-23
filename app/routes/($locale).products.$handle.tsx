@@ -641,6 +641,7 @@ export default function Product() {
               productOptions={productOptions}
               selectedVariant={selectedVariant}
               isInSaltyClub={Boolean(productCollections?.isInSaltyClub)}
+              sizeChartImage={product.metafields?.find((m: any) => m?.key === 'size_chart')?.reference?.image}
             />
           </div>
 
@@ -731,6 +732,23 @@ const PRODUCT_FRAGMENT = `#graphql
     description
     encodedVariantExistence
     encodedVariantAvailability
+    metafields(identifiers: [
+      {namespace: "custom", key: "size_chart"}
+    ]) {
+      key
+      value
+      reference {
+        ... on MediaImage {
+          id
+          image {
+            url
+            altText
+            width
+            height
+          }
+        }
+      }
+    }
     options {
       name
       optionValues {

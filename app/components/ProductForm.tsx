@@ -7,18 +7,27 @@ import type {
 } from '@shopify/hydrogen/storefront-api-types';
 import { AddToCartButton } from './AddToCartButton';
 import { useAside } from './Aside';
+import { SizeChartButton } from './SizeChartButton';
 import type { ProductFragment } from 'storefrontapi.generated';
 
 interface ProductFormProps {
   productOptions: MappedProductOptions[];
   selectedVariant: ProductFragment['selectedOrFirstAvailableVariant'];
   isInSaltyClub?: boolean;
+  sizeChartImage?: {
+    id: string;
+    url: string;
+    altText: string | null;
+    width: number;
+    height: number;
+  } | null;
 }
 
 export function ProductForm({
   productOptions,
   selectedVariant,
   isInSaltyClub = false,
+  sizeChartImage,
 }: ProductFormProps) {
   const navigate = useNavigate();
   const { open } = useAside();
@@ -38,7 +47,10 @@ export function ProductForm({
 
         return (
           <div className="product-options" key={option.name}>
-            <h5 className="text-sm font-medium text-gray-900 mb-3">{option.name}</h5>
+            <div className="flex items-center justify-between mb-3">
+              <h5 className="text-sm font-medium text-gray-900">{option.name}</h5>
+              {isSize && <SizeChartButton sizeChartImage={sizeChartImage} />}
+            </div>
             <div className={`flex flex-wrap gap-3 ${isColor ? 'justify-start' : 'justify-start'}`}>
               {option.optionValues.map((value) => {
                 const {
