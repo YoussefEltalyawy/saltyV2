@@ -19,6 +19,11 @@ import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
 import { toMetaContentId } from '~/lib/meta';
 import { AddToCartButton } from '~/components/AddToCartButton';
 import { useAside } from '~/components/Aside';
+import ProductBundleCard from '~/components/ProductBundleCard';
+import BundleZipUpSweatpantsCard from '~/components/BundleZipUpSweatpantsCard';
+import BundleHoodieSweatpantsCard from '~/components/BundleHoodieSweatpantsCard';
+import BundleCollection3Card from '~/components/BundleCollection3Card';
+import { getFirstColor, getFirstSize, getVariantIdFromOptions, getVariantById, getPriceInfo } from '~/lib/bundleUtils';
 import type {
   ProductFragment,
   ProductVariantFragment,
@@ -710,6 +715,29 @@ export default function Product() {
                 upsells={upsells}
               />
             </div>
+          )}
+
+          {/* New Bundles: Zip Up + Sweatpants */}
+          {(productCollections?.isZipUp || productCollections?.isSweatpants) && productCollections?.zipUpProducts?.length > 0 && productCollections?.sweatpantsProducts?.length > 0 && (
+            <BundleZipUpSweatpantsCard
+              zipUpProducts={productCollections.zipUpProducts}
+              sweatpantsProducts={productCollections.sweatpantsProducts}
+            />
+          )}
+
+          {/* New Bundles: Hoodie + Sweatpants */}
+          {(productCollections?.isHoodie || productCollections?.isSweatpants) && productCollections?.hoodieProducts?.length > 0 && productCollections?.sweatpantsProducts?.length > 0 && (
+            <BundleHoodieSweatpantsCard
+              hoodieProducts={productCollections.hoodieProducts}
+              sweatpantsProducts={productCollections.sweatpantsProducts}
+            />
+          )}
+
+          {/* New Bundles: Any 3 Products from Collection */}
+          {productCollections?.isInCollection619384013005 && productCollections?.collectionBundle3Products?.products?.nodes?.length > 0 && (
+            <BundleCollection3Card
+              collectionProducts={productCollections.collectionBundle3Products.products.nodes}
+            />
           )}
 
           <div className="product-description mt-8">

@@ -16,6 +16,44 @@ export const BUNDLE_TYPES = {
 
 // Centralized bundle definitions
 export const BUNDLE_DEFINITIONS = {
+  // Bundle 1: Zip Up + Sweatpants
+  zipUpSweatpantsBundle: {
+    type: BUNDLE_TYPES.BUNDLE,
+    title: 'Zip Up + Sweatpants Bundle – 10% Off!',
+    description: 'Get a zip up and any sweatpants and save 10%.',
+    minQuantity: 2,
+    discountType: 'code',
+    discountCode: 'XEENF2JK81SS',
+    discountValue: 10,
+    productIds: ['9085394354381'], // Zip Up
+    complementaryProductIds: ['9085410410701', '9085413949645'], // Sweatpants
+  },
+
+  // Bundle 2: Hoodie + Sweatpants
+  hoodieSweatpantsBundle: {
+    type: BUNDLE_TYPES.BUNDLE,
+    title: 'Hoodie + Sweatpants Bundle – 10% Off!',
+    description: 'Get a hoodie and any sweatpants and save 10%.',
+    minQuantity: 2,
+    discountType: 'code',
+    discountCode: 'H3KXGDBA3XKB',
+    discountValue: 10,
+    productIds: ['9085406118093', '9085406052557'], // Hoodies
+    complementaryProductIds: ['9085410410701', '9085413949645'], // Sweatpants
+  },
+
+  // Bundle 3: Any 3 Products from Collection
+  collection3ItemsBundle: {
+    type: BUNDLE_TYPES.BUNDLE,
+    title: ' Any 3 Products from &quot;Made By Artist W&apos;25&quot; – 15% Off!',
+    description: 'Pick any 3 products from the collection and save 15%.',
+    minQuantity: 3,
+    discountType: 'code',
+    discountCode: '3ITEMS15',
+    discountValue: 15,
+    collectionId: '619384013005',
+  },
+
   // Linen Cross-Sell Bundle
   linenCrossSell: {
     type: BUNDLE_TYPES.LINEN_CROSS_SELL,

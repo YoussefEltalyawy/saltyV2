@@ -133,7 +133,7 @@ export default function ProductBundleCard({
 
   return (
     <div className="flex flex-col border border-gray-100 p-3">
-      {products.length > 1 && (
+      {products.length > 1 ? (
         <select
           className="border border-gray-300 rounded px-2 py-1 mb-3 text-sm"
           value={selectedProduct?.handle || ''}
@@ -145,6 +145,10 @@ export default function ProductBundleCard({
             </option>
           ))}
         </select>
+      ) : (
+        <div className="mb-3 text-sm font-medium text-gray-900">
+          {selectedProduct?.title}
+        </div>
       )}
 
       <div className="w-full aspect-square mb-3 bg-gray-100 max-h-48">

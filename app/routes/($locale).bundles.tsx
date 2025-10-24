@@ -33,8 +33,19 @@ export async function loader({ context }: any) {
 }
 
 export default function BundlesPage() {
-  const { polos, denims, cocktailsBabyTee, caps, tops, linenShirt, linenPants } =
-    useLoaderData<typeof loader>();
+  const { 
+    polos, 
+    denims, 
+    cocktailsBabyTee, 
+    caps, 
+    tops, 
+    linenShirt, 
+    linenPants,
+    zipUpProducts,
+    sweatpantsProducts,
+    hoodieProducts,
+    collectionBundle3Products
+  } = useLoaderData<typeof loader>();
   const { open } = useAside();
 
   // Get all bundle definitions
@@ -83,6 +94,34 @@ export default function BundlesPage() {
     initializeVariantSelections(polos, 3)
   );
 
+  // --- Bundle 1: Zip Up + Sweatpants ---
+  const [selectedZipUp, setSelectedZipUp] = useState(zipUpProducts?.[0] || null);
+  const [selectedZipUpVariantId, setSelectedZipUpVariantId] = useState(
+    selectedZipUp?.variants?.nodes?.[0]?.id || '',
+  );
+  const [selectedSweatpants, setSelectedSweatpants] = useState(sweatpantsProducts?.[0] || null);
+  const [selectedSweatpantsVariantId, setSelectedSweatpantsVariantId] = useState(
+    selectedSweatpants?.variants?.nodes?.[0]?.id || '',
+  );
+
+  // --- Bundle 2: Hoodie + Sweatpants ---
+  const [selectedHoodie, setSelectedHoodie] = useState(hoodieProducts?.[0] || null);
+  const [selectedHoodieVariantId, setSelectedHoodieVariantId] = useState(
+    selectedHoodie?.variants?.nodes?.[0]?.id || '',
+  );
+  const [selectedSweatpants2, setSelectedSweatpants2] = useState(sweatpantsProducts?.[0] || null);
+  const [selectedSweatpants2VariantId, setSelectedSweatpants2VariantId] = useState(
+    selectedSweatpants2?.variants?.nodes?.[0]?.id || '',
+  );
+
+  // --- Bundle 3: Any 3 Products from Collection ---
+  const [collectionSelections, setCollectionSelections] = useState([
+    { variantId: '' },
+    { variantId: '' },
+    { variantId: '' },
+  ]);
+  const collectionProducts = collectionBundle3Products?.products?.nodes || [];
+
   // Initialize topSelections2 when cocktailsBabyTee becomes available
   useEffect(() => {
     if (cocktailsBabyTee?.variants?.nodes?.[0]?.id) {
@@ -94,7 +133,18 @@ export default function BundlesPage() {
     }
   }, [cocktailsBabyTee]);
 
-  // Don't render until cocktailsBabyTee is available
+  // Initialize collectionSelections when collectionProducts become available
+  useEffect(() => {
+    if (collectionProducts?.length >= 3) {
+      setCollectionSelections([
+        { variantId: collectionProducts[0]?.variants?.nodes?.[0]?.id || '' },
+        { variantId: collectionProducts[1]?.variants?.nodes?.[0]?.id || '' },
+        { variantId: collectionProducts[2]?.variants?.nodes?.[0]?.id || '' },
+      ]);
+    }
+  }, [collectionProducts]);
+
+  // Don't render until cocktailsBabyTee is available (required for existing bundles)
   if (!cocktailsBabyTee) {
     return (
       <div className="max-w-3xl mx-auto py-10 px-4">
@@ -108,6 +158,252 @@ export default function BundlesPage() {
     <div className="max-w-3xl mx-auto py-10 px-4">
       <h1 className="text-3xl font-bold mb-8 text-center">Shop Bundles</h1>
       <div className="flex flex-col gap-10">
+        {/* Bundle 1: Zip Up + Sweatpants */}
+        {zipUpProducts?.length > 0 && sweatpantsProducts?.length > 0 && (
+          <div className="mb-4 border border-gray-200 p-6">
+            <h2 className="text-2xl font-medium text-black mb-2">
+              Zip Up + Sweatpants Bundle – 10% Off!
+            </h2>
+            <p className="mb-6 text-gray-700">
+              Get a zip up and any sweatpants and save 10%.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Zip Up selection */}
+              <ProductBundleCard
+                products={Array.from(new Map(zipUpProducts.map(p => [p.id, p])).values())}
+                initialProduct={selectedZipUp}
+                title="Choose Zip Up"
+                onChange={(product, color, size) => {
+                  setSelectedZipUp(product);
+                  setSelectedZipUpVariantId(
+                    getVariantIdFromOptions(product, color, size)
+                  );
+                }}
+                initialColor={getFirstColor(selectedZipUp)}
+                initialSize={getFirstSize(selectedZipUp)}
+              />
+              {/* Sweatpants selection */}
+              <ProductBundleCard
+                products={sweatpantsProducts}
+                initialProduct={selectedSweatpants}
+                title="Choose Sweatpants"
+                onChange={(product, color, size) => {
+                  setSelectedSweatpants(product);
+                  setSelectedSweatpantsVariantId(
+                    getVariantIdFromOptions(product, color, size)
+                  );
+                }}
+                initialColor={getFirstColor(selectedSweatpants)}
+                initialSize={getFirstSize(selectedSweatpants)}
+              />
+            </div>
+            {/* Price calculation */}
+            <div className="mt-6 text-center">
+              {(() => {
+                const zipUpVariant = getVariant(selectedZipUp, getFirstColor(selectedZipUp), getFirstSize(selectedZipUp));
+                const sweatpantsVariant = getVariant(selectedSweatpants, getFirstColor(selectedSweatpants), getFirstSize(selectedSweatpants));
+                const zipUpPrice = getPriceInfo(zipUpVariant);
+                const sweatpantsPrice = getPriceInfo(sweatpantsVariant);
+                const original = (zipUpPrice.price || 0) + (sweatpantsPrice.price || 0);
+                const discounted = original * 0.9;
+                return (
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-gray-500 line-through">
+                      {original.toFixed(2)} {zipUpPrice.currency}
+                    </span>
+                    <span className="text-xl font-bold">
+                      {discounted.toFixed(2)} {zipUpPrice.currency}
+                    </span>
+                    <span className="text-green-600 text-sm">(Save 10%)</span>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="mt-6">
+              <AddToCartButton
+                lines={[
+                  { merchandiseId: selectedZipUpVariantId, quantity: 1 },
+                  { merchandiseId: selectedSweatpantsVariantId, quantity: 1 },
+                ]}
+                onClick={() => open('cart')}
+                discountCode="XEENF2JK81SS"
+              >
+                <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
+                  Add Bundle to Cart
+                </span>
+              </AddToCartButton>
+            </div>
+            <div className="text-xs text-gray-500 mt-2 text-center">
+              Discount applied automatically with code XEENF2JK81SS.
+            </div>
+          </div>
+        )}
+
+        {/* Bundle 2: Hoodie + Sweatpants */}
+        {hoodieProducts?.length > 0 && sweatpantsProducts?.length > 0 && (
+          <div className="mb-4 border border-gray-200 p-6">
+            <h2 className="text-2xl font-medium text-black mb-2">
+              Hoodie + Sweatpants Bundle – 10% Off!
+            </h2>
+            <p className="mb-6 text-gray-700">
+              Get a hoodie and any sweatpants and save 10%.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Hoodie selection */}
+              <ProductBundleCard
+                products={Array.from(new Map(hoodieProducts.map(p => [p.id, p])).values())}
+                initialProduct={selectedHoodie}
+                title="Choose Hoodie"
+                onChange={(product, color, size) => {
+                  setSelectedHoodie(product);
+                  setSelectedHoodieVariantId(
+                    getVariantIdFromOptions(product, color, size)
+                  );
+                }}
+                initialColor={getFirstColor(selectedHoodie)}
+                initialSize={getFirstSize(selectedHoodie)}
+              />
+              {/* Sweatpants selection */}
+              <ProductBundleCard
+                products={sweatpantsProducts}
+                initialProduct={selectedSweatpants2}
+                title="Choose Sweatpants"
+                onChange={(product, color, size) => {
+                  setSelectedSweatpants2(product);
+                  setSelectedSweatpants2VariantId(
+                    getVariantIdFromOptions(product, color, size)
+                  );
+                }}
+                initialColor={getFirstColor(selectedSweatpants2)}
+                initialSize={getFirstSize(selectedSweatpants2)}
+              />
+            </div>
+            {/* Price calculation */}
+            <div className="mt-6 text-center">
+              {(() => {
+                const hoodieVariant = getVariant(selectedHoodie, getFirstColor(selectedHoodie), getFirstSize(selectedHoodie));
+                const sweatpantsVariant = getVariant(selectedSweatpants2, getFirstColor(selectedSweatpants2), getFirstSize(selectedSweatpants2));
+                const hoodiePrice = getPriceInfo(hoodieVariant);
+                const sweatpantsPrice = getPriceInfo(sweatpantsVariant);
+                const original = (hoodiePrice.price || 0) + (sweatpantsPrice.price || 0);
+                const discounted = original * 0.9;
+                return (
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-gray-500 line-through">
+                      {original.toFixed(2)} {hoodiePrice.currency}
+                    </span>
+                    <span className="text-xl font-bold">
+                      {discounted.toFixed(2)} {hoodiePrice.currency}
+                    </span>
+                    <span className="text-green-600 text-sm">(Save 10%)</span>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="mt-6">
+              <AddToCartButton
+                lines={[
+                  { merchandiseId: selectedHoodieVariantId, quantity: 1 },
+                  { merchandiseId: selectedSweatpants2VariantId, quantity: 1 },
+                ]}
+                onClick={() => open('cart')}
+                discountCode="H3KXGDBA3XKB"
+              >
+                <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
+                  Add Bundle to Cart
+                </span>
+              </AddToCartButton>
+            </div>
+            <div className="text-xs text-gray-500 mt-2 text-center">
+              Discount applied automatically with code H3KXGDBA3XKB.
+            </div>
+          </div>
+        )}
+
+        {/* Bundle 3: Any 3 Products from Collection */}
+        {collectionProducts?.length > 0 && (
+          <div className="mb-4 border border-gray-200 p-6">
+            <h2 className="text-2xl font-medium text-black mb-2">
+               Any 3 Products from &quot;Made By Artist W&apos;25&quot; – 15% Off!
+            </h2>
+            <p className="mb-6 text-gray-700">
+              Pick any 3 products from the collection and save 15%.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[0, 1, 2].map((idx) => (
+                <ProductBundleCard
+                  key={idx}
+                  products={collectionProducts}
+                  initialProduct={collectionProducts[idx] || collectionProducts[0]}
+                  title={`Product ${idx + 1}`}
+                  onChange={(product, color, size) => {
+                    const newSelections = [...collectionSelections];
+                    newSelections[idx].variantId = getVariantIdFromOptions(product, color, size);
+                    setCollectionSelections(newSelections);
+                  }}
+                  initialColor={
+                    collectionSelections[idx]?.variantId
+                      ? getVariantById(collectionProducts.find((p: any) => p.variants?.nodes?.some((v: any) => v.id === collectionSelections[idx].variantId)), collectionSelections[idx].variantId)
+                        ?.selectedOptions.find((o: any) => o.name.toLowerCase() === 'color')?.value
+                      : ''
+                  }
+                  initialSize={
+                    collectionSelections[idx]?.variantId
+                      ? getVariantById(collectionProducts.find((p: any) => p.variants?.nodes?.some((v: any) => v.id === collectionSelections[idx].variantId)), collectionSelections[idx].variantId)
+                        ?.selectedOptions.find((o: any) => o.name.toLowerCase() === 'size')?.value
+                      : ''
+                  }
+                />
+              ))}
+            </div>
+            {/* Price calculation */}
+            <div className="mt-6 text-center">
+              {(() => {
+                const prices = collectionSelections.filter(sel => sel?.variantId).map((sel) => {
+                  const product = collectionProducts.find((p: any) => p.variants?.nodes?.some((v: any) => v.id === sel.variantId));
+                  if (!product) return { price: 0, currency: 'USD' };
+                  const variant = getVariantById(product, sel.variantId);
+                  return getPriceInfo(variant);
+                });
+                const original = prices.reduce(
+                  (sum, p: any) => sum + (p?.price || 0),
+                  0,
+                );
+                const discounted = original * 0.85;
+                const currency = prices[0]?.currency || 'USD';
+                return (
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-gray-500 line-through">
+                      {original.toFixed(2)} {currency}
+                    </span>
+                    <span className="text-xl font-bold">
+                      {discounted.toFixed(2)} {currency}
+                    </span>
+                    <span className="text-green-600 text-sm">(Save 15%)</span>
+                  </div>
+                );
+              })()}
+            </div>
+            <div className="mt-6">
+              <AddToCartButton
+                lines={collectionSelections.filter(sel => sel?.variantId).map((sel) => ({
+                  merchandiseId: sel.variantId,
+                  quantity: 1,
+                }))}
+                onClick={() => open('cart')}
+                discountCode="3ITEMS15"
+              >
+                <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
+                  Add Bundle to Cart
+                </span>
+              </AddToCartButton>
+            </div>
+            <div className="text-xs text-gray-500 mt-2 text-center">
+              Discount applied automatically with code 3ITEMS15.
+            </div>
+          </div>
+        )}
+
         {/* 1. Linen Shirt + Pants Bundle */}
         {linenShirt && linenPants && (
           <LinenCrossSellCard
@@ -133,7 +429,7 @@ export default function BundlesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Denim selection */}
             <ProductBundleCard
-              products={[selectedDenim, ...denims]}
+              products={Array.from(new Map(denims.map(p => [p.id, p])).values())}
               initialProduct={selectedDenim}
               title="Choose Denim"
               onChange={(product, color, size) => {
@@ -147,7 +443,7 @@ export default function BundlesPage() {
             />
             {/* Polo selection */}
             <ProductBundleCard
-              products={[selectedPolo, ...polos]}
+              products={Array.from(new Map(polos.map(p => [p.id, p])).values())}
               initialProduct={selectedPolo}
               title="Choose Polo"
               onChange={(product, color, size) => {
@@ -209,7 +505,7 @@ export default function BundlesPage() {
             {[0, 1].map((idx) => (
               <ProductBundleCard
                 key={idx}
-                products={[selectedPolo1, selectedPolo2, ...polos]}
+                products={Array.from(new Map(polos.map(p => [p.id, p])).values())}
                 initialProduct={idx === 0 ? selectedPolo1 : selectedPolo2}
                 title={`Choose Polo ${idx + 1}`}
                 onChange={(product, color, size) => {
@@ -357,7 +653,7 @@ export default function BundlesPage() {
             {[0, 1, 2].map((idx) => (
               <ProductBundleCard
                 key={idx}
-                products={[selectedPolos[idx], ...polos]}
+                products={Array.from(new Map(polos.map(p => [p.id, p])).values())}
                 initialProduct={selectedPolos[idx]}
                 title={`Polo ${idx + 1}`}
                 onChange={(product, color, size) => {

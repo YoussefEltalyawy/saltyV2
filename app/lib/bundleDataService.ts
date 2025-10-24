@@ -162,7 +162,175 @@ export class BundleDataService {
   }
 
   /**
-   * Fetch collection handles for a given product handle
+   * Fetch products by their IDs
+   */
+  async fetchProductsByIds(ids: string[]): Promise<any[]> {
+    const products: any[] = [];
+    
+    for (const id of ids) {
+      const cacheKey = `product_id_${id}`;
+      
+      if (this.cache.has(cacheKey)) {
+        products.push(this.cache.get(cacheKey));
+        continue;
+      }
+
+      try {
+        // Convert ID to Shopify GID format if needed
+        const graphqlId = id.startsWith('gid://') ? id : `gid://shopify/Product/${id}`;
+        
+        const result = await this.storefront.query(`
+          query GetProductById($id: ID!) {
+            product(id: $id) {
+              id
+              title
+              handle
+              description
+              featuredImage {
+                url
+                altText
+              }
+              options {
+                name
+                optionValues {
+                  name
+                  swatch {
+                    color
+                    image {
+                      previewImage {
+                        url
+                      }
+                    }
+                  }
+                }
+              }
+              variants(first: 100) {
+                nodes {
+                  id
+                  availableForSale
+                  image {
+                    url
+                    altText
+                  }
+                  price {
+                    amount
+                    currencyCode
+                  }
+                  compareAtPrice {
+                    amount
+                    currencyCode
+                  }
+                  selectedOptions {
+                    name
+                    value
+                  }
+                }
+              }
+            }
+          }
+        `, {
+          variables: { id: graphqlId },
+        });
+
+        const product = result?.product || null;
+        if (product) {
+          this.cache.set(cacheKey, product);
+          products.push(product);
+        }
+      } catch (err) {
+        console.error(`Error fetching product ${id}:`, err);
+      }
+    }
+
+    return products;
+  }
+
+  /**
+   * Fetch a collection by ID
+   */
+  async fetchCollectionById(id: string): Promise<any> {
+    const cacheKey = `collection_id_${id}`;
+
+    if (this.cache.has(cacheKey)) {
+      return this.cache.get(cacheKey);
+    }
+
+    try {
+      // Convert ID to Shopify GID format if needed
+      const graphqlId = id.startsWith('gid://') ? id : `gid://shopify/Collection/${id}`;
+      
+      const result = await this.storefront.query(`
+        query GetCollectionById($id: ID!) {
+          collection(id: $id) {
+            id
+            title
+            handle
+            description
+            products(first: 50) {
+              nodes {
+                id
+                title
+                handle
+                description
+                featuredImage {
+                  url
+                  altText
+                }
+                options {
+                  name
+                  optionValues {
+                    name
+                    swatch {
+                      color
+                      image {
+                        previewImage {
+                          url
+                        }
+                      }
+                    }
+                  }
+                }
+                variants(first: 100) {
+                  nodes {
+                    id
+                    availableForSale
+                    image {
+                      url
+                      altText
+                    }
+                    price {
+                      amount
+                      currencyCode
+                    }
+                    compareAtPrice {
+                      amount
+                      currencyCode
+                    }
+                    selectedOptions {
+                      name
+                      value
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `, {
+        variables: { id: graphqlId },
+      });
+
+      const collection = result?.collection || null;
+      this.cache.set(cacheKey, collection);
+      return collection;
+    } catch (err) {
+      console.error(`Error fetching collection ${id}:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Fetch collection handles and IDs for a given product handle
    */
   async fetchProductCollectionHandles(productHandle: string): Promise<string[]> {
     const cacheKey = `product_collections_${productHandle}`;
@@ -176,15 +344,22 @@ export class BundleDataService {
         query ProductCollections($handle: String!) {
           product(handle: $handle) {
             collections(first: 10) {
-              nodes { handle }
+              nodes { 
+                handle
+                id
+              }
             }
           }
         }
       `, { variables: { handle: productHandle } });
 
-      const handles = result?.product?.collections?.nodes?.map((c: any) => c.handle) || [];
-      this.cache.set(cacheKey, handles);
-      return handles;
+      const collections = result?.product?.collections?.nodes || [];
+      const handles = collections.map((c: any) => c.handle);
+      const ids = collections.map((c: any) => c.id?.split('/').pop());
+      const allIdentifiers = [...handles, ...ids];
+      
+      this.cache.set(cacheKey, allIdentifiers);
+      return allIdentifiers;
     } catch (err) {
       console.error(`Error fetching collections for product ${productHandle}:`, err);
       return [];
@@ -230,6 +405,14 @@ export class BundleDataService {
     tops: any[];
     linenShirt: any;
     linenPants: any;
+    isZipUp: boolean;
+    isHoodie: boolean;
+    isSweatpants: boolean;
+    isInCollection619384013005: boolean;
+    zipUpProducts: any[];
+    hoodieProducts: any[];
+    sweatpantsProducts: any[];
+    collectionBundle3Products: any;
   }> {
     const handles = await this.fetchProductCollectionHandles(productHandle);
 
@@ -241,14 +424,36 @@ export class BundleDataService {
 
     const isLinenShirt = productHandle === 'linen-shirt';
     const isLinenPants = productHandle === 'linen-pants';
+    
+    // Check for new bundles by fetching the product and checking its ID
+    const product = await this.fetchProduct(productHandle);
+    const productId = product?.id?.split('/').pop();
+    
+    const isZipUp = productId === '9085394354381';
+    const isHoodie = ['9085406118093', '9085406052557'].includes(productId);
+    const isSweatpants = ['9085410410701', '9085413949645'].includes(productId);
+    const isInCollection619384013005 = handles.includes('619384013005');
+    
+    // Debug logging
+    if (isInCollection619384013005) {
+      console.log(`Product ${productHandle} is in collection 619384013005`);
+    }
 
-    const [polos, caps, tops, linenShirt, linenPants, complementaryProducts] = await Promise.all([
+    const [polos, caps, tops, linenShirt, linenPants, complementaryProducts, zipUpProducts, hoodieProducts, sweatpantsProducts, collectionBundle3Products] = await Promise.all([
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.POLO),
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.CAPS),
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.TOPS),
       (isLinenShirt || isLinenPants) ? this.fetchProduct('linen-shirt') : Promise.resolve(null),
       (isLinenShirt || isLinenPants) ? this.fetchProduct('linen-pants') : Promise.resolve(null),
       this.fetchComplementaryProductsByHandle(productHandle),
+      // Always fetch zip up products if product is zip up or sweatpants
+      (isZipUp || isSweatpants) ? this.fetchProductsByIds(['9085394354381']) : Promise.resolve([]),
+      // Always fetch hoodie products if product is hoodie or sweatpants
+      (isHoodie || isSweatpants) ? this.fetchProductsByIds(['9085406118093', '9085406052557']) : Promise.resolve([]),
+      // Always fetch sweatpants products if product is zip up, hoodie, or sweatpants
+      (isZipUp || isHoodie || isSweatpants) ? this.fetchProductsByIds(['9085410410701', '9085413949645']) : Promise.resolve([]),
+      // Always fetch collection if product is in collection 619384013005
+      isInCollection619384013005 ? this.fetchCollectionById('619384013005') : Promise.resolve(null),
     ]);
 
     return {
@@ -265,8 +470,17 @@ export class BundleDataService {
       tops,
       linenShirt,
       linenPants,
+      isZipUp,
+      isHoodie,
+      isSweatpants,
+      isInCollection619384013005,
+      zipUpProducts,
+      hoodieProducts,
+      sweatpantsProducts,
+      collectionBundle3Products,
     };
   }
+
 
   /**
    * Fetch all bundle-related data
@@ -279,6 +493,10 @@ export class BundleDataService {
     linenShirt: any;
     linenPants: any;
     cocktailsBabyTee: any;
+    zipUpProducts: any[];
+    sweatpantsProducts: any[];
+    hoodieProducts: any[];
+    collectionBundle3Products: any;
   }> {
     const [
       polos,
@@ -287,7 +505,11 @@ export class BundleDataService {
       tops,
       linenShirt,
       linenPants,
-      cocktailsBabyTee
+      cocktailsBabyTee,
+      zipUpProducts,
+      sweatpantsProducts,
+      hoodieProducts,
+      collectionBundle3Products
     ] = await Promise.all([
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.POLO),
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.DENIM),
@@ -296,6 +518,10 @@ export class BundleDataService {
       this.fetchProduct('linen-shirt'),
       this.fetchProduct('linen-pants'),
       this.fetchProduct('cocktails-baby-tee-pre-order'),
+      this.fetchProductsByIds(['9085394354381']), // Zip Up
+      this.fetchProductsByIds(['9085410410701', '9085413949645']), // Sweatpants
+      this.fetchProductsByIds(['9085406118093', '9085406052557']), // Hoodies
+      this.fetchCollectionById('619384013005'), // Collection for bundle 3
     ]);
 
     return {
@@ -306,6 +532,10 @@ export class BundleDataService {
       linenShirt,
       linenPants,
       cocktailsBabyTee,
+      zipUpProducts,
+      sweatpantsProducts,
+      hoodieProducts,
+      collectionBundle3Products,
     };
   }
 
