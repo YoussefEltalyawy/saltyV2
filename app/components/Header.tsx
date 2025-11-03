@@ -162,29 +162,56 @@ export function HeaderMenu({
     const hasSubItems = item.items && item.items.length > 0;
     const isExpanded = expandedItems.has(item.id);
 
-    // if the url is internal, we strip the domain
-    const url = item.url ? (
-      item.url.includes('myshopify.com') ||
-        item.url.includes(publicStoreDomain) ||
-        item.url.includes(primaryDomainUrl)
-        ? new URL(item.url).pathname
-        : item.url
-    ) : null;
+    // Determine if the URL is internal (belongs to this shop) vs external
+    let url: string | null = null;
+    let isInternal = false;
+    if (item.url) {
+      try {
+        if (item.url.startsWith('/')) {
+          isInternal = true;
+          url = item.url;
+        } else {
+          const parsed = new URL(item.url);
+          const shopHosts = [
+            'myshopify.com',
+            new URL(publicStoreDomain).host,
+            new URL(primaryDomainUrl).host,
+          ];
+          isInternal = shopHosts.some((host) => parsed.host === host || parsed.host.endsWith(`.${host}`));
+          url = isInternal ? parsed.pathname : item.url;
+        }
+      } catch {
+        // Fallback: treat as internal path if parsing fails
+        isInternal = true;
+        url = item.url;
+      }
+    }
 
     return (
       <div key={item.id} className={`menu-item-container level-${level}`}>
         <div className="menu-item-row">
           {url && !hasSubItems ? (
-            <NavLink
-              className="header-menu-item"
-              end
-              onClick={close}
-              prefetch="intent"
-              style={activeLinkStyle}
-              to={url}
-            >
-              {item.title}
-            </NavLink>
+            isInternal || url.startsWith('/') ? (
+              <NavLink
+                className="header-menu-item"
+                end
+                onClick={close}
+                prefetch="intent"
+                style={activeLinkStyle}
+                to={url}
+              >
+                {item.title}
+              </NavLink>
+            ) : (
+              <a
+                className="header-menu-item"
+                href={url}
+                onClick={close}
+                rel="noopener noreferrer"
+              >
+                {item.title}
+              </a>
+            )
           ) : (
             <button
               className={`header-menu-item ${hasSubItems ? 'has-sub-items' : ''}`}
