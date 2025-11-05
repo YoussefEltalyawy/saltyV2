@@ -1,19 +1,37 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link } from 'react-router';
 import { Image, Money } from '@shopify/hydrogen';
 import type { ProductItemFullFragment } from 'storefrontapi.generated';
 import { ProductPrice } from './ProductPrice';
 
-function ColorSwatch({ color, image, name }: { color?: string; image?: string; name: string }) {
+function ColorSwatch({ 
+  color, 
+  image, 
+  name, 
+  onClick,
+  isSelected 
+}: { 
+  color?: string; 
+  image?: string; 
+  name: string;
+  onClick?: () => void;
+  isSelected?: boolean;
+}) {
   return (
-    <div
-      aria-label={name}
-      className="w-4 h-4 rounded- border border-gray-300 mr-1 inline-block align-middle overflow-hidden"
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClick?.();
+      }}
+      className={`w-4 h-4 rounded- border mr-1 inline-block align-middle overflow-hidden ${isSelected ? 'ring-2 ring-offset-1 ring-gray-900' : 'border-gray-300'}`}
       style={{ backgroundColor: color || 'transparent' }}
       title={name}
+      aria-label={`Select color ${name}`}
     >
       {image && <img src={image} alt={name} className="w-full h-full object-cover" />}
-    </div>
+    </button>
   );
 }
 
@@ -47,8 +65,31 @@ export function SwipeableProductCard({ product }: SwipeableProductCardProps) {
     originalImages[0] // First image at the end
   ] : originalImages;
 
-  // Find color option
+  // Find color option and map color values to image indices
   const colorOption = product.options?.find((opt: ProductItemFullFragment['options'][number]) => opt.name.toLowerCase() === 'color');
+  
+  // Create a map of color names to their corresponding image indices
+  const colorToImageIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!colorOption) return map;
+    
+    colorOption.optionValues.forEach((value: any, index) => {
+      map.set(value.name, index);
+    });
+    
+    return map;
+  }, [colorOption]);
+  
+  // Handle color swatch click
+  const handleColorSwatchClick = (colorName: string) => {
+    const imageIndex = colorToImageIndexMap.get(colorName);
+    if (imageIndex !== undefined) {
+      // Add 1 to account for the duplicate first image in the carousel
+      const targetIndex = imageIndex + 1;
+      console.log(`Switching to image index ${imageIndex} for color ${colorName}`);
+      setCurrentImageIndex(targetIndex);
+    }
+  };
 
   // Handle infinite loop transitions
   const handleInfiniteTransition = (newIndex: number) => {
@@ -173,7 +214,7 @@ export function SwipeableProductCard({ product }: SwipeableProductCardProps) {
           }}
         >
           {images.map((image, index) => (
-            <div key={image?.id || index} className="w-full flex-shrink-0">
+            <div key={`${image?.id || 'img'}-${index}`} className="w-full flex-shrink-0">
               <Image
                 alt={image?.altText || product.title}
                 aspectRatio="3/4"
@@ -204,14 +245,19 @@ export function SwipeableProductCard({ product }: SwipeableProductCardProps) {
         </p>
         {colorOption && (
           <div className="flex items-center mt-1">
-            {colorOption.optionValues.map((value: any) => (
-              <ColorSwatch
-                key={value.name}
-                color={value.swatch?.color}
-                image={value.swatch?.image?.previewImage?.url}
-                name={value.name}
-              />
-            ))}
+            {colorOption.optionValues.map((value: any) => {
+              const isSelected = colorToImageIndexMap.get(value.name) === currentImageIndex - 1;
+              return (
+                <ColorSwatch
+                  key={value.name}
+                  color={value.swatch?.color}
+                  image={value.swatch?.image?.previewImage?.url}
+                  name={value.name}
+                  onClick={() => handleColorSwatchClick(value.name)}
+                  isSelected={isSelected}
+                />
+              );
+            })}
           </div>
         )}
       </div>
