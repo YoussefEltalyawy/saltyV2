@@ -168,22 +168,62 @@ export function HeaderMenu({
     if (item.url) {
       try {
         if (item.url.startsWith('/')) {
+          // Already a relative path, treat as internal
           isInternal = true;
           url = item.url;
         } else {
+          // Parse the URL to check if it's from the shop domain
           const parsed = new URL(item.url);
+          
+          // Get shop hostnames for comparison
+          const publicStoreHost = publicStoreDomain.startsWith('http') 
+            ? new URL(publicStoreDomain).host 
+            : publicStoreDomain;
+          const primaryDomainHost = primaryDomainUrl.startsWith('http')
+            ? new URL(primaryDomainUrl).host
+            : primaryDomainUrl;
+          
+          // Check if URL belongs to shop domains
+          // URLs from myshopify.com or the store's custom domain should be treated as internal
           const shopHosts = [
             'myshopify.com',
-            new URL(publicStoreDomain).host,
-            new URL(primaryDomainUrl).host,
-          ];
-          isInternal = shopHosts.some((host) => parsed.host === host || parsed.host.endsWith(`.${host}`));
-          url = isInternal ? parsed.pathname : item.url;
+            publicStoreHost,
+            primaryDomainHost,
+          ].filter(Boolean); // Remove any undefined/null values
+          
+          // Check if the URL's host matches any shop domain
+          const hostMatches = shopHosts.some((host) => {
+            if (!host) return false;
+            // Remove protocol if present and clean up
+            const cleanHost = host.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase();
+            const parsedHost = parsed.host.toLowerCase();
+            
+            // Check if host matches exactly, is a subdomain, or contains myshopify.com
+            return parsedHost === cleanHost || 
+                   parsedHost.endsWith(`.${cleanHost}`) ||
+                   parsedHost.includes('.myshopify.com');
+          });
+          
+          if (hostMatches) {
+            // This is an internal URL - extract pathname and search params
+            isInternal = true;
+            url = parsed.pathname + parsed.search;
+          } else {
+            // This is an external URL - keep as is
+            isInternal = false;
+            url = item.url;
+          }
         }
       } catch {
-        // Fallback: treat as internal path if parsing fails
-        isInternal = true;
-        url = item.url;
+        // If URL parsing fails, check if it looks like a relative path
+        if (item.url.startsWith('/') || !item.url.includes('://')) {
+          isInternal = true;
+          url = item.url;
+        } else {
+          // Treat as external if it has a protocol but couldn't be parsed
+          isInternal = false;
+          url = item.url;
+        }
       }
     }
 
