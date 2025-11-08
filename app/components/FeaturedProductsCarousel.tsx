@@ -41,7 +41,24 @@ function findMatchingVariant(product: ProductItemFragment, selectedOptions: Sele
 }
 
 export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselProps) {
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, slidesToScroll: 1 });
+  const [emblaRef, emblaApi] = useEmblaCarousel({ 
+    loop: false, 
+    slidesToScroll: 1,
+    breakpoints: {
+      '(min-width: 768px)': {
+        slidesToScroll: 2,
+      },
+      '(min-width: 1024px)': {
+        slidesToScroll: 3,
+      },
+      '(min-width: 1280px)': {
+        slidesToScroll: 4,
+      },
+    },
+    // Default slide width (mobile)
+    containScroll: 'trimSnaps',
+    dragFree: true
+  });
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
   const sectionRef = useRef<HTMLDivElement | null>(null);
@@ -169,8 +186,8 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
   }
 
   return (
-    <section ref={sectionRef} className="bg-white py-6">
-      <div className="max-w-xl mx-auto">
+    <section ref={sectionRef} className="bg-white py-8">
+      <div className="w-full px-4 md:px-8 lg:px-12">
         <h2 className="text-small font-semibold mb-0 ml-4 text-black flex items-center gap-2">
           <span>FEATURED</span>
         </h2>
@@ -208,7 +225,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                 const displayImage = getDisplayImage(product);
                 return (
                   <div
-                    className="min-w-0 flex-[0_0_100%] flex flex-col items-center justify-center px-2"
+                    className="min-w-0 flex-[0_0_100%] md:flex-[0_0_50%] lg:flex-[0_0_33.33%] xl:flex-[0_0_25%] flex flex-col items-center justify-center px-2"
                     key={product.id}
                   >
                     <Link to={"/products/" + product.handle} className="block w-full">
@@ -352,7 +369,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
           </div>
           {/* Arrows */}
           <button
-            className="absolute left-0 top-1/2 -translate-y-1/2 p-0 disabled:opacity-30"
+            className="absolute left-2 md:left-4 lg:left-8 top-1/2 -translate-y-1/2 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg disabled:opacity-30 hover:bg-white transition-all"
             onClick={() => emblaApi && emblaApi.scrollPrev()}
             disabled={!canScrollPrev}
             aria-label="Previous product"
@@ -363,7 +380,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
             </svg>
           </button>
           <button
-            className="absolute right-0 top-1/2 -translate-y-1/2 p-0 disabled:opacity-30"
+            className="absolute right-2 md:right-4 lg:right-8 top-1/2 -translate-y-1/2 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg disabled:opacity-30 hover:bg-white transition-all"
             onClick={() => emblaApi && emblaApi.scrollNext()}
             disabled={!canScrollNext}
             aria-label="Next product"
@@ -377,4 +394,4 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
       </div>
     </section>
   );
-} 
+}

@@ -147,7 +147,7 @@ export function BrowseCategoriesSection() {
                 return (
                   <div
                     key={item.id}
-                    className="flex-[0_0_85%] md:flex-[0_0_33.333%] relative overflow-hidden pl-4 first:pl-0 md:pl-0"
+                    className="flex-[0_0_85%] md:flex-[0_0_33.333%] relative overflow-hidden pl-0"
                     style={{ aspectRatio: '4/5' }}
                   >
                     {imageData && (
@@ -195,4 +195,4 @@ export function BrowseCategoriesSection() {
       </div>
     </section>
   );
-} 
+}
