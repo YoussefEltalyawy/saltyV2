@@ -79,7 +79,7 @@ export default function Collection() {
       {/* Removed collection description */}
       <PaginatedResourceSection
         connection={collection.products}
-        resourcesClassName="grid grid-cols-2 gap-x-[3px] gap-y-4 mb-4"
+        resourcesClassName="grid grid-cols-3 gap-x-[3px] gap-y-4 mb-4"
       >
         {({ node, index }: { node: unknown; index: number }) => {
           // Cast to ProductItemFullFragment to match ProductCard prop type
@@ -136,6 +136,29 @@ const PRODUCT_ITEM_FRAGMENT = `#graphql
       name
       optionValues {
         name
+        firstSelectableVariant {
+          id
+          availableForSale
+          image {
+            id
+            url
+            altText
+            width
+            height
+          }
+          price {
+            amount
+            currencyCode
+          }
+          compareAtPrice {
+            amount
+            currencyCode
+          }
+          selectedOptions {
+            name
+            value
+          }
+        }
         swatch {
           color
           image {

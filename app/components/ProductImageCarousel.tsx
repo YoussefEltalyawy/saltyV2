@@ -1,16 +1,29 @@
 import useEmblaCarousel from 'embla-carousel-react';
-import { Image } from '@shopify/hydrogen';
-import type { ProductFragment, ProductVariantFragment } from 'storefrontapi.generated';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import {Image} from '@shopify/hydrogen';
+import type {
+  ProductFragment,
+  ProductVariantFragment,
+} from 'storefrontapi.generated';
+import {ChevronLeft, ChevronRight, X} from 'lucide-react';
+import {useCallback, useEffect, useState, useMemo} from 'react';
 
 interface ProductImageCarouselProps {
   product: ProductFragment;
   selectedVariant: ProductVariantFragment;
-  allImages: Array<{ id: string; url: string; altText: string | null; width: number; height: number; }>;
+  allImages: Array<{
+    id: string;
+    url: string;
+    altText: string | null;
+    width: number;
+    height: number;
+  }>;
 }
 
-export function ProductImageCarousel({ product, selectedVariant, allImages }: ProductImageCarouselProps) {
+export function ProductImageCarousel({
+  product,
+  selectedVariant,
+  allImages,
+}: ProductImageCarouselProps) {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
     slidesToScroll: 1,
@@ -49,7 +62,13 @@ export function ProductImageCarousel({ product, selectedVariant, allImages }: Pr
     const productWithVariants = product as ProductFragment;
     if (productWithVariants.variants?.nodes) {
       productWithVariants.variants.nodes.forEach((variant) => {
-        if (variant.image && variant.image.id && variant.image.url && variant.image.width && variant.image.height) {
+        if (
+          variant.image &&
+          variant.image.id &&
+          variant.image.url &&
+          variant.image.width &&
+          variant.image.height
+        ) {
           if (!images.find((img) => img.id === variant.image!.id)) {
             images.push({
               id: variant.image.id,
@@ -66,7 +85,13 @@ export function ProductImageCarousel({ product, selectedVariant, allImages }: Pr
     // Add adjacent variants images
     if (product.adjacentVariants) {
       product.adjacentVariants.forEach((variant) => {
-        if (variant.image && variant.image.id && variant.image.url && variant.image.width && variant.image.height) {
+        if (
+          variant.image &&
+          variant.image.id &&
+          variant.image.url &&
+          variant.image.width &&
+          variant.image.height
+        ) {
           if (!images.find((img) => img.id === variant.image!.id)) {
             images.push({
               id: variant.image.id,
@@ -81,7 +106,13 @@ export function ProductImageCarousel({ product, selectedVariant, allImages }: Pr
     }
 
     // Add selected variant image if not already included
-    if (selectedVariant.image && selectedVariant.image.id && selectedVariant.image.url && selectedVariant.image.width && selectedVariant.image.height) {
+    if (
+      selectedVariant.image &&
+      selectedVariant.image.id &&
+      selectedVariant.image.url &&
+      selectedVariant.image.width &&
+      selectedVariant.image.height
+    ) {
       if (!images.find((img) => img.id === selectedVariant.image!.id)) {
         images.push({
           id: selectedVariant.image.id,
@@ -99,7 +130,9 @@ export function ProductImageCarousel({ product, selectedVariant, allImages }: Pr
   // Find the index of the current selected variant's image - only when variant actually changes
   useEffect(() => {
     if (selectedVariant.image && selectedVariant.id !== lastVariantId) {
-      const index = productImages.findIndex(img => img.id === selectedVariant.image!.id);
+      const index = productImages.findIndex(
+        (img) => img.id === selectedVariant.image!.id,
+      );
       if (index !== -1) {
         setSelectedIndex(index);
         setLastVariantId(selectedVariant.id);
@@ -108,7 +141,13 @@ export function ProductImageCarousel({ product, selectedVariant, allImages }: Pr
         }
       }
     }
-  }, [selectedVariant.id, selectedVariant.image, productImages, emblaApi, lastVariantId]);
+  }, [
+    selectedVariant.id,
+    selectedVariant.image,
+    productImages,
+    emblaApi,
+    lastVariantId,
+  ]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -203,20 +242,16 @@ export function ProductImageCarousel({ product, selectedVariant, allImages }: Pr
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex">
             {productImages.map((image, index) => (
-              <div
-                key={image.id}
-                className="min-w-0 flex-[0_0_100%] relative"
-              >
-                <div
-                  className="cursor-pointer"
-                  onClick={openFullscreen}
-                >
+              <div key={image.id} className="min-w-0 flex-[0_0_100%] relative">
+                <div className="cursor-pointer" onClick={openFullscreen}>
                   <Image
                     data={image}
                     className="w-full h-auto object-cover"
                     aspectRatio="3/4"
                     sizes="(min-width: 45em) 50vw, 100vw"
-                    alt={image.altText || `${product.title} - Image ${index + 1}`}
+                    alt={
+                      image.altText || `${product.title} - Image ${index + 1}`
+                    }
                   />
                 </div>
               </div>
@@ -235,10 +270,9 @@ export function ProductImageCarousel({ product, selectedVariant, allImages }: Pr
             {productImages.map((_, index) => (
               <div
                 key={index}
-                className={`h-0.5 transition-all duration-300 ${index === selectedIndex
-                  ? 'w-8 bg-black'
-                  : 'w-4 bg-gray-300'
-                  }`}
+                className={`h-0.5 transition-all duration-300 ${
+                  index === selectedIndex ? 'w-8 bg-black' : 'w-4 bg-gray-300'
+                }`}
               />
             ))}
           </div>
@@ -260,7 +294,10 @@ export function ProductImageCarousel({ product, selectedVariant, allImages }: Pr
 
             {/* Fullscreen Carousel */}
             <div className="w-full h-full flex items-center justify-center px-4">
-              <div className="overflow-hidden max-w-4xl max-h-full" ref={fullscreenEmblaRef}>
+              <div
+                className="overflow-hidden max-w-4xl max-h-full"
+                ref={fullscreenEmblaRef}
+              >
                 <div className="flex">
                   {productImages.map((image, index) => (
                     <div
@@ -271,7 +308,10 @@ export function ProductImageCarousel({ product, selectedVariant, allImages }: Pr
                         data={image}
                         className="max-w-full max-h-full object-contain"
                         sizes="100vw"
-                        alt={image.altText || `${product.title} - Image ${index + 1}`}
+                        alt={
+                          image.altText ||
+                          `${product.title} - Image ${index + 1}`
+                        }
                       />
                     </div>
                   ))}
@@ -284,14 +324,18 @@ export function ProductImageCarousel({ product, selectedVariant, allImages }: Pr
               <>
                 <button
                   className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-opacity-20 rounded-full hover:bg-opacity-30 transition-all"
-                  onClick={() => fullscreenEmblaApi && fullscreenEmblaApi.scrollPrev()}
+                  onClick={() =>
+                    fullscreenEmblaApi && fullscreenEmblaApi.scrollPrev()
+                  }
                   aria-label="Previous image"
                 >
                   <ChevronLeft size={24} className="text-white" />
                 </button>
                 <button
                   className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-opacity-20 rounded-full hover:bg-opacity-30 transition-all"
-                  onClick={() => fullscreenEmblaApi && fullscreenEmblaApi.scrollNext()}
+                  onClick={() =>
+                    fullscreenEmblaApi && fullscreenEmblaApi.scrollNext()
+                  }
                   aria-label="Next image"
                 >
                   <ChevronRight size={24} className="text-white" />

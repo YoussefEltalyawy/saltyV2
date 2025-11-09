@@ -985,6 +985,29 @@ const RELATED_PRODUCTS_QUERY = `#graphql
       name
       optionValues {
         name
+        firstSelectableVariant {
+          id
+          availableForSale
+          image {
+            id
+            url
+            altText
+            width
+            height
+          }
+          price {
+            amount
+            currencyCode
+          }
+          compareAtPrice {
+            amount
+            currencyCode
+          }
+          selectedOptions {
+            name
+            value
+          }
+        }
         swatch {
           color
           image {
