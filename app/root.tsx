@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react';
 import favicon from '~/assets/favicon.ico';
 import { FOOTER_QUERY, HEADER_QUERY } from '~/lib/fragments';
 import { LOCK_PAGE_QUERY } from '~/graphql/lockQuery';
+import { NEWSLETTER_METAOBJECT_QUERY, parseNewsletterMetaobject } from '~/lib/graphql/newsletter';
 import resetStyles from '~/styles/reset.css?url';
 import appStyles from '~/styles/app.css?url';
 import tailwindCss from './styles/tailwind.css?url';
@@ -112,7 +113,7 @@ export async function loader(args: LoaderFunctionArgs) {
 async function loadCriticalData({ context }: LoaderFunctionArgs) {
   const { storefront } = context;
 
-  const [header, browseCollections, browseCategories, lockData] = await Promise.all([
+  const [header, browseCollections, browseCategories, lockData, newsletterData] = await Promise.all([
     storefront.query(HEADER_QUERY, {
       cache: storefront.CacheLong(),
       variables: {
@@ -134,6 +135,20 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
     storefront.query(LOCK_PAGE_QUERY, {
       cache: storefront.CacheNone()
     }),
+    storefront.query(NEWSLETTER_METAOBJECT_QUERY, {
+      variables: {
+        handle: 'join-the-salty-club',
+        type: 'marketing',
+        country: storefront.i18n.country,
+        language: storefront.i18n.language,
+      },
+      cache: storefront.CacheShort(),
+    }).catch((error) => {
+      // Log query errors, but don't throw them so the page can still render
+      console.error('Error fetching newsletter metafield:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      return null;
+    }),
     // Add other queries here, so that they are loaded in parallel
   ]);
 
@@ -142,7 +157,11 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
   const storeLocked = storeLockedMetafield?.value === 'true';
   const storePassword = metafields.find((m: any) => m && m.key === 'store_password')?.value || '';
 
-  return { header, browseCollections, browseCategories, storeLocked, storePassword };
+  const newsletter = newsletterData?.metaobject
+    ? parseNewsletterMetaobject(newsletterData.metaobject)
+    : null;
+
+  return { header, browseCollections, browseCategories, storeLocked, storePassword, newsletter };
 }
 
 /**
@@ -253,7 +272,11 @@ export function Layout({ children }: { children?: React.ReactNode }) {
               </HeaderAnimationProvider>
             )
           )}
-          <NewsletterPopup isOpen={isNewsletterOpen} onClose={closeNewsletterPopup} />
+          <NewsletterPopup
+            isOpen={isNewsletterOpen}
+            onClose={closeNewsletterPopup}
+            newsletterData={data?.newsletter}
+          />
         </NewsletterPopupProvider>
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />

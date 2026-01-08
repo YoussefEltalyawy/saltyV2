@@ -7,9 +7,14 @@ import { safeLocalStorage } from '~/lib/utils';
 interface NewsletterPopupProps {
   isOpen: boolean;
   onClose: () => void;
+  newsletterData?: {
+    title?: string;
+    description?: string;
+    discountCode?: string;
+  } | null;
 }
 
-export function NewsletterPopup({ isOpen, onClose }: NewsletterPopupProps) {
+export function NewsletterPopup({ isOpen, onClose, newsletterData }: NewsletterPopupProps) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -80,10 +85,10 @@ export function NewsletterPopup({ isOpen, onClose }: NewsletterPopupProps) {
             {!isSubmitted ? (
               <>
                 <h2 className="text-2xl font-bold text-center text-gray-900 mb-2">
-                  Join the Salty Club
+                  {newsletterData?.title || 'Join the Salty Club'}
                 </h2>
                 <p className="text-gray-600 text-center mb-6 leading-relaxed">
-                  Join the exclusive Salty Club for early access to new releases, secret deals, and insider news. Submit your details and become a member!
+                  {newsletterData?.description || 'Join the exclusive Salty Club for early access to new releases, secret deals, and insider news. Submit your details and become a member!'}
                 </p>
                 <fetcher.Form method="post" action="/api/newsletter-subscribe">
                   <div className="space-y-4">
@@ -183,12 +188,12 @@ export function NewsletterPopup({ isOpen, onClose }: NewsletterPopupProps) {
                       <div className="flex items-center justify-center mt-2">
                         <input
                           type="text"
-                          value="CLUB10"
+                          value={newsletterData?.discountCode || 'CLUB10'}
                           readOnly
                           className="text-center font-mono text-xl px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-900 select-all cursor-pointer"
                           onFocus={e => e.target.select()}
                           onClick={e => (e.target as HTMLInputElement).select()}
-                          aria-label="Copy code CLUB10"
+                          aria-label={`Copy code ${newsletterData?.discountCode || 'CLUB10'}`}
                         />
                       </div>
                       <span className="block text-xs text-gray-500 mt-2">Copy and use this code at checkout!</span>
