@@ -25,10 +25,17 @@ const COLLECTION_IMAGE_QUERY = `#graphql
 export async function loader({ context, request }: LoaderFunctionArgs) {
   try {
     const url = new URL(request.url);
-    const handle = url.searchParams.get('handle');
+    let handle = url.searchParams.get('handle');
 
     if (!handle) {
       throw new Response('Collection handle is required', { status: 400 });
+    }
+
+    // Clean handle: remove any trailing slashes, whitespace, or query params
+    handle = handle.trim().replace(/\/+$/, '').split('?')[0].split('#')[0];
+
+    if (!handle) {
+      throw new Response('Invalid collection handle', { status: 400 });
     }
 
     const { collection } = await context.storefront.query(COLLECTION_IMAGE_QUERY, {
@@ -44,11 +51,21 @@ export async function loader({ context, request }: LoaderFunctionArgs) {
     });
 
     if (!collection) {
+      console.warn(`Collection not found for handle: ${handle}`);
       throw new Response('Collection not found', { status: 404 });
+    }
+
+    // Log if collection exists but has no image (for debugging)
+    if (!collection.image && process.env.NODE_ENV === 'development') {
+      console.warn(`Collection "${collection.title}" (handle: ${handle}) exists but has no image`);
     }
 
     return collection;
   } catch (error) {
+    // Don't log 404s as errors, but log other errors
+    if (error instanceof Response && error.status === 404) {
+      throw error;
+    }
     console.error('Error fetching collection image:', error);
     throw new Response('Error fetching collection', { status: 500 });
   }

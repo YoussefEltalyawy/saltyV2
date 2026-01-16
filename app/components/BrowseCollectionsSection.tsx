@@ -40,46 +40,147 @@ export function BrowseCollectionsSection() {
   );
 
   const imageFetcher = useFetcher();
+  const fetchingRef = useRef<Set<string>>(new Set());
+  const fetchQueueRef = useRef<string[]>([]);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Fetch collection images
+  // Helper function to extract handle from URL more robustly
+  const extractHandle = (url: string): string | null => {
+    if (!url || !url.includes('/collections/')) return null;
+
+    try {
+      // Remove query parameters and hash
+      const cleanUrl = url.split('?')[0].split('#')[0];
+      // Extract handle after /collections/
+      const match = cleanUrl.match(/\/collections\/([^\/]+)/);
+      if (match && match[1]) {
+        // Remove trailing slash if present
+        return match[1].replace(/\/$/, '');
+      }
+    } catch (error) {
+      console.error('Error extracting handle from URL:', url, error);
+    }
+    return null;
+  };
+
+  // Fetch collection images sequentially to avoid overwriting
   useEffect(() => {
     if (!collections.length) return;
 
+    // Extract all handles that need fetching
+    const handlesToFetch: string[] = [];
     collections.forEach((item) => {
-      if (!item.url || !item.url.includes('/collections/')) return;
+      if (!item.url) return;
 
-      const handle = item.url.split('/collections/')[1];
-      if (!handle || collectionImages[handle]) return;
+      const handle = extractHandle(item.url);
+      if (!handle) return;
 
-      imageFetcher.load(`/api/collection-image?handle=${handle}`);
+      // Skip if already fetched or currently fetching
+      if (collectionImages[handle] || fetchingRef.current.has(handle)) return;
+
+      handlesToFetch.push(handle);
     });
-  }, [collections, collectionImages]);
+
+    // Add to queue if not already there
+    handlesToFetch.forEach(handle => {
+      if (!fetchQueueRef.current.includes(handle)) {
+        fetchQueueRef.current.push(handle);
+      }
+    });
+
+    // Process queue sequentially
+    const processQueue = async () => {
+      if (fetchQueueRef.current.length === 0 || imageFetcher.state !== 'idle') {
+        return;
+      }
+
+      const handle = fetchQueueRef.current.shift();
+      if (!handle || fetchingRef.current.has(handle)) {
+        // Process next item
+        setTimeout(processQueue, 0);
+        return;
+      }
+
+      fetchingRef.current.add(handle);
+      imageFetcher.load(`/api/collection-image?handle=${encodeURIComponent(handle)}`);
+    };
+
+    // Start processing if fetcher is idle
+    if (imageFetcher.state === 'idle' && fetchQueueRef.current.length > 0) {
+      processQueue();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collections, collectionImages, imageFetcher.state]);
 
   // Update collection images when fetched
   useEffect(() => {
-    if (imageFetcher.data && imageFetcher.data.image) {
+    if (imageFetcher.data) {
       const handle = imageFetcher.data.handle;
+
+      if (!handle) {
+        console.warn('Collection image response missing handle');
+        return;
+      }
+
+      // Remove from fetching set
+      fetchingRef.current.delete(handle);
+
+      // Store the data even if image is null (to prevent re-fetching)
       setCollectionImages(prev => ({
         ...prev,
         [handle]: imageFetcher.data
       }));
 
-      // Set initial background
-      if (!currentBackgroundImage && activeIndex === 0) {
-        const firstItem = collections[0];
-        if (firstItem && firstItem.url && firstItem.url.includes('/collections/')) {
-          const firstHandle = firstItem.url.split('/collections/')[1];
-          if (handle === firstHandle) {
-            setCurrentBackgroundImage(imageFetcher.data.image.url);
+      // Set initial background if image exists
+      if (imageFetcher.data.image?.url) {
+        if (!currentBackgroundImage && activeIndex === 0) {
+          const firstItem = collections[0];
+          if (firstItem?.url) {
+            const firstHandle = extractHandle(firstItem.url);
+            if (handle === firstHandle) {
+              setCurrentBackgroundImage(imageFetcher.data.image.url);
+            }
           }
+        }
+      } else {
+        // Log when collection exists but has no image (for debugging)
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`Collection "${imageFetcher.data.title}" (handle: ${handle}) has no image`);
+        }
+      }
+
+      // Process next item in queue
+      if (fetchQueueRef.current.length > 0) {
+        setTimeout(() => {
+          const nextHandle = fetchQueueRef.current.shift();
+          if (nextHandle && !fetchingRef.current.has(nextHandle)) {
+            fetchingRef.current.add(nextHandle);
+            imageFetcher.load(`/api/collection-image?handle=${encodeURIComponent(nextHandle)}`);
+          }
+        }, 100); // Small delay to avoid overwhelming the API
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageFetcher.data, currentBackgroundImage, activeIndex, collections]);
+
+  // Handle fetcher errors - track failed requests
+  useEffect(() => {
+    if (imageFetcher.state === 'idle' && imageFetcher.data === undefined) {
+      // If we're idle but have no data and there are items in queue, 
+      // it might indicate an error - process next item
+      if (fetchQueueRef.current.length > 0) {
+        const nextHandle = fetchQueueRef.current.shift();
+        if (nextHandle && !fetchingRef.current.has(nextHandle)) {
+          fetchingRef.current.add(nextHandle);
+          imageFetcher.load(`/api/collection-image?handle=${encodeURIComponent(nextHandle)}`);
         }
       }
     }
-  }, [imageFetcher.data, currentBackgroundImage, activeIndex, collections]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageFetcher.state, imageFetcher.data]);
 
   // Smooth crossfade background animation
   useEffect(() => {
@@ -88,9 +189,7 @@ export function BrowseCollectionsSection() {
     const activeItem = collections[activeIndex];
     if (!activeItem?.url) return;
 
-    const handle = activeItem.url.includes('/collections/')
-      ? activeItem.url.split('/collections/')[1]
-      : activeItem.title.toLowerCase().replace(/\s+/g, '-');
+    const handle = extractHandle(activeItem.url) || activeItem.title.toLowerCase().replace(/\s+/g, '-');
 
     const collectionData = collectionImages[handle];
     const newImageUrl = collectionData?.image?.url;
@@ -170,6 +269,7 @@ export function BrowseCollectionsSection() {
   useEffect(() => {
     if (!isClient || !sectionRef.current) return;
 
+    const section = sectionRef.current;
     const observer = new IntersectionObserver(
       ([entry]) => {
         setIsSectionActive(entry.isIntersecting && entry.intersectionRatio > 0.9);
@@ -177,12 +277,10 @@ export function BrowseCollectionsSection() {
       { threshold: 0.9 },
     );
 
-    observer.observe(sectionRef.current);
+    observer.observe(section);
 
     return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current);
-      }
+      observer.unobserve(section);
     };
   }, [isClient]);
 
