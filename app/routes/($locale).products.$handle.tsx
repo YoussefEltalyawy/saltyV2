@@ -14,7 +14,7 @@ import { ProductImageCarousel } from '~/components/ProductImageCarousel';
 import { ProductForm } from '~/components/ProductForm';
 import { flattenConnection } from '@shopify/hydrogen';
 import { redirectIfHandleIsLocalized } from '~/lib/redirect';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
 import { toMetaContentId } from '~/lib/meta';
 import { AddToCartButton } from '~/components/AddToCartButton';
@@ -673,6 +673,112 @@ export default function Product() {
   // The centralized configuration already handles all the bundle logic
   // No need to manually add bundles - they're all configured in bundleConfig.ts
 
+  // Get color-specific images based on selected variant
+  const colorSpecificImages = useMemo(() => {
+    const allProductImages = product.images
+      ? flattenConnection(product.images) as Array<{ id: string; url: string; altText: string | null; width: number; height: number; }>
+      : [];
+
+    // Get the selected color from the selected variant
+    const colorOption = selectedVariant?.selectedOptions?.find(
+      (opt: { name: string; value: string }) => opt.name.toLowerCase() === 'color'
+    );
+
+    if (!colorOption || !product.variants?.nodes) {
+      return allProductImages;
+    }
+
+    const selectedColor = colorOption.value;
+
+    // Find all variants with the same color (regardless of size)
+    const colorVariants = product.variants.nodes.filter((variant: ProductVariantFragment) => {
+      const variantColor = variant.selectedOptions?.find(
+        (opt: { name: string; value: string }) => opt.name.toLowerCase() === 'color'
+      );
+      return variantColor?.value === selectedColor;
+    });
+
+    // Check if any variant with this color has the color_variant_gallery metafield
+    for (const variant of colorVariants) {
+      const metafield = (variant as any).metafields?.find(
+        (m: any) => m?.key === 'color_variant_gallery'
+      );
+
+      if (metafield) {
+        // Handle different metafield types
+        const images: Array<{ id: string; url: string; altText: string | null; width: number; height: number; }> = [];
+
+        // If it's a list of MediaImage references (references.edges)
+        if (metafield.references?.edges) {
+          metafield.references.edges.forEach((edge: any) => {
+            if (edge.node?.image) {
+              images.push({
+                id: edge.node.id || `metafield-${Date.now()}-${images.length}`,
+                url: edge.node.image.url,
+                altText: edge.node.image.altText,
+                width: edge.node.image.width,
+                height: edge.node.image.height,
+              });
+            }
+          });
+        }
+        // If it's a single MediaImage reference
+        else if (metafield.reference?.image) {
+          images.push({
+            id: metafield.reference.id || `metafield-${Date.now()}`,
+            url: metafield.reference.image.url,
+            altText: metafield.reference.image.altText,
+            width: metafield.reference.image.width,
+            height: metafield.reference.image.height,
+          });
+        }
+        // If it's a JSON string (list of image URLs)
+        else if (metafield.value) {
+          try {
+            const parsedValue = typeof metafield.value === 'string'
+              ? JSON.parse(metafield.value)
+              : metafield.value;
+
+            if (Array.isArray(parsedValue)) {
+              parsedValue.forEach((item: any, index: number) => {
+                if (typeof item === 'string') {
+                  // If it's just a URL string, create a basic image object
+                  images.push({
+                    id: `metafield-url-${index}`,
+                    url: item,
+                    altText: `${product.title} - ${selectedColor} - Image ${index + 1}`,
+                    width: 1200,
+                    height: 1600,
+                  });
+                } else if (item.url) {
+                  // If it's an object with url property
+                  images.push({
+                    id: item.id || `metafield-${index}`,
+                    url: item.url,
+                    altText: item.altText || `${product.title} - ${selectedColor} - Image ${index + 1}`,
+                    width: item.width || 1200,
+                    height: item.height || 1600,
+                  });
+                }
+              });
+            }
+          } catch (e) {
+            // If parsing fails, fall through to fallback
+            console.warn('Failed to parse color_variant_gallery metafield:', e);
+          }
+        }
+
+        // If we found images, return them
+        if (images.length > 0) {
+          return images;
+        }
+      }
+    }
+
+    // Fallback to all product images if no color-specific gallery found
+    return allProductImages;
+  }, [product, selectedVariant]);
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -681,7 +787,7 @@ export default function Product() {
           <ProductImageCarousel
             product={product}
             selectedVariant={selectedVariant}
-            allImages={product.images ? flattenConnection(product.images) as Array<{ id: string; url: string; altText: string | null; width: number; height: number; }> : []}
+            allImages={colorSpecificImages}
           />
         </div>
 
@@ -805,6 +911,39 @@ const PRODUCT_VARIANT_FRAGMENT = `#graphql
     unitPrice {
       amount
       currencyCode
+    }
+    metafields(identifiers: [
+      {namespace: "custom", key: "color_variant_gallery"}
+    ]) {
+      key
+      value
+      type
+      reference {
+        ... on MediaImage {
+          id
+          image {
+            url
+            altText
+            width
+            height
+          }
+        }
+      }
+      references(first: 250) {
+        edges {
+          node {
+            ... on MediaImage {
+              id
+              image {
+                url
+                altText
+                width
+                height
+              }
+            }
+          }
+        }
+      }
     }
   }
 ` as const;

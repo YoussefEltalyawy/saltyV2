@@ -5,7 +5,7 @@ import type {
   ProductVariantFragment,
 } from 'storefrontapi.generated';
 import {ChevronLeft, ChevronRight, X} from 'lucide-react';
-import {useCallback, useEffect, useState, useMemo} from 'react';
+import {useCallback, useEffect, useState, useMemo, useRef} from 'react';
 
 interface ProductImageCarouselProps {
   product: ProductFragment;
@@ -42,6 +42,7 @@ export function ProductImageCarousel({
   });
   const [fullscreenSelectedIndex, setFullscreenSelectedIndex] = useState(0);
   const [lastVariantId, setLastVariantId] = useState<string | null>(null);
+  const previousImagesRef = useRef<string>('');
 
   // Get all unique product images from variants
   const productImages = useMemo(() => {
@@ -127,6 +128,22 @@ export function ProductImageCarousel({
     return images;
   }, [product, selectedVariant, allImages]);
 
+  // Track when images change (e.g., color-specific images loaded)
+  const currentImagesKey = useMemo(() => {
+    return productImages.map(img => img.id).join(',');
+  }, [productImages]);
+
+  // Reset to first image when image set changes (e.g., color changed)
+  useEffect(() => {
+    if (currentImagesKey !== previousImagesRef.current && productImages.length > 0) {
+      previousImagesRef.current = currentImagesKey;
+      setSelectedIndex(0);
+      if (emblaApi) {
+        emblaApi.scrollTo(0);
+      }
+    }
+  }, [currentImagesKey, productImages.length, emblaApi]);
+
   // Find the index of the current selected variant's image - only when variant actually changes
   useEffect(() => {
     if (selectedVariant.image && selectedVariant.id !== lastVariantId) {
@@ -138,6 +155,13 @@ export function ProductImageCarousel({
         setLastVariantId(selectedVariant.id);
         if (emblaApi) {
           emblaApi.scrollTo(index);
+        }
+      } else {
+        // If variant image not found in current images (e.g., color changed), reset to first image
+        setSelectedIndex(0);
+        setLastVariantId(selectedVariant.id);
+        if (emblaApi) {
+          emblaApi.scrollTo(0);
         }
       }
     }
