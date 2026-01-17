@@ -157,11 +157,46 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
   const storeLocked = storeLockedMetafield?.value === 'true';
   const storePassword = metafields.find((m: any) => m && m.key === 'store_password')?.value || '';
 
+  // Extract new customizable metafields
+  const backgroundImageMetafield = metafields.find((m: any) => m && m.key === 'background_image');
+
+  // Try different ways to access the image URL
+  let backgroundImageUrl = null;
+  if (backgroundImageMetafield) {
+    // Try MediaImage reference first
+    if (backgroundImageMetafield.reference?.image?.url) {
+      backgroundImageUrl = backgroundImageMetafield.reference.image.url;
+    }
+    // Try direct reference (some image metafields might have the image directly on reference)
+    else if (backgroundImageMetafield.reference?.url) {
+      backgroundImageUrl = backgroundImageMetafield.reference.url;
+    }
+    // Try value as URL string
+    else if (backgroundImageMetafield.value && typeof backgroundImageMetafield.value === 'string') {
+      backgroundImageUrl = backgroundImageMetafield.value;
+    }
+  }
+
+  const titleMetafield = metafields.find((m: any) => m && m.key === 'title');
+  const title = titleMetafield?.value || null;
+  const descriptionMetafield = metafields.find((m: any) => m && m.key === 'description');
+  const description = descriptionMetafield?.value || null;
+
   const newsletter = newsletterData?.metaobject
     ? parseNewsletterMetaobject(newsletterData.metaobject)
     : null;
 
-  return { header, browseCollections, browseCategories, storeLocked, storePassword, newsletter };
+  return {
+    header,
+    browseCollections,
+    browseCategories,
+    storeLocked,
+    storePassword,
+    backgroundImageUrl,
+    lockTitle: title,
+    lockDescription: description,
+    newsletter
+  };
 }
 
 /**
@@ -256,7 +291,13 @@ export function Layout({ children }: { children?: React.ReactNode }) {
           closePopup={closeNewsletterPopup}
         >
           {data.storeLocked === true && typeof data.storePassword === 'string' && data.storePassword.trim() !== '' && isLocked ? (
-            <LockScreen correctPassword={data.storePassword} onPasswordSuccess={handlePasswordSuccess} />
+            <LockScreen
+              correctPassword={data.storePassword}
+              onPasswordSuccess={handlePasswordSuccess}
+              backgroundImageUrl={data.backgroundImageUrl}
+              title={data.lockTitle}
+              description={data.lockDescription}
+            />
           ) : (
             data ? (
               <Analytics.Provider
