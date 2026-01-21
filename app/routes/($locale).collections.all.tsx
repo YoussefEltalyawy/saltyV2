@@ -1,49 +1,21 @@
 import { type LoaderFunctionArgs } from '@shopify/remix-oxygen';
 import { useLoaderData, type MetaFunction } from 'react-router';
-import { getPaginationVariables, Image, Money, Analytics } from '@shopify/hydrogen';
-import { PaginatedResourceSection } from '~/components/PaginatedResourceSection';
-import { ProductItem } from '~/components/ProductItem';
+import { Analytics } from '@shopify/hydrogen';
+import { ProductCard } from '~/components/ProductCard';
+import type { ProductItemFullFragment } from 'storefrontapi.generated';
 
 export const meta: MetaFunction<typeof loader> = () => {
   return [{ title: `SALTY | Products` }];
 };
 
 export async function loader(args: LoaderFunctionArgs) {
-  // Start fetching non-critical data without blocking time to first byte
-  const deferredData = loadDeferredData(args);
-
-  // Await the critical data required to render initial state of the page
-  const criticalData = await loadCriticalData(args);
-
-  return { ...deferredData, ...criticalData };
-}
-
-/**
- * Load data necessary for rendering content above the fold. This is the critical data
- * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
- */
-async function loadCriticalData({ context, request }: LoaderFunctionArgs) {
+  const { context, request } = args;
   const { storefront } = context;
-  const paginationVariables = getPaginationVariables(request, {
-    pageBy: 8,
-  });
 
-  const [{ products }] = await Promise.all([
-    storefront.query(CATALOG_QUERY, {
-      variables: { ...paginationVariables },
-    }),
-    // Add other queries here, so that they are loaded in parallel
-  ]);
+  // Get all products without pagination for the "all" collection
+  const { products } = await storefront.query(ALL_PRODUCTS_QUERY);
+
   return { products };
-}
-
-/**
- * Load data for rendering content below the fold. This data is deferred and will be
- * fetched after the initial page load. If it's unavailable, the page should still 200.
- * Make sure to not throw any errors here, as it will cause the page to 500.
- */
-function loadDeferredData({ context }: LoaderFunctionArgs) {
-  return {};
 }
 
 export default function Collection() {
@@ -51,30 +23,23 @@ export default function Collection() {
 
   return (
     <div className="collection">
-      <h1>Products</h1>
-      <PaginatedResourceSection
-        connection={products}
-        resourcesClassName="products-grid"
-      >
-        {({ node: product, index }) => (
-          <ProductItem
-            key={product.id}
-            product={product}
-            loading={index < 8 ? 'eager' : undefined}
-          />
-        )}
-      </PaginatedResourceSection>
+      <h1 className='ml-1 font-semibold uppercase text-small'>Products</h1>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-4 mb-4">
+        {products.nodes.map((product) => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
       <Analytics.CollectionView data={{ collection: { id: 'all-products', handle: 'all' } }} />
     </div>
   );
 }
 
-const COLLECTION_ITEM_FRAGMENT = `#graphql
-  fragment MoneyCollectionItem on MoneyV2 {
+const PRODUCT_ITEM_FRAGMENT = `#graphql
+  fragment MoneyProductItem on MoneyV2 {
     amount
     currencyCode
   }
-  fragment CollectionItem on Product {
+  fragment ProductItemCollection on Product {
     id
     handle
     title
@@ -85,38 +50,83 @@ const COLLECTION_ITEM_FRAGMENT = `#graphql
       width
       height
     }
+    images(first: 10) {
+      nodes {
+        id
+        url
+        altText
+        width
+        height
+      }
+    }
     priceRange {
       minVariantPrice {
-        ...MoneyCollectionItem
+        ...MoneyProductItem
       }
       maxVariantPrice {
-        ...MoneyCollectionItem
+        ...MoneyProductItem
+      }
+    }
+    options {
+      name
+      optionValues {
+        name
+        firstSelectableVariant {
+          id
+          availableForSale
+          image {
+            id
+            url
+            altText
+            width
+            height
+          }
+          price {
+            amount
+            currencyCode
+          }
+          compareAtPrice {
+            amount
+            currencyCode
+          }
+          selectedOptions {
+            name
+            value
+          }
+        }
+        swatch {
+          color
+          image {
+            previewImage {
+              url
+            }
+          }
+        }
+      }
+    }
+    selectedOrFirstAvailableVariant {
+      price {
+        amount
+        currencyCode
+      }
+      compareAtPrice {
+        amount
+        currencyCode
       }
     }
   }
 ` as const;
 
-// NOTE: https://shopify.dev/docs/api/storefront/latest/objects/product
-const CATALOG_QUERY = `#graphql
-  query Catalog(
+const ALL_PRODUCTS_QUERY = `#graphql
+  ${PRODUCT_ITEM_FRAGMENT}
+  query AllProducts(
     $country: CountryCode
     $language: LanguageCode
-    $first: Int
-    $last: Int
-    $startCursor: String
-    $endCursor: String
   ) @inContext(country: $country, language: $language) {
-    products(first: $first, last: $last, before: $startCursor, after: $endCursor) {
+    products(first: 250) {
       nodes {
-        ...CollectionItem
-      }
-      pageInfo {
-        hasPreviousPage
-        hasNextPage
-        startCursor
-        endCursor
+        ...ProductItemCollection
       }
     }
   }
-  ${COLLECTION_ITEM_FRAGMENT}
 ` as const;
