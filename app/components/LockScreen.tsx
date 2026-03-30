@@ -104,7 +104,7 @@ export function LockScreen({
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="Your Name"
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#beb1a1] focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 bg-transparent border border-white/50 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#beb1a1] focus:border-transparent transition-all"
                     required
                   />
                 </div>
@@ -115,7 +115,7 @@ export function LockScreen({
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="Email Address"
-                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#beb1a1] focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 bg-transparent border border-white/50 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#beb1a1] focus:border-transparent transition-all"
                     required
                   />
                   {actionData?.error && <p className="mt-2 text-sm text-red-400">{actionData.error}</p>}
@@ -149,7 +149,7 @@ export function LockScreen({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
-                  className="w-full px-4 py-3 text-center tracking-widest bg-white/10 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#beb1a1] focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 text-center tracking-widest bg-transparent border border-white/50 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#beb1a1] focus:border-transparent transition-all"
                   required
                 />
               </div>
