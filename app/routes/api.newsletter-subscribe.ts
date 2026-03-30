@@ -63,9 +63,10 @@ export async function action({ request, context }: any) {
       JSON.stringify({ success: true, message: 'Successfully subscribed!' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Newsletter Sub Error:', error);
     return new Response(
-      JSON.stringify({ error: 'Failed to subscribe. Please try again.' }),
+      JSON.stringify({ error: error.message || 'Failed to subscribe. Please try again.' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
@@ -175,9 +176,10 @@ async function updateCustomerEmailMarketingConsent(
   adminApiToken: string,
   name: string,
 ) {
+  // We can update their name if we want, but the priority is the consent
   const mutation = `
-    mutation customerUpdate($input: CustomerInput!) {
-      customerUpdate(input: $input) {
+    mutation customerEmailMarketingConsentUpdate($input: CustomerEmailMarketingConsentUpdateInput!) {
+      customerEmailMarketingConsentUpdate(input: $input) {
         customer {
           id
           email
@@ -205,8 +207,7 @@ async function updateCustomerEmailMarketingConsent(
       query: mutation,
       variables: {
         input: {
-          id: customerId,
-          firstName: name,
+          customerId: customerId,
           emailMarketingConsent: {
             marketingState: 'SUBSCRIBED',
             marketingOptInLevel: 'SINGLE_OPT_IN',
@@ -218,9 +219,10 @@ async function updateCustomerEmailMarketingConsent(
 
   const data = (await response.json()) as any;
 
-  if (data.data?.customerUpdate?.userErrors?.length > 0) {
-    throw new Error(data.data.customerUpdate.userErrors[0].message);
+  if (data.data?.customerEmailMarketingConsentUpdate?.userErrors?.length > 0) {
+    throw new Error(data.data.customerEmailMarketingConsentUpdate.userErrors[0].message);
   }
 
-  return data.data?.customerUpdate?.customer;
+  // Optionally update their name as a separate mutation if needed, but not critical for newsletter sub
+  return data.data?.customerEmailMarketingConsentUpdate?.customer;
 } 

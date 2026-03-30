@@ -189,6 +189,8 @@ async function loadCriticalData({ context, request }: LoaderFunctionArgs) {
   const title = titleMetafield?.value || null;
   const descriptionMetafield = metafields.find((m: any) => m && m.key === 'description');
   const description = descriptionMetafield?.value || null;
+  const dropDateMetafield = metafields.find((m: any) => m && m.key === 'drop_date');
+  const dropDate = dropDateMetafield?.value || null;
 
   const newsletter = newsletterData?.metaobject
     ? parseNewsletterMetaobject(newsletterData.metaobject)
@@ -203,6 +205,7 @@ async function loadCriticalData({ context, request }: LoaderFunctionArgs) {
     backgroundImageUrl,
     lockTitle: title,
     lockDescription: description,
+    dropDate,
     newsletter
   };
 }
@@ -305,6 +308,7 @@ export function Layout({ children }: { children?: React.ReactNode }) {
               backgroundImageUrl={data.backgroundImageUrl}
               title={data.lockTitle}
               description={data.lockDescription}
+              dropDate={data.dropDate}
             />
           ) : (
             data ? (

@@ -6,7 +6,8 @@ export const LOCK_PAGE_QUERY = `#graphql
         {namespace: "custom", key: "store_password"},
         {namespace: "custom", key: "background_image"},
         {namespace: "custom", key: "title"},
-        {namespace: "custom", key: "description"}
+        {namespace: "custom", key: "description"},
+        {namespace: "custom", key: "drop_date"}
       ]) {
         key
         value
