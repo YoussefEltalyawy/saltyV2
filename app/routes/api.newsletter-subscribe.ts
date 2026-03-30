@@ -43,6 +43,7 @@ export async function action({ request, context }: any) {
       adminApiToken,
     );
 
+    let customerId;
     if (existingCustomer) {
       await updateCustomerEmailMarketingConsent(
         existingCustomer.id,
@@ -50,14 +51,31 @@ export async function action({ request, context }: any) {
         adminApiToken,
         validatedName,
       );
+      customerId = existingCustomer.id;
     } else {
-      await createCustomerWithEmailMarketingConsent(
+      const newCustomer = await createCustomerWithEmailMarketingConsent(
         validatedEmail,
         validatedName,
         shopDomain,
         adminApiToken,
       );
+      customerId = newCustomer.id;
     }
+
+    const source = formData.get('source');
+    const dropDateRaw = formData.get('dropDate');
+    
+    let tags = ['SaltyClub_Popup'];
+    if (source === 'lock_screen_drop') {
+      if (dropDateRaw && typeof dropDateRaw === 'string' && dropDateRaw.trim() !== '') {
+        const datePart = dropDateRaw.split('T')[0].split(' ')[0]; // Gets just the date portion e.g. 2024-03-30
+        tags = [`EarlyAccess_Drop_${datePart}`];
+      } else {
+        tags = ['EarlyAccess_Drop_UnknownDate'];
+      }
+    }
+
+    await addTagsToCustomer(customerId, tags, shopDomain, adminApiToken);
 
     return new Response(
       JSON.stringify({ success: true, message: 'Successfully subscribed!' }),
@@ -225,4 +243,36 @@ async function updateCustomerEmailMarketingConsent(
 
   // Optionally update their name as a separate mutation if needed, but not critical for newsletter sub
   return data.data?.customerEmailMarketingConsentUpdate?.customer;
+}
+
+async function addTagsToCustomer(customerId: string, tags: string[], shopDomain: string, adminApiToken: string) {
+  const mutation = `
+    mutation tagsAdd($id: ID!, $tags: [String!]!) {
+      tagsAdd(id: $id, tags: $tags) {
+        userErrors {
+          message
+        }
+      }
+    }
+  `;
+
+  const response = await fetch(`https://${shopDomain}/admin/api/2024-01/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': adminApiToken,
+    },
+    body: JSON.stringify({
+      query: mutation,
+      variables: {
+        id: customerId,
+        tags,
+      },
+    }),
+  });
+
+  const data = (await response.json()) as any;
+  if (data.data?.tagsAdd?.userErrors?.length > 0) {
+    console.error("Failed to add tags:", data.data.tagsAdd.userErrors[0].message);
+  }
 } 

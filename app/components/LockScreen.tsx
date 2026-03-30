@@ -97,6 +97,8 @@ export function LockScreen({
                </div>
             ) : (
               <fetcher.Form method="post" action="/api/newsletter-subscribe" className="space-y-4 mb-6">
+                <input type="hidden" name="source" value="lock_screen_drop" />
+                <input type="hidden" name="dropDate" value={dropDate || ''} />
                 <div>
                   <input
                     type="text"
