@@ -110,7 +110,7 @@ export async function loader(args: LoaderFunctionArgs) {
  * Load data necessary for rendering content above the fold. This is the critical data
  * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
  */
-async function loadCriticalData({ context }: LoaderFunctionArgs) {
+async function loadCriticalData({ context, request }: LoaderFunctionArgs) {
   const { storefront } = context;
 
   const [header, browseCollections, browseCategories, lockData, newsletterData] = await Promise.all([
@@ -153,9 +153,17 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
   ]);
 
   const metafields = lockData?.page?.metafields || [];
+
+  const url = new URL(request.url);
+  const isLockPage = url.pathname.endsWith('/pages/lock-with-password');
+
   const storeLockedMetafield = metafields.find((m: any) => m && m.key === 'store_locked');
-  const storeLocked = storeLockedMetafield?.value === 'true';
-  const storePassword = metafields.find((m: any) => m && m.key === 'store_password')?.value || '';
+  const storeLocked = isLockPage || storeLockedMetafield?.value === 'true';
+  
+  let storePassword = metafields.find((m: any) => m && m.key === 'store_password')?.value || '';
+  if (isLockPage && storePassword.trim() === '') {
+    storePassword = 'test'; // Ensure password is set so the overlay renders
+  }
 
   // Extract new customizable metafields
   const backgroundImageMetafield = metafields.find((m: any) => m && m.key === 'background_image');
