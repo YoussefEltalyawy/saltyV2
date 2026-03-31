@@ -107,6 +107,7 @@ async function fetchProductCollections(
                 id
                 title
                 handle
+                tags
                 description
                 featuredImage {
                   url
@@ -173,6 +174,7 @@ async function fetchProductCollections(
                   id
                   title
                   handle
+                  tags
                   description
                   featuredImage {
                     url
@@ -249,6 +251,7 @@ async function fetchProductCollections(
                 id
                 title
                 handle
+                tags
                 description
                 featuredImage {
                   url
@@ -295,6 +298,7 @@ async function fetchProductCollections(
                 id
                 title
                 handle
+                tags
                 description
                 featuredImage {
                   url
@@ -359,6 +363,7 @@ async function fetchProductCollections(
                   id
                   title
                   handle
+                  tags
                   description
                   featuredImage {
                     url
@@ -418,6 +423,7 @@ async function fetchProductCollections(
                   id
                   title
                   handle
+                  tags
                   description
                   featuredImage {
                     url
@@ -1056,6 +1062,7 @@ const COLLECTION_PRODUCTS_QUERY = `#graphql
           id
           title
           handle
+          tags
           description
           featuredImage {
             url
@@ -1094,6 +1101,7 @@ const RELATED_PRODUCTS_QUERY = `#graphql
     id
     handle
     title
+    tags
     featuredImage {
       id
       altText
