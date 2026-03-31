@@ -644,6 +644,8 @@ export default function Product() {
   });
 
   const { title, descriptionHtml, handle } = product;
+  const isLimited = (product as any).tags?.some?.((tag: string) => tag.toUpperCase() === 'LIMITED');
+
   useEffect(() => {
     const variantId = selectedVariant?.id;
     if (!product?.id || !variantId) return;
@@ -789,7 +791,12 @@ export default function Product() {
     <div className="max-w-6xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Product Image Carousel */}
-        <div className="product-image-section">
+        <div className="product-image-section relative">
+          {isLimited && (
+            <div className="absolute top-4 left-4 z-20 bg-black/90 text-white text-[10px] font-bold tracking-[0.2em] uppercase px-3 py-1.5 backdrop-blur-sm pointer-events-none">
+              LIMITED
+            </div>
+          )}
           <ProductImageCarousel
             product={product}
             selectedVariant={selectedVariant}
@@ -958,6 +965,7 @@ const PRODUCT_FRAGMENT = `#graphql
   fragment Product on Product {
     id
     title
+    tags
     vendor
     handle
     descriptionHtml

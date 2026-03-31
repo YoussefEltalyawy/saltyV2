@@ -5,7 +5,6 @@ import {
 import { useLoaderData, type MetaFunction } from 'react-router';
 import { useEffect } from 'react';
 import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
-import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
 import { getPaginationVariables, Analytics } from '@shopify/hydrogen';
 import { SearchForm } from '~/components/SearchForm';
 import { SearchResults } from '~/components/SearchResults';
@@ -98,6 +97,7 @@ const SEARCH_PRODUCT_FRAGMENT = `#graphql
     id
     publishedAt
     title
+    tags
     trackingParameters
     vendor
     selectedOrFirstAvailableVariant(
@@ -311,6 +311,7 @@ const PREDICTIVE_SEARCH_PRODUCT_FRAGMENT = `#graphql
     id
     title
     handle
+    tags
     trackingParameters
     selectedOrFirstAvailableVariant(
       selectedOptions: []
