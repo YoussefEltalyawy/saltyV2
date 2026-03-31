@@ -226,6 +226,9 @@ export function SwipeableProductCard({product}: SwipeableProductCardProps) {
     }
   }, [isDragging, currentX, startX]);
 
+  // Check for LIMITED tag
+  const isLimited = (product as any).tags?.some?.((tag: string) => tag.toUpperCase() === 'LIMITED');
+
   return (
     <Link
       className="block bg-white transition-shadow group"
@@ -251,8 +254,13 @@ export function SwipeableProductCard({product}: SwipeableProductCardProps) {
           {images.map((image, index) => (
             <div
               key={`${image?.id || 'img'}-${index}`}
-              className="w-full flex-shrink-0"
+              className="w-full flex-shrink-0 relative"
             >
+              {isLimited && (
+                <div className="absolute top-3 left-3 z-10 bg-black/90 text-white text-[10px] font-bold tracking-[0.2em] uppercase px-3 py-1.5 backdrop-blur-sm pointer-events-none">
+                  LIMITED
+                </div>
+              )}
               <Image
                 alt={image?.altText || product.title}
                 aspectRatio="3/4"

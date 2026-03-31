@@ -1,7 +1,7 @@
 import {Link} from 'react-router';
 import {Image, Money} from '@shopify/hydrogen';
 import type {
-  ProductItemFragment,
+  ProductItemFullFragment as ProductItemFragment,
   CollectionItemFragment,
   RecommendedProductFragment,
 } from 'storefrontapi.generated';
@@ -19,13 +19,20 @@ export function ProductItem({
 }) {
   const variantUrl = useVariantUrl(product.handle);
   const image = product.featuredImage;
+  const isLimited = (product as any).tags?.some?.((tag: string) => tag.toUpperCase() === 'LIMITED');
+
   return (
     <Link
-      className="product-item"
+      className="product-item relative block"
       key={product.id}
       prefetch="intent"
       to={variantUrl}
     >
+      {isLimited && (
+        <div className="absolute top-2 left-2 z-10 bg-black/90 text-white text-[10px] font-bold tracking-[0.2em] uppercase px-3 py-1.5 backdrop-blur-sm pointer-events-none">
+          LIMITED
+        </div>
+      )}
       {image && (
         <Image
           alt={image.altText || product.title}
