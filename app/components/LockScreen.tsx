@@ -4,8 +4,6 @@ import { safeLocalStorage } from '~/lib/localStorage';
 import { CountdownTimer } from './CountdownTimer';
 
 interface LockScreenProps {
-  correctPassword: string;
-  onPasswordSuccess: () => void;
   backgroundImageUrl?: string | null;
   title?: string | null;
   description?: string | null;
@@ -13,8 +11,6 @@ interface LockScreenProps {
 }
 
 export function LockScreen({
-  correctPassword,
-  onPasswordSuccess,
   backgroundImageUrl,
   title,
   description,
@@ -32,17 +28,12 @@ export function LockScreen({
   const isSubmitting = fetcher.state === 'submitting';
   const isSubmitted = actionData?.success || false;
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (password === correctPassword) {
-      // safeLocalStorage is accessed dynamically to prevent SSR issues
-      safeLocalStorage.setItem('storeAccessGranted', 'true');
-      onPasswordSuccess();
-    } else {
-      setError('Incorrect password. Please try again.');
-      setPassword('');
-    }
-  };
+  const unlockFetcher = useFetcher();
+  const unlockActionData = unlockFetcher.data as { success?: boolean; error?: string } | undefined;
+  const isUnlocking = unlockFetcher.state === 'submitting';
+
+  // We no longer manually handle localStorage or local state matching here because
+  // the real password is NOT shipped to the client anymore! We let the action handle it.
 
   const backgroundStyle = backgroundImageUrl
     ? {
@@ -144,10 +135,11 @@ export function LockScreen({
           </>
         ) : (
           <>
-            <form onSubmit={handlePasswordSubmit} className="space-y-4 mb-6">
+            <unlockFetcher.Form method="post" action="/api/unlock" className="space-y-4 mb-6">
               <div>
                 <input
                   type="password"
+                  name="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
@@ -155,14 +147,15 @@ export function LockScreen({
                   required
                 />
               </div>
-              {error && <div className="text-red-400 text-sm text-center drop-shadow-sm">{error}</div>}
+              {unlockActionData?.error && <div className="text-red-400 text-sm text-center drop-shadow-sm">{unlockActionData.error}</div>}
               <button
                 type="submit"
-                className="w-full bg-white text-black font-semibold py-3 px-6 rounded-lg hover:bg-gray-200 transition duration-200 uppercase tracking-widest text-sm mt-2"
+                disabled={isUnlocking || !password}
+                className="w-full bg-white text-black font-semibold py-3 px-6 rounded-lg hover:bg-gray-200 transition duration-200 uppercase tracking-widest text-sm mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Enter Password
+                {isUnlocking ? 'Unlocking...' : 'Enter Password'}
               </button>
-            </form>
+            </unlockFetcher.Form>
             
             <div className="text-center border-t border-white/20 pt-6">
               <button

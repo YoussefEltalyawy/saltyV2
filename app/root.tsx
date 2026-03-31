@@ -158,12 +158,18 @@ async function loadCriticalData({ context, request }: LoaderFunctionArgs) {
   const isLockPage = url.pathname.endsWith('/pages/lock-with-password');
 
   const storeLockedMetafield = metafields.find((m: any) => m && m.key === 'store_locked');
-  const storeLocked = isLockPage || storeLockedMetafield?.value === 'true';
+  let storeLocked = isLockPage || storeLockedMetafield?.value === 'true';
   
   let storePassword = metafields.find((m: any) => m && m.key === 'store_password')?.value || '';
   if (isLockPage && storePassword.trim() === '') {
     storePassword = 'test'; // Ensure password is set so the overlay renders
   }
+
+  // Ensure lock status triggers securely via session and matches the current password
+  const { session } = context;
+  const unlockedPassword = session.get('unlockedPassword');
+  const hasAccess = unlockedPassword === storePassword && storePassword.trim() !== '';
+  const isLockedServer = storeLocked && !hasAccess;
 
   // Extract new customizable metafields
   const backgroundImageMetafield = metafields.find((m: any) => m && m.key === 'background_image');
@@ -200,8 +206,7 @@ async function loadCriticalData({ context, request }: LoaderFunctionArgs) {
     header,
     browseCollections,
     browseCategories,
-    storeLocked,
-    storePassword,
+    isLockedServer,
     backgroundImageUrl,
     lockTitle: title,
     lockDescription: description,
@@ -241,29 +246,14 @@ function loadDeferredData({ context }: LoaderFunctionArgs) {
 export function Layout({ children }: { children?: React.ReactNode }) {
   const nonce = useNonce();
   const data = useRouteLoaderData<RootLoader>('root');
-  const [isChecking, setIsChecking] = useState(true);
-  const [isLocked, setIsLocked] = useState(true);
   const {
     isOpen: isNewsletterOpen,
     openPopup: openNewsletterPopup,
     closePopup: closeNewsletterPopup,
   } = useNewsletterPopup();
 
-  useEffect(() => {
-    if (data) {
-      const shouldLock = data.storeLocked === true && typeof data.storePassword === 'string' && data.storePassword.trim() !== '';
-      const hasAccess = safeLocalStorage.getItem('storeAccessGranted') === 'true';
-
-      if (hasAccess || !shouldLock) {
-        setIsLocked(false);
-      }
-      setIsChecking(false);
-    }
-  }, [data]);
-
-  const handlePasswordSuccess = () => setIsLocked(false);
-
-  if (isChecking || !data) {
+  // If data isn't loaded yet
+  if (!data) {
     return (
       <html lang="en">
         <head>
@@ -283,6 +273,8 @@ export function Layout({ children }: { children?: React.ReactNode }) {
     );
   }
 
+  const isLocked = data.isLockedServer;
+
   return (
     <html lang="en">
       <head>
@@ -301,10 +293,8 @@ export function Layout({ children }: { children?: React.ReactNode }) {
           openPopup={openNewsletterPopup}
           closePopup={closeNewsletterPopup}
         >
-          {data.storeLocked === true && typeof data.storePassword === 'string' && data.storePassword.trim() !== '' && isLocked ? (
+          {isLocked ? (
             <LockScreen
-              correctPassword={data.storePassword}
-              onPasswordSuccess={handlePasswordSuccess}
               backgroundImageUrl={data.backgroundImageUrl}
               title={data.lockTitle}
               description={data.lockDescription}
@@ -325,11 +315,13 @@ export function Layout({ children }: { children?: React.ReactNode }) {
               </HeaderAnimationProvider>
             )
           )}
-          <NewsletterPopup
-            isOpen={isNewsletterOpen}
-            onClose={closeNewsletterPopup}
-            newsletterData={data?.newsletter}
-          />
+          {!isLocked && (
+            <NewsletterPopup
+              isOpen={isNewsletterOpen}
+              onClose={closeNewsletterPopup}
+              newsletterData={data?.newsletter}
+            />
+          )}
         </NewsletterPopupProvider>
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />
