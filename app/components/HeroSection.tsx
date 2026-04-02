@@ -144,61 +144,69 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
         animationData={logoAnimation}
         onComplete={handleLottieComplete}
       />
-      {/* Hero background video */}
-      {(() => {
-        const hasSources = !!(hero?.videoSources && hero.videoSources.length > 0);
-        const fallbackUrl = hero?.videoUrl || '/hero.mp4';
-        if (hasSources) {
+      {/* Hero Content Wrapper - Clickable area */}
+      <NavLink
+        to={hero?.ctaCollectionHandle ? `/collections/${hero.ctaCollectionHandle}` : '/collections/s25-collection'}
+        className="absolute inset-0 z-0 block cursor-pointer group focus:outline-none"
+      >
+        {/* Hero background video */}
+        {(() => {
+          const hasSources = !!(hero?.videoSources && hero.videoSources.length > 0);
+          const fallbackUrl = hero?.videoUrl || '/hero.mp4';
+          if (hasSources) {
+            return (
+              <video
+                ref={videoRef}
+                className="absolute top-0 left-0 w-full h-full object-cover z-0"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="auto"
+                crossOrigin="anonymous"
+                poster="/hero-placeholder.png"
+                onCanPlay={() => setIsVideoLoaded(true)}
+                style={{ willChange: 'opacity, filter' }}
+              >
+                {hero!.videoSources!.map((s, idx) => (
+                  <source key={`${s.url}-${idx}`} src={s.url} type={s.mimeType || undefined} />
+                ))}
+              </video>
+            );
+          }
           return (
             <video
               ref={videoRef}
               className="absolute top-0 left-0 w-full h-full object-cover z-0"
+              src={fallbackUrl}
+              poster="/hero-placeholder.png"
               autoPlay
               loop
               muted
               playsInline
               preload="auto"
               crossOrigin="anonymous"
-              poster="/hero-placeholder.png"
               onCanPlay={() => setIsVideoLoaded(true)}
               style={{ willChange: 'opacity, filter' }}
-            >
-              {hero!.videoSources!.map((s, idx) => (
-                <source key={`${s.url}-${idx}`} src={s.url} type={s.mimeType || undefined} />
-              ))}
-            </video>
+            />
           );
-        }
-        return (
-          <video
-            ref={videoRef}
-            className="absolute top-0 left-0 w-full h-full object-cover z-0"
-            src={fallbackUrl}
-            poster="/hero-placeholder.png"
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="auto"
-            crossOrigin="anonymous"
-            onCanPlay={() => setIsVideoLoaded(true)}
-            style={{ willChange: 'opacity, filter' }}
-          />
-        );
-      })()}
-      <div className="absolute top-5 left-0 w-full h-full flex items-start pt-[var(--header-height)] pl-4 z-1">
-        <h1 className='text-white font-normal text-3xl md:text-3xl tracking-tight max-w-[40%] text-left overflow-hidden'>
-          <span ref={keepRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ')[0] || 'KEEP'}</span>{' '}
-          <span ref={itRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ')[1] || 'IT'}</span>{' '}
-          <span ref={saltyRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ').slice(2).join(' ') || 'SALTY.'}</span>
-        </h1>
-      </div>
+        })()}
+
+        <div className="absolute top-5 left-0 w-full h-full flex items-start pt-[var(--header-height)] pl-4 z-[1]">
+          <h1 className='text-white font-normal text-3xl md:text-3xl tracking-tight max-w-[40%] text-left overflow-hidden'>
+            <span ref={keepRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ')[0] || 'KEEP'}</span>{' '}
+            <span ref={itRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ')[1] || 'IT'}</span>{' '}
+            <span ref={saltyRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ').slice(2).join(' ') || 'SALTY.'}</span>
+          </h1>
+        </div>
+      </NavLink>
+
       {/* S25 Collection button container - removed as per request */}
       {/* SHOP HERE link at bottom right */}
       <NavLink
         to={hero?.ctaCollectionHandle ? `/collections/${hero.ctaCollectionHandle}` : '/collections/s25-collection'}
         className="absolute bottom-8 right-8 z-[8] text-white text-sm tracking-widest font-medium uppercase hover:underline focus:underline outline-none"
-
+        ref={exploreBtnRef}
       >
         {(hero?.ctaText || 'SHOP HERE').toUpperCase()}
       </NavLink>
