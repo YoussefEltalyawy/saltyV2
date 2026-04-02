@@ -73,6 +73,15 @@ export function links() {
       rel: 'preconnect',
       href: 'https://shop.app',
     },
+    {
+      rel: 'preconnect',
+      href: 'https://fonts.googleapis.com',
+    },
+    {
+      rel: 'preconnect',
+      href: 'https://fonts.gstatic.com',
+      crossOrigin: 'anonymous',
+    },
     { rel: 'icon', type: 'image/svg+xml', href: favicon },
   ];
 }
@@ -262,6 +271,7 @@ export function Layout({ children }: { children?: React.ReactNode }) {
           <link rel="stylesheet" href={tailwindCss}></link>
           <link rel="stylesheet" href={resetStyles}></link>
           <link rel="stylesheet" href={appStyles}></link>
+          <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet"></link>
           <Meta />
           <Links />
         </head>
@@ -283,6 +293,7 @@ export function Layout({ children }: { children?: React.ReactNode }) {
         <link rel="stylesheet" href={tailwindCss}></link>
         <link rel="stylesheet" href={resetStyles}></link>
         <link rel="stylesheet" href={appStyles}></link>
+        <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap" rel="stylesheet"></link>
         <Meta />
         <Links />
       </head>

@@ -48,7 +48,6 @@ export function Header({
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const logoSrc = headerColor === 'black' ? '/black-logo.png' : '/white-logo.png';
   const iconColor = headerColor === 'black' ? '#000' : '#fff';
   const { shop, menu } = header;
 
@@ -107,8 +106,8 @@ export function Header({
         </NavLink>
       </div>
       <div ref={centerRef} className="header-center">
-        <NavLink prefetch="intent" to="/">
-          <img src={logoSrc} alt="Logo" className="header-logo" />
+        <NavLink prefetch="intent" to="/" className="header-logo-link">
+          <span className="header-logo-text" style={{ color: iconColor }}>SALTY.</span>
         </NavLink>
       </div>
       <div ref={rightRef} className="header-right">

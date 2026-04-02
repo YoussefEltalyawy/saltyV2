@@ -44,6 +44,12 @@ export default async function handleRequest(
       // Allow video files served from the store domain (e.g. https://<store>.myshopify.com)
       `https://${context.env.PUBLIC_STORE_DOMAIN}`,
     ],
+    fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+    styleSrc: [
+      "'self'",
+      'https://fonts.googleapis.com',
+      'https://cdn.shopify.com',
+    ],
   });
 
   const body = await renderToReadableStream(
