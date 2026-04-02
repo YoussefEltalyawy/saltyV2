@@ -30,6 +30,7 @@ export type HeroContent = {
   headline?: string;
   ctaText?: string;
   ctaCollectionHandle?: string;
+  textColor?: string;
 };
 
 export function parseHeroMetaobject(metaobject: any): HeroContent {
@@ -59,6 +60,7 @@ export function parseHeroMetaobject(metaobject: any): HeroContent {
   const headline = byKey.headline?.value || undefined;
   const ctaText = byKey.cta_text?.value || undefined;
   const ctaCollectionHandle = byKey.cta_collection?.reference?.handle || undefined;
+  const textColor = byKey.hero_text_color?.value || undefined;
 
   return {
     mobileVideoSources: mobileSources,
@@ -67,7 +69,8 @@ export function parseHeroMetaobject(metaobject: any): HeroContent {
     desktopVideoUrl,
     headline,
     ctaText,
-    ctaCollectionHandle
+    ctaCollectionHandle,
+    textColor
   };
 }
 

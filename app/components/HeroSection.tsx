@@ -110,7 +110,7 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setHeaderColor('default');
+          setHeaderColor(hero?.textColor || 'default');
         }
       },
       { threshold: 0.5 }
@@ -216,7 +216,10 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
         })()}
 
         <div className="absolute top-5 left-0 w-full h-full flex items-start pt-[var(--header-height)] pl-4 z-[1]">
-          <h1 className='text-white font-normal text-4xl sm:text-5xl md:5xl tracking-tight max-w-[80%] sm:max-w-[60%] md:max-w-[100%] text-left overflow-hidden leading-[0.9]'>
+          <h1 
+            className='font-normal text-4xl sm:text-5xl md:text-5xl tracking-tight max-w-[80%] sm:max-w-[60%] md:max-w-[100%] text-left overflow-hidden leading-[0.9]'
+            style={{ color: hero?.textColor || 'white' }}
+          >
             <span ref={keepRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ')[0] || 'KEEP'}</span>{' '}
             <span ref={itRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ')[1] || 'IT'}</span>{' '}
             <span ref={saltyRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ').slice(2).join(' ') || 'SALTY.'}</span>
@@ -228,7 +231,8 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
       {/* SHOP HERE link at bottom right */}
       <NavLink
         to={hero?.ctaCollectionHandle ? `/collections/${hero.ctaCollectionHandle}` : '/collections/s25-collection'}
-        className="absolute bottom-8 right-8 z-[8] text-white text-md tracking-widest font-medium uppercase hover:underline focus:underline outline-none"
+        className="absolute bottom-8 right-8 z-[8] text-md tracking-widest font-medium uppercase hover:underline focus:underline outline-none"
+        style={{ color: hero?.textColor || 'white' }}
         ref={exploreBtnRef}
       >
         {(hero?.ctaText || 'SHOP HERE').toUpperCase()}

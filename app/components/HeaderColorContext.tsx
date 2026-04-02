@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-export type HeaderColor = 'default' | 'black';
+export type HeaderColor = 'default' | 'black' | (string & {});
 
 interface HeaderColorContextType {
   headerColor: HeaderColor;

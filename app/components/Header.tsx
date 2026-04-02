@@ -48,7 +48,7 @@ export function Header({
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const iconColor = headerColor === 'black' ? '#000' : '#fff';
+  const iconColor = headerColor === 'black' ? '#000' : (headerColor === 'default' ? '#fff' : headerColor);
   const { shop, menu } = header;
 
   // GSAP animation for header elements

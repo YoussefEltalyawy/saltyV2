@@ -86,7 +86,7 @@ export function BrowseCategoriesSection() {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setHeaderColor('default');
+          setHeaderColor('black');
         }
       },
       { threshold: 0.5 }
