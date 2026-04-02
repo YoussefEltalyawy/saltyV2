@@ -36,8 +36,11 @@ function getAllVariants(product: ProductItemFragment) {
 function findMatchingVariant(product: ProductItemFragment, selectedOptions: SelectedOptions) {
   const allVariants = getAllVariants(product);
   return allVariants.find((variant: any) => {
-    if (!variant) return false;
-    return variant.selectedOptions.every((opt: any) => selectedOptions[opt.name.toLowerCase()] === opt.value);
+    if (!variant || !variant.selectedOptions) return false;
+    return variant.selectedOptions.every((opt: any) => {
+      const selectedValue = selectedOptions[opt.name.toLowerCase()];
+      return selectedValue && selectedValue.toLowerCase() === opt.value.toLowerCase();
+    });
   });
 }
 
@@ -222,7 +225,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                     }
                   });
                 }
-                const matchingVariant = findMatchingVariant(product, selectedOptions) || product.selectedOrFirstAvailableVariant;
+                const matchingVariant = findMatchingVariant(product, selectedOptions);
                 const displayImage = getDisplayImage(product);
                 return (
                   <div
@@ -255,17 +258,25 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                           <div key={option.name} className={`flex ${isColor ? 'flex-row gap-1.5' : 'flex-row gap-1'}`}>
                             {option.optionValues.map((value: any) => {
                               const isSelected = selectedOptions[option.name.toLowerCase()] === value.name;
-                              let isAvailable = value.available;
-                              if (isSize) {
-                                // Only available if a variant with the selected color and this size is available
-                                const selectedColor = selectedOptions['color'];
-                                isAvailable = getAllVariants(product).some((variant: any) =>
-                                  variant &&
-                                  variant.availableForSale &&
-                                  variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'color' && opt.value === selectedColor) &&
-                                  variant.selectedOptions.some((opt: any) => opt.name.toLowerCase() === 'size' && opt.value === value.name)
-                                );
-                              }
+                              // Robust availability check: a value is available if at least one available 
+                              // variant matches this value AND all other currently selected options.
+                              const isAvailable = getAllVariants(product).some((variant: any) => {
+                                if (!variant || !variant.availableForSale || !variant.selectedOptions) return false;
+
+                                return variant.selectedOptions.every((variantOption: any) => {
+                                  const vOptName = variantOption.name.toLowerCase();
+                                  const vOptValue = variantOption.value.toLowerCase();
+
+                                  // If this is the option we are currently rendering (e.g., "Size")
+                                  if (vOptName === option.name.toLowerCase()) {
+                                    return vOptValue === value.name.toLowerCase();
+                                  }
+
+                                  // For all other options, they must match the current selection
+                                  const currentSelectedValue = selectedOptions[vOptName];
+                                  return !currentSelectedValue || currentSelectedValue.toLowerCase() === vOptValue;
+                                });
+                              });
                               // Color circle only for color option
                               if (isColor && value.swatch?.color) {
                                 return (
@@ -348,7 +359,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                     {/* Add to cart button */}
                     <div className="w-full mt-auto">
                       <AddToCartButton
-                        disabled={!matchingVariant?.availableForSale}
+                        disabled={!matchingVariant || matchingVariant.availableForSale === false}
                         lines={matchingVariant ? [{ merchandiseId: matchingVariant.id, quantity: 1, selectedVariant: matchingVariant }] : []}
                         onClick={() => open('cart')}
                       >
@@ -361,7 +372,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                           }
                           style={{ letterSpacing: '0.05em', borderWidth: '1px' }}
                         >
-                          {matchingVariant?.availableForSale ? 'Add to cart' : 'Sold out'}
+                          {!matchingVariant ? 'Unavailable' : (matchingVariant.availableForSale ? 'Add to cart' : 'Sold out')}
                         </span>
                       </AddToCartButton>
                     </div>
