@@ -179,13 +179,13 @@ export function BrowseCategoriesSection() {
           </div>
           
           {/* Pagination Bars - Full width with equal spacing */}
-          <div className="hidden md:block w-full px-4 mt-4">
+          <div className="hidden md:block w-full">
             <div className="flex justify-between w-full">
               {scrollSnaps.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => scrollTo(index)}
-                  className={`h-1 transition-all duration-300 flex-1 mx-0.5 first:ml-0 last:mr-0 ${index === selectedIndex ? 'bg-black' : 'bg-gray-200'}`}
+                  className={`h-1 transition-all duration-300 flex-1 mx-0.5 first:ml-0 last:mr-0 ${index === selectedIndex ? 'bg-black' : 'bg-gray-300'}`}
                   aria-label={`Go to slide ${index + 1}`}
                 />
               ))}

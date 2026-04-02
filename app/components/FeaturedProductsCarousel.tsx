@@ -7,6 +7,7 @@ import { useHeaderColor } from '~/components/HeaderColorContext';
 import { AddToCartButton } from '~/components/AddToCartButton';
 import { getProductOptions } from '@shopify/hydrogen';
 import { useAside } from '~/components/Aside';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface FeaturedProductsCarouselProps {
   products: ProductItemFragment[];
@@ -187,8 +188,8 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
 
   return (
     <section ref={sectionRef} className="bg-white py-8">
-      <div className="w-full px-4 md:px-8 lg:px-12">
-        <h2 className="text-small font-semibold mb-0 ml-4 text-black flex items-center gap-2">
+      <div className="w-full px-4">
+        <h2 className="text-small font-semibold mb-0 ml-2 text-black flex items-center gap-2">
           <span>FEATURED</span>
         </h2>
         <div className="relative">
@@ -225,33 +226,33 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                 const displayImage = getDisplayImage(product);
                 return (
                   <div
-                    className="min-w-0 flex-[0_0_100%] md:flex-[0_0_50%] lg:flex-[0_0_33.33%] xl:flex-[0_0_25%] flex flex-col items-center justify-center px-2"
+                    className="min-w-0 flex-[0_0_100%] md:flex-[0_0_50%] lg:flex-[0_0_33.33%] xl:flex-[0_0_25%] flex flex-col items-stretch justify-start px-2"
                     key={product.id}
                   >
                     <Link to={"/products/" + product.handle} className="block w-full">
                       {displayImage && (
                         <Image
                           data={displayImage}
-                          className="w-full object-cover mb-4 rounded-lg"
+                          className="w-full object-cover mb-4"
                           aspectRatio="3/4"
                           sizes="(min-width: 45em) 400px, 100vw"
                           alt={displayImage.altText || product.featuredImage?.altText || product.title}
                         />
                       )}
-                      <div className="text-center">
-                        <h3 className="text-lg text-black mb-1 uppercase tracking-tight font-medium">{product.title}</h3>
-                        <span className="block text-base text-black mb-2">
+                      <div className="flex items-baseline justify-between gap-2 mb-2">
+                        <h3 className="text-lg text-black uppercase tracking-tight font-medium whitespace-nowrap overflow-hidden text-ellipsis">{product.title}</h3>
+                        <span className="text-base text-black opacity-70">
                           {Math.round(Number(product.priceRange.minVariantPrice.amount))} {product.priceRange.minVariantPrice.currencyCode}
                         </span>
                       </div>
                     </Link>
                     {/* Variant selectors */}
-                    <div className="w-full flex flex-col gap-4 items-center mb-4">
+                    <div className="w-full flex flex-row gap-2 justify-between items-center mb-4">
                       {productOptions.map((option: any) => {
                         const isColor = option.name.toLowerCase() === 'color';
                         const isSize = option.name.toLowerCase() === 'size';
                         return (
-                          <div key={option.name} className={`flex ${isColor ? 'flex-row gap-3 justify-center' : 'flex-row gap-2 justify-center'}`}>
+                          <div key={option.name} className={`flex ${isColor ? 'flex-row gap-1.5' : 'flex-row gap-1'}`}>
                             {option.optionValues.map((value: any) => {
                               const isSelected = selectedOptions[option.name.toLowerCase()] === value.name;
                               let isAvailable = value.available;
@@ -271,7 +272,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                                   <div className="relative inline-block" key={value.name}>
                                     <button
                                       type="button"
-                                      className={`w-7 h-7 rounded-full border flex items-center justify-center transition-all shadow-sm
+                                      className={`w-6 h-6 rounded-none border flex items-center justify-center transition-all shadow-sm
                                         ${isSelected ? 'border-gray-900 ring-2 ring-gray-900' : 'border-gray-200'}
                                         ${!isAvailable ? 'opacity-30 cursor-not-allowed' : 'hover:ring-2 hover:ring-gray-900'}
                                       `}
@@ -301,10 +302,10 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                                   <div className="relative inline-block" key={value.name}>
                                     <button
                                       type="button"
-                                      className={`px-4 py-1 rounded-md border text-sm font-medium transition-all bg-white
+                                      className={`px-3 py-1 rounded-none border text-xs font-medium transition-all bg-white
                                         ${isSelected ? 'border-gray-900 ring-1 ring-gray-300 text-gray-900' : 'border-gray-300 text-gray-900'}
                                         ${!isAvailable ? 'opacity-30 cursor-not-allowed' : 'hover:border-gray-900'}
-                                        min-w-[40px] text-center tracking-wide`
+                                        min-w-[32px] text-center tracking-wide`
                                       }
                                       style={{ borderWidth: '1px' }}
                                       disabled={!isAvailable}
@@ -345,23 +346,25 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                       })}
                     </div>
                     {/* Add to cart button */}
-                    <AddToCartButton
-                      disabled={!matchingVariant?.availableForSale}
-                      lines={matchingVariant ? [{ merchandiseId: matchingVariant.id, quantity: 1, selectedVariant: matchingVariant }] : []}
-                      onClick={() => open('cart')}
-                    >
-                      <span
-                        className={
-                          `block w-full text-center py-2 px-4 rounded-lg tracking-wide text-base transition-all duration-200 ` +
-                          (matchingVariant?.availableForSale
-                            ? 'border border-gray-900 text-gray-900 bg-white hover:bg-gray-50 active:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300'
-                            : 'border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed')
-                        }
-                        style={{ letterSpacing: '0.02em', borderWidth: '1px' }}
+                    <div className="w-full mt-auto">
+                      <AddToCartButton
+                        disabled={!matchingVariant?.availableForSale}
+                        lines={matchingVariant ? [{ merchandiseId: matchingVariant.id, quantity: 1, selectedVariant: matchingVariant }] : []}
+                        onClick={() => open('cart')}
                       >
-                        {matchingVariant?.availableForSale ? 'Add to cart' : 'Sold out'}
-                      </span>
-                    </AddToCartButton>
+                        <span
+                          className={
+                            `block w-full text-center py-2 px-4 rounded-none tracking-wide text-sm transition-all duration-200 ` +
+                            (matchingVariant?.availableForSale
+                              ? 'border border-gray-900 text-gray-900 bg-white hover:bg-gray-50 active:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 font-medium uppercase'
+                              : 'border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed')
+                          }
+                          style={{ letterSpacing: '0.05em', borderWidth: '1px' }}
+                        >
+                          {matchingVariant?.availableForSale ? 'Add to cart' : 'Sold out'}
+                        </span>
+                      </AddToCartButton>
+                    </div>
                   </div>
                 );
               })}
@@ -369,26 +372,22 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
           </div>
           {/* Arrows */}
           <button
-            className="absolute left-2 md:left-4 lg:left-8 top-1/2 -translate-y-1/2 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg disabled:opacity-30 hover:bg-white transition-all"
+            className="absolute left-2 md:left-4 lg:left-8 top-1/2 -translate-y-1/2 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg disabled:opacity-30 hover:bg-white transition-all z-10"
             onClick={() => emblaApi && emblaApi.scrollPrev()}
             disabled={!canScrollPrev}
             aria-label="Previous product"
             type="button"
           >
-            <svg width="24" height="24" fill="none" stroke="black" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
+            <ArrowLeft className="w-6 h-6 text-black" />
           </button>
           <button
-            className="absolute right-2 md:right-4 lg:right-8 top-1/2 -translate-y-1/2 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg disabled:opacity-30 hover:bg-white transition-all"
+            className="absolute right-2 md:right-4 lg:right-8 top-1/2 -translate-y-1/2 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg disabled:opacity-30 hover:bg-white transition-all z-10"
             onClick={() => emblaApi && emblaApi.scrollNext()}
             disabled={!canScrollNext}
             aria-label="Next product"
             type="button"
           >
-            <svg width="24" height="24" fill="none" stroke="black" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
+            <ArrowRight className="w-6 h-6 text-black" />
           </button>
         </div>
       </div>
