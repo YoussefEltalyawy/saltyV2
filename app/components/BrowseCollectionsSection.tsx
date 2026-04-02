@@ -23,25 +23,32 @@ export function BrowseCollectionsSection() {
   const { isHeaderVisible } = useHeaderAnimation();
   const { setHeaderColor } = useHeaderColor();
   const sectionRef = useRef<HTMLDivElement>(null);
-  const currentBgRef = useRef<HTMLDivElement>(null);
-  const nextBgRef = useRef<HTMLDivElement>(null);
+  const bg1Ref = useRef<HTMLDivElement>(null);
+  const bg2Ref = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
   const data = useRouteLoaderData<RootLoader>('root');
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [isSectionActive, setIsSectionActive] = useState(false);
-  const [collectionImages, setCollectionImages] = useState<{ [key: string]: any }>({});
+  const [collectionImages, setCollectionImages] = useState<Record<string, any>>({});
   const [currentBackgroundImage, setCurrentBackgroundImage] = useState<string | null>(null);
-  const [nextBackgroundImage, setNextBackgroundImage] = useState<string | null>(null);
+  const activeLayerRef = useRef<number>(1);
+  const lastImageRef = useRef<string | null>(null);
+  const isUnlockingRef = useRef<boolean>(false);
+  const unlockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Helper to get image URL for a handle
+  const getImageUrl = (handle: string) => {
+    return collectionImages[handle]?.image?.url;
+  };
 
   const collections = useMemo(
     () => data?.browseCollections?.menu?.items || [],
     [data],
   );
 
-  const imageFetcher = useFetcher();
   const fetchingRef = useRef<Set<string>>(new Set());
-  const fetchQueueRef = useRef<string[]>([]);
+  const collectionsRef = useRef<any[]>([]);
 
   useEffect(() => {
     setIsClient(true);
@@ -49,16 +56,13 @@ export function BrowseCollectionsSection() {
 
   // Helper function to extract handle from URL more robustly
   const extractHandle = (url: string): string | null => {
-    if (!url || !url.includes('/collections/')) return null;
+    if (!url) return null;
 
     try {
-      // Remove query parameters and hash
-      const cleanUrl = url.split('?')[0].split('#')[0];
-      // Extract handle after /collections/
-      const match = cleanUrl.match(/\/collections\/([^\/]+)/);
-      if (match && match[1]) {
-        // Remove trailing slash if present
-        return match[1].replace(/\/$/, '');
+      // Find the collections segment
+      const collectionsMatch = url.match(/\/collections\/([^\/\?#]+)/);
+      if (collectionsMatch && collectionsMatch[1]) {
+        return collectionsMatch[1].toLowerCase();
       }
     } catch (error) {
       console.error('Error extracting handle from URL:', url, error);
@@ -66,170 +70,136 @@ export function BrowseCollectionsSection() {
     return null;
   };
 
-  // Fetch collection images sequentially to avoid overwriting
+  // Fetch all collection images in parallel on mount/collections change
   useEffect(() => {
-    if (!collections.length) return;
+    if (!isClient || !collections.length) return;
 
-    // Extract all handles that need fetching
-    const handlesToFetch: string[] = [];
+    // Track which collections we've already tried to fetch
+    const attemptedHandles = new Set<string>();
+
     collections.forEach((item) => {
-      if (!item.url) return;
-
-      const handle = extractHandle(item.url);
-      if (!handle) return;
-
-      // Skip if already fetched or currently fetching
-      if (collectionImages[handle] || fetchingRef.current.has(handle)) return;
-
-      handlesToFetch.push(handle);
-    });
-
-    // Add to queue if not already there
-    handlesToFetch.forEach(handle => {
-      if (!fetchQueueRef.current.includes(handle)) {
-        fetchQueueRef.current.push(handle);
-      }
-    });
-
-    // Process queue sequentially
-    const processQueue = async () => {
-      if (fetchQueueRef.current.length === 0 || imageFetcher.state !== 'idle') {
-        return;
-      }
-
-      const handle = fetchQueueRef.current.shift();
-      if (!handle || fetchingRef.current.has(handle)) {
-        // Process next item
-        setTimeout(processQueue, 0);
-        return;
-      }
+      const handle = extractHandle(item.url || '');
+      if (!handle || collectionImages[handle] || fetchingRef.current.has(handle)) return;
 
       fetchingRef.current.add(handle);
-      imageFetcher.load(`/api/collection-image?handle=${encodeURIComponent(handle)}`);
-    };
+      
+      // Use native fetch to allow parallel requests
+      fetch(`/api/collection-image?handle=${encodeURIComponent(handle)}`)
+        .then(res => {
+          if (!res.ok) throw new Error(`Failed to fetch image for ${handle}`);
+          return res.json();
+        })
+        .then((data: any) => {
+          if (data) {
+            setCollectionImages(prev => ({
+              ...prev,
+              [handle]: data
+            }));
 
-    // Start processing if fetcher is idle
-    if (imageFetcher.state === 'idle' && fetchQueueRef.current.length > 0) {
-      processQueue();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [collections, collectionImages, imageFetcher.state]);
-
-  // Update collection images when fetched
-  useEffect(() => {
-    if (imageFetcher.data) {
-      const handle = imageFetcher.data.handle;
-
-      if (!handle) {
-        console.warn('Collection image response missing handle');
-        return;
-      }
-
-      // Remove from fetching set
-      fetchingRef.current.delete(handle);
-
-      // Store the data even if image is null (to prevent re-fetching)
-      setCollectionImages(prev => ({
-        ...prev,
-        [handle]: imageFetcher.data
-      }));
-
-      // Set initial background if image exists
-      if (imageFetcher.data.image?.url) {
-        if (!currentBackgroundImage && activeIndex === 0) {
-          const firstItem = collections[0];
-          if (firstItem?.url) {
-            const firstHandle = extractHandle(firstItem.url);
-            if (handle === firstHandle) {
-              setCurrentBackgroundImage(imageFetcher.data.image.url);
+            // Preload the image in browser cache
+            if (data.image?.url) {
+              const img = new Image();
+              img.src = data.image.url;
             }
           }
-        }
-      } else {
-        // Log when collection exists but has no image (for debugging)
-        if (process.env.NODE_ENV === 'development') {
-          console.warn(`Collection "${imageFetcher.data.title}" (handle: ${handle}) has no image`);
-        }
-      }
+        })
+        .catch(err => {
+          // Log and keep in fetching set to avoid infinite retries if desired, 
+          // or remove to allow retry. Here we keep it to be safe.
+          console.error(`Error loading image for ${handle}:`, err);
+        })
+        .finally(() => {
+          // We don't remove from fetchingRef here because we don't want to re-fetch 
+          // in the next cycle if setCollectionImages triggered it but it's not yet in the state
+        });
+    });
+  }, [isClient, collections]);
 
-      // Process next item in queue
-      if (fetchQueueRef.current.length > 0) {
-        setTimeout(() => {
-          const nextHandle = fetchQueueRef.current.shift();
-          if (nextHandle && !fetchingRef.current.has(nextHandle)) {
-            fetchingRef.current.add(nextHandle);
-            imageFetcher.load(`/api/collection-image?handle=${encodeURIComponent(nextHandle)}`);
-          }
-        }, 100); // Small delay to avoid overwhelming the API
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageFetcher.data, currentBackgroundImage, activeIndex, collections]);
-
-  // Handle fetcher errors - track failed requests
+  // Preload all images and put them in cache
   useEffect(() => {
-    if (imageFetcher.state === 'idle' && imageFetcher.data === undefined) {
-      // If we're idle but have no data and there are items in queue, 
-      // it might indicate an error - process next item
-      if (fetchQueueRef.current.length > 0) {
-        const nextHandle = fetchQueueRef.current.shift();
-        if (nextHandle && !fetchingRef.current.has(nextHandle)) {
-          fetchingRef.current.add(nextHandle);
-          imageFetcher.load(`/api/collection-image?handle=${encodeURIComponent(nextHandle)}`);
+    Object.values(collectionImages).forEach((data: any) => {
+      const url = data?.image?.url;
+      if (url) {
+        const img = new Image();
+        img.src = url;
+      }
+    });
+  }, [collectionImages]);
+
+  // Setup initial background for current active index
+  useEffect(() => {
+    if (!currentBackgroundImage && collections.length > 0) {
+      const activeItem = collections[activeIndex];
+      const handle = extractHandle(activeItem?.url || '') || activeItem?.title.toLowerCase().replace(/\s+/g, '-');
+      if (handle) {
+        const url = getImageUrl(handle);
+        if (url) {
+          setCurrentBackgroundImage(url);
+          lastImageRef.current = url;
+          if (bg1Ref.current) {
+            gsap.set(bg1Ref.current, { 
+              backgroundImage: `url(${url})`, 
+              opacity: 1,
+              zIndex: 1 
+            });
+          }
         }
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageFetcher.state, imageFetcher.data]);
+  }, [collections, collectionImages, currentBackgroundImage, activeIndex]);
 
-  // Smooth crossfade background animation
+  // Optimized background transition
   useEffect(() => {
     if (!collections.length || activeIndex >= collections.length) return;
 
     const activeItem = collections[activeIndex];
-    if (!activeItem?.url) return;
+    const handle = extractHandle(activeItem.url || '') || activeItem.title.toLowerCase().replace(/\s+/g, '-');
+    const newImageUrl = getImageUrl(handle);
 
-    const handle = extractHandle(activeItem.url) || activeItem.title.toLowerCase().replace(/\s+/g, '-');
+    if (newImageUrl && newImageUrl !== lastImageRef.current) {
+      const isFirstLayerActive = activeLayerRef.current === 1;
+      const currentLayer = isFirstLayerActive ? bg1Ref.current : bg2Ref.current;
+      const nextLayer = isFirstLayerActive ? bg2Ref.current : bg1Ref.current;
 
-    const collectionData = collectionImages[handle];
-    const newImageUrl = collectionData?.image?.url;
+      if (nextLayer && currentLayer) {
+        lastImageRef.current = newImageUrl;
+        
+        // Prepare next layer - use a new image object for preloading just in case
+        const img = new Image();
+        img.onload = () => {
+          // Skip if this load finished but we've already moved on to another image
+          if (newImageUrl !== lastImageRef.current) return;
 
-    if (newImageUrl && newImageUrl !== currentBackgroundImage) {
-      setNextBackgroundImage(newImageUrl);
+          // Kill any existing animations on the layers
+          gsap.killTweensOf([nextLayer, currentLayer]);
+          
+          // Set background and move to front
+          gsap.set(nextLayer, { 
+            backgroundImage: `url(${newImageUrl})`,
+            zIndex: 1,
+            opacity: 0,
+            scale: 1.05
+          });
+          gsap.set(currentLayer, { zIndex: 0 });
 
-      // Preload image for smooth transition
-      const img = new Image();
-      img.onload = () => {
-        const ctx = gsap.context(() => {
-          // Set up next background with same scale as current
-          if (nextBgRef.current) {
-            gsap.set(nextBgRef.current, {
-              backgroundImage: `url(${newImageUrl})`,
-              opacity: 0,
-              scale: 1.05, // Match the current background scale
-            });
-          }
-
-          // Simple crossfade animation - no scaling
-          const tl = gsap.timeline({
+          // Crossfade: Fade in the TOP layer (next), and ONLY fade out the bottom layer (current) after the top is visible
+          // This prevents any "white/gap" phase where both layers are semi-transparent.
+          gsap.to(nextLayer, {
+            opacity: 1,
+            duration: 0.8,
+            ease: 'power2.inOut',
             onComplete: () => {
+              // Now that nextLayer is fully visible, we can safely hide the previous one
+              gsap.set(currentLayer, { opacity: 0 });
+              activeLayerRef.current = isFirstLayerActive ? 2 : 1;
               setCurrentBackgroundImage(newImageUrl);
-              setNextBackgroundImage(null);
             }
           });
-
-          // Only fade opacity, no scale changes
-          tl.to(nextBgRef.current, {
-            opacity: 1,
-            duration: 0.6,
-            ease: 'power2.out',
-          });
-        });
-        return () => ctx.revert();
-      };
-      img.src = newImageUrl;
+        };
+        img.src = newImageUrl;
+      }
     }
-  }, [activeIndex, collections, collectionImages, currentBackgroundImage]);
+  }, [activeIndex, collections, collectionImages]);
 
   // Initial section animation
   // useGSAP(() => {
@@ -267,20 +237,26 @@ export function BrowseCollectionsSection() {
 
   // Intersection observer for section activation
   useEffect(() => {
-    if (!isClient || !sectionRef.current) return;
-
     const section = sectionRef.current;
+    if (!isClient || !section) return;
+
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setIsSectionActive(entry.isIntersecting && entry.intersectionRatio > 0.9);
+        // Don't re-lock if we are in the process of unlocking
+        if (isUnlockingRef.current) return;
+        
+        // Lower threshold (0.7 instead of 0.9) to make it more responsive
+        const isIntersecting = entry.isIntersecting && entry.intersectionRatio > 0.7;
+        setIsSectionActive(isIntersecting);
       },
-      { threshold: 0.9 },
+      { threshold: [0.7] },
     );
 
     observer.observe(section);
 
     return () => {
-      observer.unobserve(section);
+      observer.disconnect();
+      if (unlockTimeoutRef.current) clearTimeout(unlockTimeoutRef.current);
     };
   }, [isClient]);
 
@@ -302,33 +278,36 @@ export function BrowseCollectionsSection() {
 
   // Replace releaseSectionLockAndScrollToHero with a direction-aware function
   const releaseSectionLockAndScroll = (direction: 'up' | 'down') => {
+    isUnlockingRef.current = true;
     setIsSectionActive(false);
+    
     document.body.style.overflow = '';
     document.body.style.touchAction = '';
+
+    // Scroll animation
     if (direction === 'up') {
-      // Scroll to hero (top)
       gsap.to(window, {
         scrollTo: 0,
-        duration: 0.6,
-        ease: 'power2.out',
+        duration: 0.8,
+        ease: 'power2.inOut',
       });
     } else if (direction === 'down') {
-      // Scroll to next section below collections
       const section = sectionRef.current;
       if (section) {
-        let next = section.nextElementSibling as HTMLElement | null;
-        while (next && next.tagName.toLowerCase() !== 'section') {
-          next = next.nextElementSibling as HTMLElement | null;
-        }
-        if (next) {
-          gsap.to(window, {
-            scrollTo: next.offsetTop,
-            duration: 0.6,
-            ease: 'power2.out',
-          });
-        }
+        const nextScrollPos = section.offsetTop + section.offsetHeight;
+        gsap.to(window, {
+          scrollTo: nextScrollPos,
+          duration: 0.8,
+          ease: 'power2.inOut',
+        });
       }
     }
+
+    // Reset the unlock flag after a delay that matches the animation
+    if (unlockTimeoutRef.current) clearTimeout(unlockTimeoutRef.current);
+    unlockTimeoutRef.current = setTimeout(() => {
+      isUnlockingRef.current = false;
+    }, 800);
   };
 
   // Scroll handling for collections
@@ -377,11 +356,20 @@ export function BrowseCollectionsSection() {
       touchStartY = event.touches[0].clientY;
     };
 
+    const handleTouchMove = (event: TouchEvent) => {
+      if (isSectionActive) {
+        // Prevent default browser scrolling while the section is locked
+        if (event.cancelable) event.preventDefault();
+      }
+    };
+
     const handleTouchEnd = (event: TouchEvent) => {
       if (!isSectionActive || touchStartY === null) return;
       const touchEndY = event.changedTouches[0].clientY;
       const deltaY = touchStartY - touchEndY;
-      if (Math.abs(deltaY) < 30) return;
+      
+      // Increased sensitivity for intentional swipes
+      if (Math.abs(deltaY) < 50) return;
 
       const swipeDirection = deltaY > 0 ? 'down' : 'up';
       let handled = false;
@@ -407,9 +395,8 @@ export function BrowseCollectionsSection() {
       });
 
       if (handled) {
-        event.preventDefault();
+        // No extra action needed, activeIndex update handles it
       } else if (releaseLock) {
-        event.preventDefault();
         releaseSectionLockAndScroll(releaseLock);
       }
       touchStartY = null;
@@ -417,11 +404,13 @@ export function BrowseCollectionsSection() {
 
     window.addEventListener('wheel', handleCollectionScroll, { passive: false });
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
       window.removeEventListener('wheel', handleCollectionScroll);
       window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isClient, isSectionActive, collections.length]);
@@ -435,51 +424,46 @@ export function BrowseCollectionsSection() {
         paddingTop: '1.5rem',
         paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
         zIndex: 2,
+        background: '#000000', // Base background color to prevent white flashes
       }}
     >
-      {/* Current Background */}
-      {currentBackgroundImage && (
-        <div
-          ref={currentBgRef}
-          className="absolute inset-0 w-full h-full"
-          style={{
-            backgroundImage: `url(${currentBackgroundImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center 30%',
-            backgroundRepeat: 'no-repeat',
-            filter: 'brightness(0.8)',
-            transform: 'scale(1.05)',
-            willChange: 'transform',
-          }}
-        />
-      )}
+      {/* Background Layer 1 */}
+      <div
+        ref={bg1Ref}
+        className="absolute inset-0 w-full h-full"
+        style={{
+          backgroundSize: 'cover',
+          backgroundPosition: 'center 30%',
+          backgroundRepeat: 'no-repeat',
+          filter: 'brightness(0.8)',
+          transform: 'scale(1.05)',
+          willChange: 'transform, opacity',
+        }}
+      />
 
-      {/* Next Background for crossfade */}
-      {nextBackgroundImage && (
-        <div
-          ref={nextBgRef}
-          className="absolute inset-0 w-full h-full"
-          style={{
-            backgroundSize: 'cover',
-            backgroundPosition: 'center 30%',
-            backgroundRepeat: 'no-repeat',
-            filter: 'brightness(0.8)',
-            transform: 'scale(1.05)',
-            willChange: 'transform, opacity',
-            opacity: 0,
-          }}
-        />
-      )}
+      {/* Background Layer 2 */}
+      <div
+        ref={bg2Ref}
+        className="absolute inset-0 w-full h-full"
+        style={{
+          backgroundSize: 'cover',
+          backgroundPosition: 'center 30%',
+          backgroundRepeat: 'no-repeat',
+          filter: 'brightness(0.8)',
+          transform: 'scale(1.05)',
+          willChange: 'transform, opacity',
+        }}
+      />
 
       {/* Fallback background */}
-      {!currentBackgroundImage && (
-        <div
-          className="absolute inset-0 w-full h-full"
-          style={{
-            background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
-          }}
-        />
-      )}
+      <div
+        className="absolute inset-0 w-full h-full transition-opacity duration-300"
+        style={{
+          background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)',
+          opacity: currentBackgroundImage ? 0 : 1,
+          zIndex: 0
+        }}
+      />
 
       {/* Content */}
       <div className="relative z-10 w-full h-full flex flex-col">

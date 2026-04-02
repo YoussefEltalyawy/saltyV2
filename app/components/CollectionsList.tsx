@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import type { FooterQuery } from 'storefrontapi.generated';
+import { useNavigate } from 'react-router';
 
 interface CollectionsListProps {
   menu: FooterQuery['menu'];
@@ -11,6 +12,7 @@ interface CollectionsListProps {
 
 const CollectionsList: React.FC<CollectionsListProps> = ({ menu, activeIndex, setActiveIndex }) => {
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
+  const navigate = useNavigate();
 
   useGSAP(
     () => {
@@ -81,7 +83,7 @@ const CollectionsList: React.FC<CollectionsListProps> = ({ menu, activeIndex, se
               style={{
                 transformOrigin: 'left center',
               }}
-              onClick={() => isActive ? window.location.href = url : setActiveIndex(index)}
+              onClick={() => isActive ? navigate(url) : setActiveIndex(index)}
             >
               {item.title}
             </div>
