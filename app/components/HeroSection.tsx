@@ -13,6 +13,7 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(true);
   const [overlayInteractive, setOverlayInteractive] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const { setHeaderVisible, isHeaderVisible } = useHeaderAnimation();
   const { setHeaderColor } = useHeaderColor();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -27,6 +28,32 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
   // Fetch S25 collection data
   const s25Fetcher = useFetcher<FeaturedCollectionFragment>();
   const [s25Collection, setS25Collection] = useState<FeaturedCollectionFragment | null>(null);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handleMediaChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsMobile(e.matches);
+    };
+    
+    // Initial check
+    handleMediaChange(mql);
+    
+    // Use the appropriate listener method
+    if (mql.addEventListener) {
+      mql.addEventListener('change', handleMediaChange);
+    } else {
+      // Fallback for older browsers
+      mql.addListener(handleMediaChange);
+    }
+    
+    return () => {
+      if (mql.removeEventListener) {
+        mql.removeEventListener('change', handleMediaChange);
+      } else {
+        mql.removeListener(handleMediaChange);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Fetch S25 collection data when component mounts
@@ -95,33 +122,40 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
 
   // GSAP animation for title text
   useGSAP(() => {
-    gsap.set([keepRef.current, itRef.current, saltyRef.current, exploreBtnRef.current], {
-      filter: 'blur(10px)',
-      y: 30,
-      opacity: 0,
-      willChange: 'filter, transform, opacity',
-      force3D: true,
-    });
+    if (!isHeaderVisible) return;
 
-    if (isHeaderVisible) {
-      // Use gsap.context for scoping and cleanup
-      const ctx = gsap.context(() => {
-        const tl = gsap.timeline();
-        tl.to(keepRef.current, {
-          filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out', willChange: 'filter, transform, opacity', force3D: true,
-        })
-          .to(itRef.current, {
-            filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out', willChange: 'filter, transform, opacity', force3D: true,
-          }, '-=0.5')
-          .to(saltyRef.current, {
-            filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out', willChange: 'filter, transform, opacity', force3D: true,
-          }, '-=0.5')
-          .to(exploreBtnRef.current, {
-            filter: 'blur(0px)', y: 0, opacity: 1, duration: 0.8, ease: 'power2.out', willChange: 'filter, transform, opacity', force3D: true,
-          }, '-=0.8');
-      }, [keepRef, itRef, saltyRef, exploreBtnRef]);
-      return () => ctx.revert();
-    }
+    // Use gsap.context for scoping and cleanup
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        defaults: {
+          duration: 0.8,
+          ease: 'power3.out',
+          force3D: true,
+        }
+      });
+
+      // Prepare elements for animation
+      gsap.set([keepRef.current, itRef.current, saltyRef.current, exploreBtnRef.current], {
+        filter: 'blur(10px)',
+        y: 20,
+        opacity: 0,
+        willChange: 'filter, transform, opacity',
+      });
+
+      tl.to(keepRef.current, {
+        filter: 'blur(0px)', y: 0, opacity: 1,
+      })
+        .to(itRef.current, {
+          filter: 'blur(0px)', y: 0, opacity: 1,
+        }, '-=0.6')
+        .to(saltyRef.current, {
+          filter: 'blur(0px)', y: 0, opacity: 1,
+        }, '-=0.6')
+        .to(exploreBtnRef.current, {
+          filter: 'blur(0px)', y: 0, opacity: 1,
+        }, '-=0.8');
+    }, [keepRef, itRef, saltyRef, exploreBtnRef]);
+    return () => ctx.revert();
   }, [isHeaderVisible]);
 
   // (debug logs removed)
@@ -151,49 +185,38 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
       >
         {/* Hero background video */}
         {(() => {
-          const hasSources = !!(hero?.videoSources && hero.videoSources.length > 0);
-          const fallbackUrl = hero?.videoUrl || '/hero.mp4';
-          if (hasSources) {
-            return (
-              <video
-                ref={videoRef}
-                className="absolute top-0 left-0 w-full h-full object-cover z-0"
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="auto"
-                crossOrigin="anonymous"
-                poster="/hero-placeholder.png"
-                onCanPlay={() => setIsVideoLoaded(true)}
-                style={{ willChange: 'opacity, filter' }}
-              >
-                {hero!.videoSources!.map((s, idx) => (
-                  <source key={`${s.url}-${idx}`} src={s.url} type={s.mimeType || undefined} />
-                ))}
-              </video>
-            );
-          }
+          const sources = isMobile ? hero?.mobileVideoSources : hero?.desktopVideoSources;
+          const fallbackUrl = isMobile
+            ? (hero?.mobileVideoUrl || '/hero-mobile.mp4')
+            : (hero?.desktopVideoUrl || hero?.mobileVideoUrl || '/hero.mp4');
+
+          const hasSources = !!(sources && sources.length > 0);
+
           return (
             <video
+              key={isMobile ? 'mobile-video' : 'desktop-video'}
               ref={videoRef}
               className="absolute top-0 left-0 w-full h-full object-cover z-0"
-              src={fallbackUrl}
-              poster="/hero-placeholder.png"
               autoPlay
               loop
               muted
               playsInline
               preload="auto"
               crossOrigin="anonymous"
+              poster="/hero-placeholder.png"
               onCanPlay={() => setIsVideoLoaded(true)}
               style={{ willChange: 'opacity, filter' }}
-            />
+              src={hasSources ? undefined : fallbackUrl}
+            >
+              {hasSources && sources.map((s, idx) => (
+                <source key={`${s.url}-${idx}`} src={s.url} type={s.mimeType || undefined} />
+              ))}
+            </video>
           );
         })()}
 
         <div className="absolute top-5 left-0 w-full h-full flex items-start pt-[var(--header-height)] pl-4 z-[1]">
-          <h1 className='text-white font-normal text-3xl md:text-3xl tracking-tight max-w-[40%] text-left overflow-hidden'>
+          <h1 className='text-white font-normal text-4xl sm:text-5xl md:5xl tracking-tight max-w-[80%] sm:max-w-[60%] md:max-w-[100%] text-left overflow-hidden leading-[0.9]'>
             <span ref={keepRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ')[0] || 'KEEP'}</span>{' '}
             <span ref={itRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ')[1] || 'IT'}</span>{' '}
             <span ref={saltyRef} className="inline-block" style={{ willChange: 'filter, transform, opacity' }}>{hero?.headline?.split(' ').slice(2).join(' ') || 'SALTY.'}</span>
@@ -205,7 +228,7 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
       {/* SHOP HERE link at bottom right */}
       <NavLink
         to={hero?.ctaCollectionHandle ? `/collections/${hero.ctaCollectionHandle}` : '/collections/s25-collection'}
-        className="absolute bottom-8 right-8 z-[8] text-white text-sm tracking-widest font-medium uppercase hover:underline focus:underline outline-none"
+        className="absolute bottom-8 right-8 z-[8] text-white text-md tracking-widest font-medium uppercase hover:underline focus:underline outline-none"
         ref={exploreBtnRef}
       >
         {(hero?.ctaText || 'SHOP HERE').toUpperCase()}

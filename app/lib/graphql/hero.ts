@@ -23,8 +23,10 @@ export const HERO_METAOBJECT_QUERY = `#graphql
 
 export type HeroVideoSource = { url: string; mimeType?: string | null };
 export type HeroContent = {
-  videoSources?: HeroVideoSource[];
-  videoUrl?: string;
+  mobileVideoSources?: HeroVideoSource[];
+  mobileVideoUrl?: string;
+  desktopVideoSources?: HeroVideoSource[];
+  desktopVideoUrl?: string;
   headline?: string;
   ctaText?: string;
   ctaCollectionHandle?: string;
@@ -36,21 +38,37 @@ export function parseHeroMetaobject(metaobject: any): HeroContent {
     fields.map((f: any) => [f?.key, f])
   );
 
-  const videoRef = byKey.video?.reference;
-  const sources: HeroVideoSource[] = Array.isArray(videoRef?.sources)
-    ? (videoRef.sources as Array<{ url: string; mimeType?: string | null }>)
-      .filter((s) => !!s?.url)
-      .map((s) => ({ url: s.url, mimeType: s.mimeType ?? null }))
-    : [];
-  // Prefer MP4 for broad browser compatibility; otherwise pick the first available
-  const mp4 = sources.find((s) => (s.mimeType || '').includes('video/mp4'));
-  const videoUrl = mp4?.url || sources[0]?.url || byKey.video?.value || undefined;
+  const getSources = (videoRef: any): HeroVideoSource[] => {
+    return Array.isArray(videoRef?.sources)
+      ? (videoRef.sources as Array<{ url: string; mimeType?: string | null }>)
+        .filter((s) => !!s?.url)
+        .map((s) => ({ url: s.url, mimeType: s.mimeType ?? null }))
+      : [];
+  };
+
+  const mobileVideoRef = byKey.mobile_video?.reference;
+  const mobileSources = getSources(mobileVideoRef);
+  const mobileMp4 = mobileSources.find((s) => (s.mimeType || '').includes('video/mp4'));
+  const mobileVideoUrl = mobileMp4?.url || mobileSources[0]?.url || byKey.mobile_video?.value || undefined;
+
+  const desktopVideoRef = byKey.desktop_video?.reference;
+  const desktopSources = getSources(desktopVideoRef);
+  const desktopMp4 = desktopSources.find((s) => (s.mimeType || '').includes('video/mp4'));
+  const desktopVideoUrl = desktopMp4?.url || desktopSources[0]?.url || byKey.desktop_video?.value || undefined;
 
   const headline = byKey.headline?.value || undefined;
   const ctaText = byKey.cta_text?.value || undefined;
   const ctaCollectionHandle = byKey.cta_collection?.reference?.handle || undefined;
 
-  return { videoSources: sources, videoUrl, headline, ctaText, ctaCollectionHandle };
+  return {
+    mobileVideoSources: mobileSources,
+    mobileVideoUrl,
+    desktopVideoSources: desktopSources,
+    desktopVideoUrl,
+    headline,
+    ctaText,
+    ctaCollectionHandle
+  };
 }
 
 
