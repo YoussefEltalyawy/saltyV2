@@ -6,11 +6,7 @@ import {
   getFirstColor,
   getFirstSize,
   getVariantIdFromOptions,
-  getVariant,
-  getPriceInfo,
-  getVariantById,
 } from '~/lib/bundleUtils';
-import { getSlotLabel, type BundleDefinition } from '~/lib/bundleConfig';
 
 interface SlotConfig {
   /** Title shown above the card */
@@ -20,11 +16,15 @@ interface SlotConfig {
 }
 
 interface BundlesPageBundleCardProps {
-  def: BundleDefinition;
+  def: {
+    title: string;
+    description: string;
+    discountValue: number;
+    discountCode?: string;
+    minQuantity?: number;
+  };
   /**
    * One entry per slot. Each slot gets its own product pool and title.
-   * For same-collection bundles (polos/tops/collection-3) all slots share the same pool.
-   * For cross-sell bundles (denim+polo) the two slots have different pools.
    */
   slots: SlotConfig[];
 }
@@ -32,7 +32,7 @@ interface BundlesPageBundleCardProps {
 /**
  * Bundles-page-only card. Uses ProductBundleCard per slot so every slot has its
  * own independent product picker. Handles pricing + AddToCartButton.
- * This is NOT used on product pages — UpsellSection handles that.
+ * Matches the site aesthetic: Manrope font, premium black/white CTA.
  */
 export default function BundlesPageBundleCard({ def, slots }: BundlesPageBundleCardProps) {
   const { open } = useAside();
@@ -47,7 +47,6 @@ export default function BundlesPageBundleCard({ def, slots }: BundlesPageBundleC
     slots.map((s) => {
       const p = s.products[0];
       if (!p?.variants?.nodes?.length) return '';
-      // only pre-select if there is an in-stock variant
       const firstAvail = p.variants.nodes.find((v: any) => v.availableForSale);
       return firstAvail?.id ?? '';
     }),
@@ -70,7 +69,7 @@ export default function BundlesPageBundleCard({ def, slots }: BundlesPageBundleC
   // Pricing
   function calcPrice() {
     let total = 0;
-    let currency = 'USD';
+    let currency = 'EGP'; // Defaulting to EGP if not found, usually fetched from variant
     selectedProducts.forEach((prod, i) => {
       if (!prod || !variantIds[i]) return;
       const variant = prod.variants?.nodes?.find((v: any) => v.id === variantIds[i]);
@@ -91,17 +90,23 @@ export default function BundlesPageBundleCard({ def, slots }: BundlesPageBundleC
   // Grid columns based on slot count
   const gridCols =
     slots.length === 2
-      ? 'grid-cols-1 md:grid-cols-2'
+      ? 'grid-cols-2'
       : slots.length === 3
-        ? 'grid-cols-1 md:grid-cols-3'
-        : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4';
+        ? 'grid-cols-2 md:grid-cols-3'
+        : 'grid-cols-2 lg:grid-cols-4';
 
   return (
-    <div className="mb-4 border border-gray-200 p-6">
-      <h2 className="text-2xl font-medium text-black mb-2">{title}</h2>
-      <p className="mb-6 text-gray-700">{description}</p>
+    <div className="mb-12">
+      <div className="flex flex-col mb-8 text-center sm:text-left">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-black mb-2 uppercase">
+          {title}
+        </h2>
+        <p className="text-sm text-gray-500 max-w-xl">
+          {description}
+        </p>
+      </div>
 
-      <div className={`grid ${gridCols} gap-6`}>
+      <div className={`grid ${gridCols} gap-x-4 gap-y-8 sm:gap-6 md:gap-8`}>
         {slots.map((slot, idx) => (
           <ProductBundleCard
             key={idx}
@@ -122,35 +127,44 @@ export default function BundlesPageBundleCard({ def, slots }: BundlesPageBundleC
         ))}
       </div>
 
-      {/* Pricing */}
-      <div className="mt-6 text-center">
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-gray-500 line-through">
-            {price.original.toFixed(2)} {price.currency}
-          </span>
-          <span className="text-xl font-bold">
-            {price.discounted.toFixed(2)} {price.currency}
-          </span>
-          <span className="text-green-600 text-sm">(Save {discountValue}%)</span>
-        </div>
-      </div>
+      {/* Pricing & CTA */}
+      <div className="mt-12 pt-8 border-t border-gray-100">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="text-center sm:text-left">
+            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-400 mb-1">
+              Bundle Total
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-bold text-black">
+                {price.discounted.toLocaleString()} {price.currency}
+              </span>
+              <span className="text-sm text-gray-400 line-through">
+                {price.original.toLocaleString()} {price.currency}
+              </span>
+              <span className="bg-black text-white text-[10px] font-bold px-2 py-0.5 tracking-tighter">
+                -{discountValue}%
+              </span>
+            </div>
+          </div>
 
-      <div className="mt-6">
-        <AddToCartButton
-          lines={cartLines}
-          disabled={!isReady}
-          onClick={() => open('cart')}
-          discountCode={discountCode}
-        >
-          <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-            {isReady ? 'Add Bundle to Cart' : 'Select options to add'}
-          </span>
-        </AddToCartButton>
-      </div>
-      <div className="text-xs text-gray-500 mt-2 text-center">
-        {discountCode
-          ? `Discount applied automatically with code ${discountCode}.`
-          : 'Discount applied automatically at checkout.'}
+          <div className="w-full sm:w-[300px]">
+            <AddToCartButton
+              lines={cartLines}
+              disabled={!isReady}
+              onClick={() => open('cart')}
+              discountCode={discountCode}
+            >
+              <span className="block w-full text-center py-4 px-8 text-[11px] font-bold uppercase tracking-[0.2em] transition-all duration-300 bg-black text-white hover:bg-zinc-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed">
+                {isReady ? 'Add Bundle to Cart' : 'Select all options'}
+              </span>
+            </AddToCartButton>
+            <p className="text-[9px] text-gray-400 mt-2 text-center uppercase tracking-widest font-medium">
+              {discountCode
+                ? `Discount code ${discountCode} applied`
+                : 'Discount auto-applied at checkout'}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

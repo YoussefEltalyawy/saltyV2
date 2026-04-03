@@ -16,7 +16,7 @@ interface MixedBundleCardProps {
 
 /**
  * Generic 2-slot bundle card for MIXED bundle type.
- * Replaces both BundleZipUpSweatpantsCard and BundleHoodieSweatpantsCard.
+ * Matches the site aesthetic: Manrope font, premium black/white CTA.
  */
 export default function MixedBundleCard({ def, slot1Products, slot2Products }: MixedBundleCardProps) {
   const { open } = useAside();
@@ -54,12 +54,20 @@ export default function MixedBundleCard({ def, slot1Products, slot2Products }: M
     { merchandiseId: variantId2, quantity: 1 },
   ].filter((l) => l.merchandiseId);
 
-  return (
-    <div className="mb-4 border border-gray-200 p-6">
-      <h2 className="text-2xl font-medium text-black mb-2">{title}</h2>
-      <p className="mb-6 text-gray-700">{description}</p>
+  const isReady = lines.length >= 2;
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  return (
+    <div className="mb-12">
+      <div className="flex flex-col mb-8 text-center sm:text-left">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-black mb-2 uppercase">
+          {title}
+        </h2>
+        <p className="text-sm text-gray-500 max-w-xl">
+          {description}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-6 md:gap-8">
         <ProductBundleCard
           products={uniqueSlot1}
           initialProduct={initProduct1}
@@ -84,35 +92,44 @@ export default function MixedBundleCard({ def, slot1Products, slot2Products }: M
         />
       </div>
 
-      {/* Pricing */}
-      <div className="mt-6 text-center">
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-gray-500 line-through">
-            {original.toFixed(2)} {currency}
-          </span>
-          <span className="text-xl font-bold">
-            {discounted.toFixed(2)} {currency}
-          </span>
-          <span className="text-green-600 text-sm">(Save {discountValue}%)</span>
-        </div>
-      </div>
+      {/* Pricing & CTA */}
+      <div className="mt-12 pt-8 border-t border-gray-100">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="text-center sm:text-left">
+            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-400 mb-1">
+              Bundle Total
+            </p>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-bold text-black">
+                {discounted.toLocaleString()} {currency}
+              </span>
+              <span className="text-sm text-gray-400 line-through">
+                {original.toLocaleString()} {currency}
+              </span>
+              <span className="bg-black text-white text-[10px] font-bold px-2 py-0.5 tracking-tighter">
+                -{discountValue}%
+              </span>
+            </div>
+          </div>
 
-      <div className="mt-6">
-        <AddToCartButton
-          lines={lines}
-          disabled={lines.length < 2}
-          onClick={() => open('cart')}
-          discountCode={discountCode}
-        >
-          <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-            Add Bundle to Cart
-          </span>
-        </AddToCartButton>
-      </div>
-      <div className="text-xs text-gray-500 mt-2 text-center">
-        {discountCode
-          ? `Discount applied automatically with code ${discountCode}.`
-          : 'Discount applied automatically at checkout.'}
+          <div className="w-full sm:w-[300px]">
+            <AddToCartButton
+              lines={lines}
+              disabled={!isReady}
+              onClick={() => open('cart')}
+              discountCode={discountCode}
+            >
+              <span className="block w-full text-center py-4 px-8 text-[11px] font-bold uppercase tracking-[0.2em] transition-all duration-300 bg-black text-white hover:bg-zinc-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed">
+                {isReady ? 'Add Bundle to Cart' : 'Select all options'}
+              </span>
+            </AddToCartButton>
+            <p className="text-[9px] text-gray-400 mt-2 text-center uppercase tracking-widest font-medium">
+              {discountCode
+                ? `Discount code ${discountCode} applied`
+                : 'Discount auto-applied at checkout'}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

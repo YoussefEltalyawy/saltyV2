@@ -2,22 +2,15 @@ import { useState, useEffect } from 'react';
 import { useLoaderData } from 'react-router';
 import { useAside } from './Aside';
 import { AddToCartButton } from './AddToCartButton';
-import type { ProductFragment } from 'storefrontapi.generated';
 
 function findVariant(
   product: any,
   selectedOptions: { name: string; value: string }[] | null,
 ): any {
-  if (!product?.variants?.nodes) {
-    console.warn(`No variants found for product: ${product?.handle}`);
-    return null;
-  }
-  if (!selectedOptions || selectedOptions.length === 0) {
-    // For products with no options (single variant)
-    const variant = product.variants.nodes[0];
-    return variant;
-  }
-  const variant = product.variants.nodes.find((variant: any) => {
+  if (!product?.variants?.nodes) return null;
+  if (!selectedOptions || selectedOptions.length === 0) return product.variants.nodes[0];
+
+  return product.variants.nodes.find((variant: any) => {
     return selectedOptions.every(
       ({ name, value }: { name: string; value: string }) => {
         return variant.selectedOptions.some(
@@ -27,42 +20,29 @@ function findVariant(
       },
     );
   });
-  return variant;
 }
 
-function TopsCapBundleCard({
-  product,
-  productOptions,
-  upsell,
-}: {
+function TopsCapBundleCard({ product, productOptions, upsell }: {
   product: any;
   productOptions: any[];
   upsell: {
     title: string;
     description: string;
+    discountValue: number;
     discountCode?: string;
     minTopsQuantity?: number;
     freeCapsQuantity?: number;
     [key: string]: any;
   };
 }) {
-  const {
-    title,
-    description,
-    discountCode,
-    minTopsQuantity = 4,
-    freeCapsQuantity = 1,
-  } = upsell;
+  const { title, description, discountCode, minTopsQuantity = 4, freeCapsQuantity = 1 } = upsell;
   const { open } = useAside();
-  const [error, setError] = useState('');
   const loaderData = useLoaderData() as any;
   const productCollections = loaderData?.productCollections;
 
-  // Available products
   const [availableTops, setAvailableTops] = useState<any[]>([]);
   const [availableCaps, setAvailableCaps] = useState<any[]>([]);
 
-  // Selection state
   type SelectionType = {
     color: string | null;
     size: string | null;
@@ -75,536 +55,136 @@ function TopsCapBundleCard({
   const [topSelections, setTopSelections] = useState<SelectionType[]>([]);
   const [capSelections, setCapSelections] = useState<SelectionType[]>([]);
 
-  // Initialize available products
   useEffect(() => {
-    let topsToUse: ProductFragment[] = [];
+    const tops = loaderData?.productCollections?.tops || loaderData?.tops || [];
+    setAvailableTops(tops);
+    const caps = loaderData?.productCollections?.caps || loaderData?.caps || [];
+    setAvailableCaps(caps);
+  }, [loaderData]);
 
-    // Always use tops from the tops collection if available
-    if (productCollections?.tops && productCollections.tops.length > 0) {
-      topsToUse = [...productCollections.tops];
-    } else if (loaderData?.tops && loaderData.tops.length > 0) {
-      topsToUse = [...loaderData.tops];
-    }
-
-    // Only add current product if it's actually a top (not a cap)
-    if (productCollections?.isInTops && !topsToUse.some((p) => p.handle === product.handle)) {
-      topsToUse = [product, ...topsToUse];
-    }
-
-    // Special case for cocktails baby tee
-    if (product.handle === 'cocktails-baby-tee-pre-order') {
-      if (!topsToUse.some((p) => p.handle === product.handle)) {
-        topsToUse = [product, ...topsToUse];
-      }
-    }
-
-    // If we still don't have any tops, use the cocktails baby tee from loader data as fallback
-    if (topsToUse.length === 0 && loaderData?.cocktailsBabyTee) {
-      topsToUse = [loaderData.cocktailsBabyTee];
-    }
-    setAvailableTops(topsToUse);
-
-    let capsToUse: ProductFragment[] = [];
-
-    if (productCollections?.caps && productCollections.caps.length > 0) {
-      capsToUse = [...productCollections.caps];
-    } else if (loaderData?.caps && loaderData.caps.length > 0) {
-      capsToUse = [...loaderData.caps];
-    }
-
-    if (
-      productCollections?.isInCaps &&
-      !capsToUse.some((p) => p.handle === product.handle)
-    ) {
-      capsToUse = [product, ...capsToUse];
-    }
-    setAvailableCaps(capsToUse);
-  }, [loaderData, productCollections, product]);
-
-  // Initialize selections
   useEffect(() => {
     if (availableTops.length > 0 && topSelections.length === 0) {
-      const initialTopSelections: SelectionType[] = [];
-      for (let i = 0; i < minTopsQuantity; i++) {
-        // Always use the first available top for each slot
-        const defaultTop = availableTops[0];
-        const defaultColor = getFirstAvailableColor(defaultTop);
-        const defaultSize = getFirstAvailableSize(defaultTop);
-
-        const variant =
-          defaultColor && defaultSize
-            ? findVariant(defaultTop, [
-              { name: 'Color', value: defaultColor },
-              { name: 'Size', value: defaultSize },
-            ])
-            : null;
-
-
-
-        initialTopSelections.push({
-          color: defaultColor || null,
-          size: defaultSize || null,
-          productHandle: defaultTop?.handle || '',
-          variantId: variant?.id,
-          image: variant?.image?.url || defaultTop?.featuredImage?.url,
+      setTopSelections(Array.from({ length: minTopsQuantity }).map(() => {
+        const p = availableTops[0];
+        const v = p.variants?.nodes?.find((v: any) => v.availableForSale) || p.variants?.nodes?.[0];
+        return {
+          color: v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'color')?.value || '',
+          size: v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'size')?.value || '',
+          productHandle: p.handle,
+          variantId: v?.id,
+          image: v?.image?.url || p.featuredImage?.url,
           type: 'top',
-        });
-      }
-      setTopSelections(initialTopSelections);
+        };
+      }));
     }
-
     if (availableCaps.length > 0 && capSelections.length === 0) {
-      const initialCapSelections: SelectionType[] = [];
-      for (let i = 0; i < freeCapsQuantity; i++) {
-        const defaultCap =
-          i === 0 && productCollections?.isInCaps ? product : availableCaps[0];
-        const defaultColor = getFirstAvailableColor(defaultCap);
-        const defaultSize = getFirstAvailableSize(defaultCap);
-
-        const variant = findVariant(
-          defaultCap,
-          defaultColor && defaultSize
-            ? [
-              { name: 'Color', value: defaultColor },
-              { name: 'Size', value: defaultSize },
-            ]
-            : null,
-        );
-
-
-
-        initialCapSelections.push({
-          color: defaultColor || null,
-          size: defaultSize || null,
-          productHandle: defaultCap?.handle || '',
-          variantId: variant?.id,
-          image: variant?.image?.url || defaultCap?.featuredImage?.url,
+      setCapSelections(Array.from({ length: freeCapsQuantity }).map(() => {
+        const p = availableCaps[0];
+        const v = p.variants?.nodes?.find((v: any) => v.availableForSale) || p.variants?.nodes?.[0];
+        return {
+          color: v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'color')?.value || '',
+          size: v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'size')?.value || '',
+          productHandle: p.handle,
+          variantId: v?.id,
+          image: v?.image?.url || p.featuredImage?.url,
           type: 'cap',
-        });
-      }
-      setCapSelections(initialCapSelections);
+        };
+      }));
     }
-  }, [
-    availableTops,
-    availableCaps,
-    minTopsQuantity,
-    freeCapsQuantity,
-    product,
-    productCollections,
-    topSelections.length,
-    capSelections.length,
-  ]);
+  }, [availableTops, availableCaps, minTopsQuantity, freeCapsQuantity]);
 
-  // Helper functions to get first available color and size
-  const getFirstAvailableColor = (product: any): string | null => {
-    if (!product?.variants?.nodes) return null;
-
-    // Find the first variant that's available
-    const firstAvailableVariant = product.variants.nodes.find((v: any) => v.availableForSale);
-    if (firstAvailableVariant) {
-      const colorOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
-        opt.name.toLowerCase() === 'color'
-      );
-      return colorOption?.value || null;
-    }
-    return null;
-  };
-
-  const getFirstAvailableSize = (product: any): string | null => {
-    if (!product?.variants?.nodes) return null;
-
-    // Find the first variant that's available
-    const firstAvailableVariant = product.variants.nodes.find((v: any) => v.availableForSale);
-    if (firstAvailableVariant) {
-      const sizeOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
-        opt.name.toLowerCase() === 'size'
-      );
-      return sizeOption?.value || null;
-    }
-    return null;
-  };
-
-  const getProductColorOptions = (productHandle: string) => {
-    const productList = productHandle
-      ? availableTops.find((p) => p.handle === productHandle) ||
-      availableCaps.find((p) => p.handle === productHandle)
-      : null;
-    if (!productList?.options) return [];
-    const colorOption = productList.options.find(
-      (opt: any) => opt.name.toLowerCase() === 'color',
-    );
-    const colors = colorOption?.optionValues?.map((v: any) => v.name) || [];
-    return colors;
-  };
-
-  const getProductSizeOptions = (productHandle: string) => {
-    const productList = productHandle
-      ? availableTops.find((p) => p.handle === productHandle) ||
-      availableCaps.find((p) => p.handle === productHandle)
-      : null;
-    if (!productList?.options) return [];
-    const sizeOption = productList.options.find(
-      (opt: any) => opt.name.toLowerCase() === 'size',
-    );
-    const sizes = sizeOption?.optionValues?.map((v: any) => v.name) || [];
-    return sizes;
-  };
-
-  const getSwatchColor = (
-    productHandle: string,
-    color: string,
-  ): string | undefined => {
-    const productList = productHandle
-      ? availableTops.find((p) => p.handle === productHandle) ||
-      availableCaps.find((p) => p.handle === productHandle)
-      : null;
-    if (!productList?.options) return undefined;
-    const colorOption = productList.options.find(
-      (opt: any) => opt.name.toLowerCase() === 'color',
-    );
-    const value = colorOption?.optionValues?.find((v: any) => v.name === color);
-    const swatchColor = value?.swatch?.color;
-    return swatchColor;
-  };
-
-  const hasVariants = (product: any): boolean => {
-    const hasOptions = product?.options?.some(
-      (opt: any) =>
-        opt.name.toLowerCase() === 'color' || opt.name.toLowerCase() === 'size',
-    );
-    const hasMultipleVariants = product?.variants?.nodes?.length > 1;
-    return hasOptions || hasMultipleVariants;
-  };
-
-  // Handle product selection change
-  const handleProductChange = (idx: number, handle: string, isTop: boolean) => {
-    const productList = isTop ? availableTops : availableCaps;
-    const selectedProduct = productList.find((p) => p.handle === handle);
-    if (!selectedProduct) {
-      console.warn(`Product not found for handle=${handle}, isTop=${isTop}`);
-      return;
-    }
-
-    const defaultColor = getFirstAvailableColor(selectedProduct);
-    const defaultSize = getFirstAvailableSize(selectedProduct);
-    const defaultVariant = findVariant(
-      selectedProduct,
-      defaultColor && defaultSize
-        ? [
-          { name: 'Color', value: defaultColor },
-          { name: 'Size', value: defaultSize },
-        ]
-        : null,
-    );
-
-    const newSelection: SelectionType = {
-      color: defaultColor,
-      size: defaultSize,
-      productHandle: handle,
-      variantId: defaultVariant?.id,
-      image: defaultVariant?.image?.url || selectedProduct.featuredImage?.url,
-      type: isTop ? 'top' : 'cap',
-    };
-
-
-
-    if (isTop) {
-      const newSelections = [...topSelections];
-      newSelections[idx] = newSelection;
-      setTopSelections(newSelections);
-    } else {
-      const newSelections = [...capSelections];
-      newSelections[idx] = newSelection;
-      setCapSelections(newSelections);
-    }
-  };
-
-  // Handle option change (color/size) for tops only
-  const handleOptionChange = (
-    idx: number,
-    field: string,
-    value: string,
-    isTop: boolean,
-  ) => {
-    if (!isTop) return; // Caps don't have options
-    const selections = topSelections;
-    const setSelections = setTopSelections;
-    const productList = availableTops;
+  const handleSelectionChange = (idx: number, type: 'top' | 'cap', field: string, val: string) => {
+    const list = type === 'top' ? availableTops : availableCaps;
+    const selections = type === 'top' ? topSelections : capSelections;
+    const set = type === 'top' ? setTopSelections : setCapSelections;
 
     const newSelections = [...selections];
-    newSelections[idx] = {
-      ...newSelections[idx],
-      [field]: value,
-    };
+    const item = { ...newSelections[idx], [field]: val };
 
-    const selectedProduct = productList.find(
-      (p) => p.handle === newSelections[idx].productHandle,
-    );
-    if (
-      selectedProduct &&
-      newSelections[idx].color &&
-      newSelections[idx].size
-    ) {
-      const variant = findVariant(selectedProduct, [
-        { name: 'Color', value: newSelections[idx].color },
-        { name: 'Size', value: newSelections[idx].size },
-      ]);
-
-      if (variant) {
-        newSelections[idx].variantId = variant.id;
-        newSelections[idx].image =
-          variant.image?.url || selectedProduct.featuredImage?.url;
-      } else {
-        newSelections[idx].variantId = undefined;
-        newSelections[idx].image = selectedProduct.featuredImage?.url;
-      }
-
-
+    if (field === 'productHandle') {
+      const p = list.find(p => p.handle === val);
+      const v = p.variants?.nodes?.find((v: any) => v.availableForSale) || p.variants?.nodes?.[0];
+      item.color = v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'color')?.value || '';
+      item.size = v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'size')?.value || '';
+      item.variantId = v?.id;
+      item.image = v?.image?.url || p.featuredImage?.url;
+    } else {
+      const p = list.find(p => p.handle === item.productHandle);
+      const [c, s] = val.split('/');
+      item.color = c;
+      item.size = s;
+      const v = findVariant(p, [{ name: 'Color', value: c }, { name: 'Size', value: s }]);
+      item.variantId = v?.id;
+      item.image = v?.image?.url || p.featuredImage?.url;
     }
 
-    setSelections(newSelections);
+    newSelections[idx] = item;
+    set(newSelections);
   };
 
-  // Prepare lines for AddToCartButton
-  const allSelections = [...topSelections, ...capSelections];
-  const lines = allSelections.every((sel) => sel.variantId)
-    ? allSelections.map((sel) => ({ merchandiseId: sel.variantId!, quantity: 1 }))
-    : [];
-
-  // Check if any selected variant is out of stock
-  const anyOutOfStock = allSelections.some((sel) => {
-    if (!sel.variantId) {
-      console.warn(`Missing variantId for selection: ${JSON.stringify(sel)}`);
-      return true;
-    }
-
-    let selectedProduct;
-    if (sel.type === 'top') {
-      selectedProduct = availableTops.find(
-        (p) => p.handle === sel.productHandle,
-      );
-    } else if (sel.type === 'cap') {
-      selectedProduct = availableCaps.find(
-        (p) => p.handle === sel.productHandle,
-      );
-    }
-
-    if (!selectedProduct) {
-      console.warn(
-        `Product not found for handle: ${sel.productHandle}, type=${sel.type}`,
-      );
-      return true;
-    }
-
-    if (selectedProduct.handle === 'bundle-cap') {
-      return false;
-    }
-
-    const variant = selectedProduct.variants?.nodes.find(
-      (v: any) => v.id === sel.variantId,
-    );
-
-    if (!variant) {
-      console.warn(
-        `Variant not found for id=${sel.variantId}, product=${sel.productHandle}`,
-      );
-      return true;
-    }
-
-
-
-    return !variant.availableForSale;
-  });
-
-  // Validate before add to cart
-  const handleClick = () => {
-    if (!allSelections.every((sel) => sel.variantId)) {
-      setError('Please select valid options for all items.');
-      console.error('Add to cart blocked: Missing variantId in selections');
-      return false;
-    }
-    setError('');
-    open('cart');
-    return true;
-  };
-
-  // Calculate bundle price
   const calculateBundlePrice = () => {
-    let currencyCode = 'USD'; // Default fallback
-
-    const topPrices = topSelections
-      .filter((sel) => sel.variantId)
-      .map((sel) => {
-        const selectedProduct = availableTops.find(
-          (p) => p.handle === sel.productHandle,
-        );
-        const variant = selectedProduct?.variants?.nodes.find(
-          (v: any) => v.id === sel.variantId,
-        );
-        const price = variant?.price?.amount
-          ? parseFloat(variant.price.amount)
-          : 0;
-
-        // Get currency from the first variant that has one
-        if (variant?.price?.currencyCode && currencyCode === 'USD') {
-          currencyCode = variant.price.currencyCode;
-        }
-
-        return price;
-      });
-
-    // Calculate cap prices for the original total
-    const capPrices = capSelections
-      .filter((sel) => sel.variantId)
-      .map((sel) => {
-        const selectedProduct = availableCaps.find(
-          (p) => p.handle === sel.productHandle,
-        );
-        const variant = selectedProduct?.variants?.nodes.find(
-          (v: any) => v.id === sel.variantId,
-        );
-        const price = variant?.price?.amount
-          ? parseFloat(variant.price.amount)
-          : 0;
-
-        // Get currency from the first variant that has one
-        if (variant?.price?.currencyCode && currencyCode === 'USD') {
-          currencyCode = variant.price.currencyCode;
-        }
-
-        return price;
-      });
-
-    const topsTotal = topPrices.reduce((sum, price) => sum + price, 0);
-    const capsTotal = capPrices.reduce((sum, price) => sum + price, 0);
-    const originalTotal = topsTotal + capsTotal; // Original price includes caps
-    const discountedTotal = topsTotal; // Discounted price is just the tops (caps are free)
-
+    let total = 0;
+    topSelections.forEach(s => {
+      const p = availableTops.find(t => t.handle === s.productHandle);
+      const v = p?.variants?.nodes?.find((v: any) => v.id === s.variantId);
+      total += parseFloat(v?.price?.amount || '0');
+    });
+    let capValue = 0;
+    capSelections.forEach(s => {
+      const p = availableCaps.find(c => c.handle === s.productHandle);
+      const v = p?.variants?.nodes?.find((v: any) => v.id === s.variantId);
+      capValue += parseFloat(v?.price?.amount || '0');
+    });
     return {
-      original: originalTotal,
-      discounted: discountedTotal,
-      currencyCode: currencyCode,
+      original: total + capValue,
+      discounted: total,
+      currency: availableTops[0]?.variants?.nodes?.[0]?.price?.currencyCode || 'EGP',
     };
   };
 
   const bundlePrice = calculateBundlePrice();
-
-  if (availableTops.length === 0 || availableCaps.length === 0) {
-    console.warn('Bundle not rendered: No tops or caps available');
-    return null;
-  }
+  const allSelections = [...topSelections, ...capSelections];
+  const lines = allSelections.map(s => ({ merchandiseId: s.variantId!, quantity: 1 })).filter(l => l.merchandiseId);
+  const isReady = lines.length === (minTopsQuantity + freeCapsQuantity);
 
   return (
-    <div className="mb-4 border border-gray-200 p-6">
-      <h2 className="text-2xl font-medium text-black mb-2">{title}</h2>
-      <p className="mb-6 text-gray-700">{description}</p>
+    <div className="mb-12">
+      <div className="flex flex-col mb-8 text-center sm:text-left">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-black mb-2 uppercase">{title}</h2>
+        <p className="text-sm text-gray-500 max-w-xl">{description}</p>
+      </div>
 
-      {/* Tops Selection */}
-      <div className="mb-6">
-        <h3 className="text-lg font-medium text-black mb-4">
-          Choose {minTopsQuantity} Tops
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="mb-12">
+        <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-black mb-6 border-b border-gray-100 pb-2 flex justify-between">
+          <span>Choose {minTopsQuantity} Tops</span>
+          <span className="text-gray-400 font-medium italic">Essential base</span>
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
           {topSelections.map((sel, idx) => (
-            <div key={idx} className="flex flex-col border border-gray-100 p-3">
-              <div className="w-full aspect-square mb-4 bg-gray-100">
-                {sel.image ? (
-                  <img
-                    src={sel.image}
-                    alt="Selected variant"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-gray-400 text-xs">
-                      Select options
-                    </span>
-                  </div>
-                )}
+            <div key={idx} className="flex flex-col">
+              <select
+                className="w-full bg-white border border-black text-[10px] font-bold uppercase tracking-wider px-2 py-1.5 mb-2 appearance-none cursor-pointer"
+                style={{ WebkitAppearance: 'none' }}
+                value={sel.productHandle}
+                onChange={(e) => handleSelectionChange(idx, 'top', 'productHandle', e.target.value)}
+              >
+                {availableTops.map(p => <option key={p.handle} value={p.handle}>{p.title}</option>)}
+              </select>
+              <div className="w-full bg-[#f5f3f0] overflow-hidden" style={{ aspectRatio: '3/4' }}>
+                <img src={sel.image} alt="top" className="w-full h-full object-cover" />
               </div>
-
-              {/* Variant Selection Dropdown */}
-              <div className="product-options mb-3">
-                <h5 className="text-xs font-medium text-gray-900 mb-2">Select Variant</h5>
+              <div className="mt-2">
                 <select
-                  className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                  className="w-full bg-white border border-gray-200 text-[10px] tracking-wide px-2 py-1.5 focus:outline-none appearance-none cursor-pointer"
+                  style={{ WebkitAppearance: 'none' }}
                   value={`${sel.color}/${sel.size}`}
-                  onChange={(e) => {
-                    if (e.target.value === '') return;
-                    const [color, size] = e.target.value.split('/');
-                    if (color && size) {
-                      // Update both color and size at once to avoid race conditions
-                      const newSelections = [...topSelections];
-                      newSelections[idx] = {
-                        ...newSelections[idx],
-                        color,
-                        size,
-                      };
-
-                      // Find the variant for this color/size combination
-                      const selectedProduct = availableTops.find(
-                        (p) => p.handle === sel.productHandle,
-                      );
-
-                      if (selectedProduct?.variants?.nodes) {
-                        const variant = selectedProduct.variants.nodes.find((v: any) => {
-                          const hasColor = v.selectedOptions.some((opt: any) =>
-                            opt.name.toLowerCase() === 'color' && opt.value === color
-                          );
-                          const hasSize = v.selectedOptions.some((opt: any) =>
-                            opt.name.toLowerCase() === 'size' && opt.value === size
-                          );
-                          return hasColor && hasSize;
-                        });
-
-                        if (variant) {
-                          newSelections[idx].variantId = variant.id;
-                          newSelections[idx].image = variant.image?.url || selectedProduct.featuredImage?.url;
-                        }
-                      }
-
-                      setTopSelections(newSelections);
-                    }
-                  }}
+                  onChange={(e) => handleSelectionChange(idx, 'top', 'variant', e.target.value)}
                 >
-                  <option value="">Choose color/size...</option>
-                  {(() => {
-                    const selectedProduct = availableTops.find(
-                      (p) => p.handle === sel.productHandle,
-                    );
-
-                    if (!selectedProduct?.variants?.nodes) return [];
-
-                    return selectedProduct.variants.nodes.map((variant: any) => {
-                      const colorOption = variant.selectedOptions.find((opt: any) =>
-                        opt.name.toLowerCase() === 'color'
-                      );
-                      const sizeOption = variant.selectedOptions.find((opt: any) =>
-                        opt.name.toLowerCase() === 'size'
-                      );
-
-                      if (colorOption && sizeOption) {
-                        const value = `${colorOption.value}/${sizeOption.value}`;
-                        const label = `${colorOption.value}/${sizeOption.value}`;
-                        const available = variant.availableForSale;
-
-                        return (
-                          <option
-                            key={value}
-                            value={value}
-                            disabled={!available}
-                            style={{
-                              color: available ? '#000' : '#9CA3AF',
-                              backgroundColor: available ? '#fff' : '#F3F4F6',
-                            }}
-                          >
-                            {label} {!available ? '(Out of Stock)' : ''}
-                          </option>
-                        );
-                      }
-                      return null;
-                    }).filter(Boolean);
-                  })()}
+                  {availableTops.find(p => p.handle === sel.productHandle)?.variants?.nodes?.map((v: any) => {
+                    const c = v.selectedOptions.find((o: any) => o.name.toLowerCase() === 'color')?.value;
+                    const s = v.selectedOptions.find((o: any) => o.name.toLowerCase() === 'size')?.value;
+                    return <option key={v.id} value={`${c}/${s}`} disabled={!v.availableForSale}>{c} / {s} {!v.availableForSale ? ' — OOS' : ''}</option>;
+                  })}
                 </select>
               </div>
             </div>
@@ -612,94 +192,57 @@ function TopsCapBundleCard({
         </div>
       </div>
 
-      {/* Caps Selection */}
-      <div className="mb-6">
-        <h3 className="text-lg font-medium text-black mb-4">
-          Choose {freeCapsQuantity} Free Cap
-        </h3>
-        <div className="grid grid-cols-1 gap-4">
+      <div className="mb-12">
+        <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-black mb-6 border-b border-gray-100 pb-2 flex justify-between">
+          <span>Choose {freeCapsQuantity} Free Cap</span>
+          <span className="text-green-600 font-medium italic">Unlocked!</span>
+        </p>
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 max-w-xl">
           {capSelections.map((sel, idx) => (
-            <div
-              key={idx}
-              className="flex flex-col border border-gray-100 p-3 max-w-xs"
-            >
-              <div className="mb-3">
-                <select
-                  className="border border-gray-300 rounded px-2 py-1 w-full text-sm"
-                  value={sel.productHandle || ''}
-                  onChange={(e) =>
-                    handleProductChange(idx, e.target.value, false)
-                  }
-                >
-                  <option value="" disabled>
-                    Select a cap
-                  </option>
-                  {availableCaps.map((cap) => (
-                    <option key={cap.handle} value={cap.handle}>
-                      {cap.title}
-                    </option>
-                  ))}
-                </select>
+            <div key={idx} className="flex flex-col">
+              <select
+                className="w-full bg-white border border-black text-[10px] font-bold uppercase tracking-wider px-2 py-1.5 mb-2 appearance-none cursor-pointer"
+                style={{ WebkitAppearance: 'none' }}
+                value={sel.productHandle}
+                onChange={(e) => handleSelectionChange(idx, 'cap', 'productHandle', e.target.value)}
+              >
+                {availableCaps.map(p => <option key={p.handle} value={p.handle}>{p.title}</option>)}
+              </select>
+              <div className="w-full bg-[#f5f3f0] overflow-hidden" style={{ aspectRatio: '3/4' }}>
+                <img src={sel.image} alt="cap" className="w-full h-full object-cover" />
               </div>
-
-              <div className="w-full aspect-square mb-3 bg-gray-100 max-h-48">
-                {sel.image ? (
-                  <img
-                    src={sel.image}
-                    alt="Selected cap"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-gray-400 text-xs">Select a cap</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-2 text-sm font-medium text-green-600">
-                FREE!
+              <div className="mt-2">
+                <div className="text-[10px] text-gray-500 uppercase tracking-widest px-2 py-1.5 border border-gray-100 bg-gray-50/50">
+                  {sel.color} / {sel.size}
+                </div>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Bundle pricing */}
-      <div className="mt-6 text-center">
-        <div className="text-lg font-medium">Bundle Price:</div>
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-gray-500 line-through">
-            {bundlePrice.original.toFixed(2)} {bundlePrice.currencyCode}
-          </span>
-          <span className="text-xl font-bold">
-            {bundlePrice.discounted.toFixed(2)} {bundlePrice.currencyCode}
-          </span>
+      {/* Pricing & CTA */}
+      <div className="mt-12 pt-8 border-t border-gray-100">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="text-center sm:text-left">
+            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-400 mb-1">Bundle Total</p>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl font-bold text-black">{bundlePrice.discounted.toLocaleString()} {bundlePrice.currency}</span>
+              <span className="text-sm text-gray-400 line-through">{bundlePrice.original.toLocaleString()} {bundlePrice.currency}</span>
+              <span className="bg-black text-white text-[10px] font-bold px-2 py-0.5 tracking-tighter">-{upsell.discountValue || 20}%</span>
+            </div>
+          </div>
+          <div className="w-full sm:w-[300px]">
+            <AddToCartButton lines={lines} disabled={!isReady} onClick={() => open('cart')} discountCode={discountCode}>
+              <span className="block w-full text-center py-4 px-8 text-[11px] font-bold uppercase tracking-[0.2em] transition-all duration-300 bg-black text-white hover:bg-zinc-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed">
+                {isReady ? 'Add Collection to Cart' : 'Select all options'}
+              </span>
+            </AddToCartButton>
+            <p className="text-[9px] text-gray-400 mt-2 text-center uppercase tracking-widest font-medium">
+              {discountCode ? `Discount code ${discountCode} applied` : 'Discount auto-applied at checkout'}
+            </p>
+          </div>
         </div>
-        <div className="text-green-600 text-sm mt-1">
-          Get {freeCapsQuantity} Cap{freeCapsQuantity > 1 ? 's' : ''} FREE!
-        </div>
-      </div>
-
-      {error && (
-        <div className="text-red-600 mt-4 text-sm text-center">{error}</div>
-      )}
-
-      <div className="mt-6">
-        <AddToCartButton
-          disabled={
-            lines.length !== minTopsQuantity + freeCapsQuantity || anyOutOfStock
-          }
-          lines={lines}
-          onClick={handleClick}
-          discountCode={discountCode}
-        >
-          <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-            {anyOutOfStock ? 'Out of Stock' : 'Add Bundle to Cart'}
-          </span>
-        </AddToCartButton>
-      </div>
-      <div className="text-xs text-gray-500 mt-2 text-center">
-        Discount applied automatically at checkout with code {discountCode}.
       </div>
     </div>
   );

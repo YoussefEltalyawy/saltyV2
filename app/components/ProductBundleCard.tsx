@@ -1,10 +1,5 @@
 import { useState } from 'react';
-import {
-  getFirstColor,
-  getFirstSize,
-  getVariant,
-  getVariantIdFromOptions,
-} from '~/lib/bundleUtils';
+import { getVariant, getVariantIdFromOptions } from '~/lib/bundleUtils';
 
 interface ProductBundleCardProps {
   products: any[];
@@ -13,9 +8,12 @@ interface ProductBundleCardProps {
   onChange: (product: any, color: string, size: string) => void;
   initialColor?: string;
   initialSize?: string;
-  minQuantity?: number;
 }
 
+/**
+ * Single slot card used inside BundlesPageBundleCard.
+ * Design matches the site aesthetic: 3/4 portrait image, Manrope font, minimal black/white.
+ */
 export default function ProductBundleCard({
   products,
   initialProduct,
@@ -23,153 +21,135 @@ export default function ProductBundleCard({
   onChange,
   initialColor,
   initialSize,
-  minQuantity = 1,
 }: ProductBundleCardProps) {
-  // Helper functions to get first available color and size
-  const getFirstAvailableColor = (product: any): string => {
-    if (!product?.variants?.nodes?.length) return '';
-    const v = product.variants.nodes.find((v: any) => v.availableForSale);
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function firstAvailColor(product: any): string {
+    const v = product?.variants?.nodes?.find((v: any) => v.availableForSale);
     return v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'color')?.value ?? '';
-  };
-
-  const getFirstAvailableSize = (product: any): string => {
-    if (!product?.variants?.nodes?.length) return '';
-    const v = product.variants.nodes.find((v: any) => v.availableForSale);
+  }
+  function firstAvailSize(product: any): string {
+    const v = product?.variants?.nodes?.find((v: any) => v.availableForSale);
     return v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'size')?.value ?? '';
-  };
+  }
 
+  // ── State ─────────────────────────────────────────────────────────────────
   const [selectedProduct, setSelectedProduct] = useState(initialProduct);
-  const [selectedColor, setSelectedColor] = useState(
-    initialColor || getFirstAvailableColor(selectedProduct),
-  );
-  const [selectedSize, setSelectedSize] = useState(
-    initialSize || getFirstAvailableSize(selectedProduct),
-  );
+  const [selectedColor, setSelectedColor] = useState(initialColor || firstAvailColor(initialProduct));
+  const [selectedSize,  setSelectedSize]  = useState(initialSize  || firstAvailSize(initialProduct));
 
-  // When product changes, reset color/size
+  // ── Handlers ──────────────────────────────────────────────────────────────
   function handleProductChange(handle: string) {
     const prod = products.find((p) => p.handle === handle);
+    if (!prod) return;
+    const c = firstAvailColor(prod);
+    const s = firstAvailSize(prod);
     setSelectedProduct(prod);
-    setSelectedColor(getFirstAvailableColor(prod));
-    setSelectedSize(getFirstAvailableSize(prod));
-    if (onChange) {
-      onChange(prod, getFirstAvailableColor(prod), getFirstAvailableSize(prod));
-    }
+    setSelectedColor(c);
+    setSelectedSize(s);
+    onChange(prod, c, s);
   }
 
-  // Handle variant selection change
-  function handleVariantChange(variantOption: string) {
-    if (variantOption === '') return;
-
-    const [color, size] = variantOption.split('/');
-    if (color && size) {
-      setSelectedColor(color);
-      setSelectedSize(size);
-      if (onChange) {
-        onChange(selectedProduct, color, size);
-      }
-    }
+  function handleVariantChange(val: string) {
+    if (!val) return;
+    const [c, s] = val.split('/');
+    if (!c || !s) return;
+    setSelectedColor(c);
+    setSelectedSize(s);
+    onChange(selectedProduct, c, s);
   }
 
-  // Generate all variant combinations for the selected product
-  const getVariantOptions = () => {
-    if (!selectedProduct?.variants?.nodes) return [];
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const variantOptions = (selectedProduct?.variants?.nodes ?? []).map((v: any) => {
+    const c = v.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'color')?.value ?? '';
+    const s = v.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'size')?.value ?? '';
+    return { value: `${c}/${s}`, label: `${c} / ${s}`, available: v.availableForSale };
+  }).filter((o: any) => o.value !== '/');
 
-    const options: Array<{
-      value: string;
-      label: string;
-      available: boolean;
-      variant: any;
-    }> = [];
-
-    selectedProduct.variants.nodes.forEach((variant: any) => {
-      const colorOption = variant.selectedOptions.find((opt: any) =>
-        opt.name.toLowerCase() === 'color'
-      );
-      const sizeOption = variant.selectedOptions.find((opt: any) =>
-        opt.name.toLowerCase() === 'size'
-      );
-
-      if (colorOption && sizeOption) {
-        const value = `${colorOption.value}/${sizeOption.value}`;
-        const label = `${colorOption.value}/${sizeOption.value}`;
-        const available = variant.availableForSale;
-
-        options.push({
-          value,
-          label,
-          available,
-          variant,
-        });
-      }
-    });
-
-    return options;
-  };
-
-  const variantOptions = getVariantOptions();
   const currentVariant = getVariant(selectedProduct, selectedColor, selectedSize);
-  const currentVariantOption = `${selectedColor}/${selectedSize}`;
+  const currentVariantValue = `${selectedColor}/${selectedSize}`;
   const image = currentVariant?.image?.url || selectedProduct?.featuredImage?.url;
+  const price = currentVariant?.price;
+  const compareAtPrice = currentVariant?.compareAtPrice;
+  const hasDiscount = compareAtPrice && parseFloat(compareAtPrice.amount) > parseFloat(price?.amount ?? '0');
+  const isOutOfStock = !selectedColor || !selectedSize;
 
   return (
-    <div className="flex flex-col border border-gray-100 p-3">
-      {/* Always render a select so users can see what's chosen and switch when multiple */}
-      <select
-        className="border border-gray-300 rounded px-2 py-1 mb-3 text-sm w-full"
-        value={selectedProduct?.handle || ''}
-        onChange={(e) => handleProductChange(e.target.value)}
-      >
-        {products.map((p) => (
-          <option key={p.handle} value={p.handle}>
-            {p.title}
-          </option>
-        ))}
-      </select>
+    <div className="flex flex-col">
+      {/* Slot label */}
+      <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-gray-400 mb-2">
+        {title}
+      </p>
 
-      <div className="w-full aspect-square mb-3 bg-gray-100 max-h-48">
+      {/* Product selector — always visible */}
+      {products.length > 1 ? (
+        <select
+          className="w-full bg-white border border-black text-xs font-semibold uppercase tracking-wider px-3 py-2 mb-3 focus:outline-none focus:ring-0 appearance-none cursor-pointer"
+          style={{ WebkitAppearance: 'none' }}
+          value={selectedProduct?.handle || ''}
+          onChange={(e) => handleProductChange(e.target.value)}
+        >
+          {products.map((p) => (
+            <option key={p.handle} value={p.handle}>{p.title}</option>
+          ))}
+        </select>
+      ) : (
+        <p className="text-xs font-semibold uppercase tracking-wider mb-3 truncate">
+          {selectedProduct?.title}
+        </p>
+      )}
+
+      {/* Image — 3/4 portrait ratio matching site product cards */}
+      <div className="w-full bg-[#f5f3f0] overflow-hidden" style={{ aspectRatio: '3/4' }}>
         {image ? (
           <img
             src={image}
-            alt="Selected variant"
+            alt={selectedProduct?.title ?? 'Product'}
             className="w-full h-full object-cover"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-gray-400 text-xs">Select options</span>
+            <span className="text-gray-300 text-xs tracking-wider uppercase">No image</span>
           </div>
         )}
       </div>
 
-      {/* Variant Selection Dropdown */}
-      <div className="mb-3">
-        <h5 className="text-xs font-medium text-gray-900 mb-2">Select Variant</h5>
+      {/* Variant selector */}
+      <div className="mt-3">
         <select
-          className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-          value={currentVariantOption}
+          className="w-full bg-white border border-gray-200 text-xs tracking-wide px-3 py-2.5 focus:outline-none focus:border-black appearance-none cursor-pointer transition-colors"
+          style={{ WebkitAppearance: 'none' }}
+          value={currentVariantValue}
           onChange={(e) => handleVariantChange(e.target.value)}
         >
-          <option value="">Choose color/size...</option>
-          {variantOptions.map((option) => (
+          {(selectedColor === '' || selectedSize === '') && (
+            <option value="">Select size…</option>
+          )}
+          {variantOptions.map((opt: any) => (
             <option
-              key={option.value}
-              value={option.value}
-              disabled={!option.available}
-              style={{
-                color: option.available ? '#000' : '#9CA3AF',
-                backgroundColor: option.available ? '#fff' : '#F3F4F6',
-              }}
+              key={opt.value}
+              value={opt.value}
+              disabled={!opt.available}
             >
-              {option.label} {!option.available ? '(Out of Stock)' : ''}
+              {opt.label}{!opt.available ? ' — Sold Out' : ''}
             </option>
           ))}
         </select>
       </div>
 
       {/* Price */}
-      <div className="mt-2 text-sm font-medium">
-        {currentVariant?.price?.amount} {currentVariant?.price?.currencyCode}
-      </div>
+      {price?.amount && (
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-sm font-semibold">
+            {parseFloat(price.amount).toFixed(2)} {price.currencyCode}
+          </span>
+          {hasDiscount && (
+            <span className="text-xs text-gray-400 line-through">
+              {parseFloat(compareAtPrice.amount).toFixed(2)}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
