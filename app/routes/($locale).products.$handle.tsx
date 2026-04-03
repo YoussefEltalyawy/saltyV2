@@ -818,6 +818,7 @@ export default function Product() {
                 product={product}
                 productOptions={productOptions}
                 upsells={upsells}
+                bundleStatuses={productCollections?.bundleStatuses}
               />
             </div>
           )}

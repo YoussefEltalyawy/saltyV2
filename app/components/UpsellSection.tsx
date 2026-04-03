@@ -15,9 +15,10 @@ interface UpsellSectionProps {
   product: any;
   productOptions: any[];
   upsells: string[]; // bundle definition keys
+  bundleStatuses?: Record<string, boolean>;
 }
 
-export default function UpsellSection({ product, productOptions, upsells }: UpsellSectionProps) {
+export default function UpsellSection({ product, productOptions, upsells, bundleStatuses }: UpsellSectionProps) {
   const loaderData = useLoaderData() as any;
   const productCollections = loaderData?.productCollections;
 
@@ -27,7 +28,10 @@ export default function UpsellSection({ product, productOptions, upsells }: Upse
     <div className="flex flex-col gap-10">
       {upsells.map((key) => {
         const def = getBundleDefinition(key);
-        if (!def || !def.enabled) return null;
+        // Priority: Loader statuses (from server) > Static config status
+        const isEnabled = bundleStatuses ? bundleStatuses[key] : def?.enabled;
+        
+        if (!def || !isEnabled) return null;
 
         // ── MIXED ────────────────────────────────────────────────────────────
         if (def.type === BUNDLE_TYPES.MIXED) {

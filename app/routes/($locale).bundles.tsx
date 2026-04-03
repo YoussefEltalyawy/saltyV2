@@ -30,9 +30,8 @@ export default function BundlesPage() {
     linenPants,
     mixedBundleProductMap,
     collectionBundle3Products,
+    enabledBundles,
   } = useLoaderData<typeof loader>();
-
-  const enabledBundles = getAllEnabledBundles();
 
   return (
     <main className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">

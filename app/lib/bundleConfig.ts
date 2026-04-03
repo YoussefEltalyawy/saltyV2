@@ -74,6 +74,8 @@ export interface BundleDefinition {
   // ── Special fields for TOPS_CAP ──────────────────────────────────────────
   minTopsQuantity?: number;
   freeCapsQuantity?: number;
+  /** The field key in the 'bundles' metaobject in Shopify */
+  metaobjectField?: string;
 }
 
 // ─── Bundle Registry ──────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     // Shopify numeric product IDs
     productIds: ['9085394354381'],                          // Zip Up
     complementaryProductIds: ['9085410410701', '9085413949645'], // Sweatpants
+    metaobjectField: 'zip_up_sweatpants_bundle_10_off',
     eligibleProducts: [], // resolved by bundleDataService using productIds
   },
 
@@ -115,6 +118,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     slotLabels: ['Choose Hoodie', 'Choose Sweatpants'],
     productIds: ['9085406118093', '9085406052557'],         // Hoodies
     complementaryProductIds: ['9085410410701', '9085413949645'], // Sweatpants
+    metaobjectField: 'hoodie_sweatpants_bundle_10_off',
     eligibleProducts: [],
   },
 
@@ -129,6 +133,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     discountCode: '3ITEMS15',
     discountValue: 15,
     collectionId: '619384013005',
+    metaobjectField: 'any_3_artist_collection_products_15_off',
     eligibleCollections: ['619384013005'],
   },
 
@@ -142,6 +147,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     discountValue: 15,
     shirtHandle: 'linen-shirt',
     pantsHandle: 'linen-pants',
+    metaobjectField: 'linen_shirt_pants_bundle_15_off',
     eligibleProducts: ['linen-shirt', 'linen-pants'],
   },
 
@@ -154,6 +160,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     discountType: 'automatic',
     discountValue: 10,
     slotLabels: ['Choose Denim', 'Choose Polo'],
+    metaobjectField: 'denim_polo_bundle_10_off',
     eligibleCollections: [BUNDLE_COLLECTIONS.DENIM, BUNDLE_COLLECTIONS.POLO],
   },
 
@@ -167,6 +174,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     discountType: 'automatic',
     discountValue: 10,
     collectionRestriction: BUNDLE_COLLECTIONS.POLO,
+    metaobjectField: '2_polos_bundle_10_off',
     eligibleCollections: [BUNDLE_COLLECTIONS.POLO],
   },
 
@@ -180,6 +188,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     discountType: 'automatic',
     discountValue: 15,
     collectionRestriction: BUNDLE_COLLECTIONS.POLO,
+    metaobjectField: '3_polos_bundle_15_off',
     eligibleCollections: [BUNDLE_COLLECTIONS.POLO],
   },
 
@@ -194,6 +203,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     discountCode: '2TOPS10',
     discountValue: 10,
     collectionRestriction: BUNDLE_COLLECTIONS.TOPS,
+    metaobjectField: '2_tops_bundle_10_off',
     eligibleCollections: [BUNDLE_COLLECTIONS.TOPS],
   },
 
@@ -208,6 +218,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     discountCode: '3TOPS15',
     discountValue: 15,
     collectionRestriction: BUNDLE_COLLECTIONS.TOPS,
+    metaobjectField: '3_tops_bundle_15_off',
     eligibleCollections: [BUNDLE_COLLECTIONS.TOPS],
   },
 
@@ -222,6 +233,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     discountValue: 100, // 100% off cap price
     minTopsQuantity: 4,
     freeCapsQuantity: 1,
+    metaobjectField: '4_tops_1_free_cap_bundle',
     eligibleCollections: [BUNDLE_COLLECTIONS.TOPS, BUNDLE_COLLECTIONS.CAPS],
   },
 };
@@ -238,6 +250,13 @@ export function getAllEnabledBundles(): Array<{ key: string; def: BundleDefiniti
   return Object.entries(BUNDLE_DEFINITIONS)
     .filter(([, def]) => def.enabled)
     .map(([key, def]) => ({ key, def }));
+}
+
+/** Returns a record of bundle keys and their enabled status */
+export function getBundleStatuses(): Record<string, boolean> {
+  return Object.fromEntries(
+    Object.entries(BUNDLE_DEFINITIONS).map(([key, def]) => [key, def.enabled])
+  );
 }
 
 /** Returns bundle keys that are relevant for a given product handle + collection list */
@@ -267,4 +286,20 @@ export function getProductUpsells(
   }
 
   return [...new Set(keys)];
+}
+
+/**
+ * Updates the 'enabled' state of all bundles based on values from a Shopify Metaobject.
+ * Expected format: array of { key, value } from metaobject fields.
+ */
+export function applyMetaobjectToggles(fields: Array<{ key: string; value: string | boolean }>) {
+  if (!fields || !fields.length) return;
+
+  const statusMap = new Map(fields.map((f) => [f.key, f.value === 'true' || f.value === true]));
+
+  Object.entries(BUNDLE_DEFINITIONS).forEach(([, def]) => {
+    if (def.metaobjectField && statusMap.has(def.metaobjectField)) {
+      def.enabled = statusMap.get(def.metaobjectField)!;
+    }
+  });
 }

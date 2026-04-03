@@ -1,4 +1,4 @@
-import { BUNDLE_COLLECTIONS, BUNDLE_DEFINITIONS, BUNDLE_TYPES, type BundleDefinition } from './bundleConfig';
+import { BUNDLE_COLLECTIONS, BUNDLE_DEFINITIONS, BUNDLE_TYPES, type BundleDefinition, applyMetaobjectToggles, getBundleStatuses, getAllEnabledBundles } from './bundleConfig';
 
 const SALTY_CLUB_COLLECTION_HANDLE = 'salty-club';
 
@@ -146,12 +146,38 @@ export class BundleDataService {
     }
   }
 
+  /**
+   * Fetches the 'bundles' metaobject and updates bundle enablement status.
+   */
+  async fetchMetaobjectToggles() {
+    try {
+      const result = await this.storefront.query(`
+        query GetBundleToggles {
+          metaobject(handle: { handle: "bundles", type: "bundles" }) {
+            fields {
+              key
+              value
+            }
+          }
+        }
+      `);
+
+      const fields = result?.metaobject?.fields ?? [];
+      if (fields.length) {
+        applyMetaobjectToggles(fields);
+      }
+    } catch (e) {
+      // Failed to fetch toggles, fallback to build defaults
+    }
+  }
+
   // ── Product-page data ───────────────────────────────────────────────────────
   /**
    * Fetches all data the product page needs to render applicable bundles.
    * Derived entirely from BUNDLE_DEFINITIONS – no hardcoded IDs here.
    */
   async fetchProductPageBundleData(productHandle: string) {
+    await this.fetchMetaobjectToggles();
     const collectionHandles = await this.fetchProductCollectionHandles(productHandle);
 
     const isInDenim   = collectionHandles.includes(BUNDLE_COLLECTIONS.DENIM);
@@ -261,11 +287,15 @@ export class BundleDataService {
       // Collection-3-items bundle
       collectionBundle3Products,
       isInCollection619384013005: collectionHandles.includes('619384013005'),
+
+      // Current bundle statuses (synced from metaobject on server)
+      bundleStatuses: getBundleStatuses(),
     };
   }
 
   // ── Bundles page: fetch ALL data ─────────────────────────────────────────────
   async fetchAllBundleData() {
+    await this.fetchMetaobjectToggles();
     // Collect all unique numeric IDs needed by MIXED bundles
     const allIds = new Set<string>();
     for (const def of Object.values(BUNDLE_DEFINITIONS)) {
@@ -316,6 +346,7 @@ export class BundleDataService {
       linenPants,
       mixedBundleProductMap,
       collectionBundle3Products,
+      enabledBundles: getAllEnabledBundles(),
     };
   }
 
