@@ -3,23 +3,21 @@ import { BUNDLE_COLLECTIONS } from './bundleConfig';
 // Common utility functions for bundles
 
 /**
- * Get the first available color option from a product
+ * Get the color of the first IN-STOCK variant.
+ * Returns '' if the product has no available variants.
  */
 export function getFirstColor(product: any): string {
-  const colorOpt = product?.options?.find(
-    (o: any) => o.name.toLowerCase() === 'color',
-  );
-  return colorOpt?.optionValues[0]?.name || '';
+  const v = product?.variants?.nodes?.find((v: any) => v.availableForSale);
+  return v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'color')?.value ?? '';
 }
 
 /**
- * Get the first available size option from a product
+ * Get the size of the first IN-STOCK variant.
+ * Returns '' if the product has no available variants.
  */
 export function getFirstSize(product: any): string {
-  const sizeOpt = product?.options?.find(
-    (o: any) => o.name.toLowerCase() === 'size',
-  );
-  return sizeOpt?.optionValues[0]?.name || '';
+  const v = product?.variants?.nodes?.find((v: any) => v.availableForSale);
+  return v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'size')?.value ?? '';
 }
 
 /**

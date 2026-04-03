@@ -7,14 +7,10 @@ const PRODUCT_FIELDS = `
   id
   title
   handle
-  description
   featuredImage { url altText }
   options {
     name
-    optionValues {
-      name
-      swatch { color image { previewImage { url } } }
-    }
+    optionValues { name }
   }
   variants(first: 100) {
     nodes {

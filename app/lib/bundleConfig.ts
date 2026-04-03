@@ -153,7 +153,7 @@ export const BUNDLE_DEFINITIONS: Record<string, BundleDefinition> = {
     description: 'Add a matching piece to complete your look and save 10%.',
     discountType: 'automatic',
     discountValue: 10,
-    slotLabels: ['Your Selection', 'Choose a Matching Piece'],
+    slotLabels: ['Choose Denim', 'Choose Polo'],
     eligibleCollections: [BUNDLE_COLLECTIONS.DENIM, BUNDLE_COLLECTIONS.POLO],
   },
 

@@ -27,34 +27,15 @@ export default function ProductBundleCard({
 }: ProductBundleCardProps) {
   // Helper functions to get first available color and size
   const getFirstAvailableColor = (product: any): string => {
-    if (!product?.variants?.nodes) return '';
-
-    // Find the first variant that's available
-    const firstAvailableVariant = product.variants.nodes.find((v: any) => v.availableForSale);
-    if (firstAvailableVariant) {
-      const colorOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
-        opt.name.toLowerCase() === 'color'
-      );
-      return colorOption?.value || '';
-    }
-    return '';
+    if (!product?.variants?.nodes?.length) return '';
+    const v = product.variants.nodes.find((v: any) => v.availableForSale);
+    return v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'color')?.value ?? '';
   };
 
   const getFirstAvailableSize = (product: any): string => {
-    if (!product?.variants?.nodes) return '';
-
-    // Find the first variant that's available
-    const firstAvailableVariant = product.variants.nodes.find((v: any) => v.availableForSale);
-    if (firstAvailableVariant) {
-      const colorOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
-        opt.name.toLowerCase() === 'color'
-      );
-      const sizeOption = firstAvailableVariant.selectedOptions.find((opt: any) =>
-        opt.name.toLowerCase() === 'size'
-      );
-      return sizeOption?.value || '';
-    }
-    return '';
+    if (!product?.variants?.nodes?.length) return '';
+    const v = product.variants.nodes.find((v: any) => v.availableForSale);
+    return v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'size')?.value ?? '';
   };
 
   const [selectedProduct, setSelectedProduct] = useState(initialProduct);
@@ -133,23 +114,18 @@ export default function ProductBundleCard({
 
   return (
     <div className="flex flex-col border border-gray-100 p-3">
-      {products.length > 1 ? (
-        <select
-          className="border border-gray-300 rounded px-2 py-1 mb-3 text-sm"
-          value={selectedProduct?.handle || ''}
-          onChange={(e) => handleProductChange(e.target.value)}
-        >
-          {products.map((p) => (
-            <option key={p.handle} value={p.handle}>
-              {p.title}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <div className="mb-3 text-sm font-medium text-gray-900">
-          {selectedProduct?.title}
-        </div>
-      )}
+      {/* Always render a select so users can see what's chosen and switch when multiple */}
+      <select
+        className="border border-gray-300 rounded px-2 py-1 mb-3 text-sm w-full"
+        value={selectedProduct?.handle || ''}
+        onChange={(e) => handleProductChange(e.target.value)}
+      >
+        {products.map((p) => (
+          <option key={p.handle} value={p.handle}>
+            {p.title}
+          </option>
+        ))}
+      </select>
 
       <div className="w-full aspect-square mb-3 bg-gray-100 max-h-48">
         {image ? (
