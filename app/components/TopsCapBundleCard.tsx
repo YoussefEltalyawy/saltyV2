@@ -35,14 +35,14 @@ function TopsCapBundleCard({
   productOptions,
   upsell,
 }: {
-  product: ProductFragment;
+  product: any;
   productOptions: any[];
   upsell: {
     title: string;
     description: string;
-    discountCode: string;
-    minTopsQuantity: number;
-    freeCapsQuantity: number;
+    discountCode?: string;
+    minTopsQuantity?: number;
+    freeCapsQuantity?: number;
     [key: string]: any;
   };
 }) {

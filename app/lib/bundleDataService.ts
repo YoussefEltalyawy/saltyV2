@@ -1,8 +1,34 @@
-import { BUNDLE_COLLECTIONS } from './bundleConfig';
+import { BUNDLE_COLLECTIONS, BUNDLE_DEFINITIONS, BUNDLE_TYPES, type BundleDefinition } from './bundleConfig';
 
 const SALTY_CLUB_COLLECTION_HANDLE = 'salty-club';
 
-// Centralized data fetching for bundles
+// ─── Shared GraphQL fragment for a full product ───────────────────────────────
+const PRODUCT_FIELDS = `
+  id
+  title
+  handle
+  description
+  featuredImage { url altText }
+  options {
+    name
+    optionValues {
+      name
+      swatch { color image { previewImage { url } } }
+    }
+  }
+  variants(first: 100) {
+    nodes {
+      id
+      availableForSale
+      image { url altText }
+      price { amount currencyCode }
+      compareAtPrice { amount currencyCode }
+      selectedOptions { name value }
+    }
+  }
+`;
+
+// ─── Class ────────────────────────────────────────────────────────────────────
 export class BundleDataService {
   private storefront: any;
   private cache: Map<string, any> = new Map();
@@ -11,452 +37,211 @@ export class BundleDataService {
     this.storefront = storefront;
   }
 
-  /**
-   * Fetch products from a collection
-   */
-  async fetchCollectionProducts(collectionHandle: string): Promise<any[]> {
-    const cacheKey = `collection_${collectionHandle}`;
+  // ── Cached store queries ────────────────────────────────────────────────────
 
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey);
-    }
+  async fetchCollectionProducts(collectionHandle: string): Promise<any[]> {
+    const key = `col_${collectionHandle}`;
+    if (this.cache.has(key)) return this.cache.get(key);
 
     try {
       const result = await this.storefront.query(`
         query GetCollectionProducts($handle: String!) {
           collection(handle: $handle) {
-            products(first: 50) {
-              nodes {
-                id
-                title
-                handle
-                description
-                featuredImage {
-                  url
-                  altText
-                }
-                options {
-                  name
-                  optionValues {
-                    name
-                    swatch {
-                      color
-                      image {
-                        previewImage {
-                          url
-                        }
-                      }
-                    }
-                  }
-                }
-                variants(first: 100) {
-                  nodes {
-                    id
-                    availableForSale
-                    image {
-                      url
-                      altText
-                    }
-                    price {
-                      amount
-                      currencyCode
-                    }
-                    compareAtPrice {
-                      amount
-                      currencyCode
-                    }
-                    selectedOptions {
-                      name
-                      value
-                    }
-                  }
-                }
-              }
-            }
+            products(first: 50) { nodes { ${PRODUCT_FIELDS} } }
           }
         }
-      `, {
-        variables: { handle: collectionHandle },
-      });
+      `, { variables: { handle: collectionHandle } });
 
-      const products = result?.collection?.products?.nodes || [];
-      this.cache.set(cacheKey, products);
+      const products = result?.collection?.products?.nodes ?? [];
+      this.cache.set(key, products);
       return products;
-    } catch (err) {
-      console.error(`Error fetching collection ${collectionHandle}:`, err);
+    } catch {
       return [];
     }
   }
 
-  /**
-   * Fetch a specific product by handle
-   */
   async fetchProduct(handle: string): Promise<any> {
-    const cacheKey = `product_${handle}`;
-
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey);
-    }
+    const key = `prod_${handle}`;
+    if (this.cache.has(key)) return this.cache.get(key);
 
     try {
       const result = await this.storefront.query(`
         query GetProduct($handle: String!) {
-          product(handle: $handle) {
-            id
-            title
-            handle
-            description
-            featuredImage {
-              url
-              altText
-            }
-            options {
-              name
-              optionValues {
-                name
-                swatch {
-                  color
-                  image {
-                    previewImage {
-                      url
-                    }
-                  }
-                }
-              }
-            }
-            variants(first: 100) {
-              nodes {
-                id
-                availableForSale
-                image {
-                  url
-                  altText
-                }
-                price {
-                  amount
-                  currencyCode
-                }
-                compareAtPrice {
-                  amount
-                  currencyCode
-                }
-                selectedOptions {
-                  name
-                  value
-                }
-              }
-            }
-          }
+          product(handle: $handle) { ${PRODUCT_FIELDS} }
         }
-      `, {
-        variables: { handle },
-      });
+      `, { variables: { handle } });
 
-      const product = result?.product || null;
-      this.cache.set(cacheKey, product);
+      const product = result?.product ?? null;
+      this.cache.set(key, product);
       return product;
-    } catch (err) {
-      console.error(`Error fetching product ${handle}:`, err);
+    } catch {
       return null;
     }
   }
 
-  /**
-   * Fetch products by their IDs
-   */
   async fetchProductsByIds(ids: string[]): Promise<any[]> {
     const products: any[] = [];
-    
     for (const id of ids) {
-      const cacheKey = `product_id_${id}`;
-      
-      if (this.cache.has(cacheKey)) {
-        products.push(this.cache.get(cacheKey));
-        continue;
-      }
+      const key = `prodid_${id}`;
+      if (this.cache.has(key)) { products.push(this.cache.get(key)); continue; }
 
       try {
-        // Convert ID to Shopify GID format if needed
-        const graphqlId = id.startsWith('gid://') ? id : `gid://shopify/Product/${id}`;
-        
+        const gid = id.startsWith('gid://') ? id : `gid://shopify/Product/${id}`;
         const result = await this.storefront.query(`
           query GetProductById($id: ID!) {
-            product(id: $id) {
-              id
-              title
-              handle
-              description
-              featuredImage {
-                url
-                altText
-              }
-              options {
-                name
-                optionValues {
-                  name
-                  swatch {
-                    color
-                    image {
-                      previewImage {
-                        url
-                      }
-                    }
-                  }
-                }
-              }
-              variants(first: 100) {
-                nodes {
-                  id
-                  availableForSale
-                  image {
-                    url
-                    altText
-                  }
-                  price {
-                    amount
-                    currencyCode
-                  }
-                  compareAtPrice {
-                    amount
-                    currencyCode
-                  }
-                  selectedOptions {
-                    name
-                    value
-                  }
-                }
-              }
-            }
+            product(id: $id) { ${PRODUCT_FIELDS} }
           }
-        `, {
-          variables: { id: graphqlId },
-        });
+        `, { variables: { id: gid } });
 
-        const product = result?.product || null;
-        if (product) {
-          this.cache.set(cacheKey, product);
-          products.push(product);
-        }
-      } catch (err) {
-        console.error(`Error fetching product ${id}:`, err);
-      }
+        const product = result?.product ?? null;
+        if (product) { this.cache.set(key, product); products.push(product); }
+      } catch { /* skip */ }
     }
-
     return products;
   }
 
-  /**
-   * Fetch a collection by ID
-   */
   async fetchCollectionById(id: string): Promise<any> {
-    const cacheKey = `collection_id_${id}`;
-
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey);
-    }
+    const key = `colid_${id}`;
+    if (this.cache.has(key)) return this.cache.get(key);
 
     try {
-      // Convert ID to Shopify GID format if needed
-      const graphqlId = id.startsWith('gid://') ? id : `gid://shopify/Collection/${id}`;
-      
+      const gid = id.startsWith('gid://') ? id : `gid://shopify/Collection/${id}`;
       const result = await this.storefront.query(`
         query GetCollectionById($id: ID!) {
           collection(id: $id) {
-            id
-            title
-            handle
-            description
-            products(first: 50) {
-              nodes {
-                id
-                title
-                handle
-                description
-                featuredImage {
-                  url
-                  altText
-                }
-                options {
-                  name
-                  optionValues {
-                    name
-                    swatch {
-                      color
-                      image {
-                        previewImage {
-                          url
-                        }
-                      }
-                    }
-                  }
-                }
-                variants(first: 100) {
-                  nodes {
-                    id
-                    availableForSale
-                    image {
-                      url
-                      altText
-                    }
-                    price {
-                      amount
-                      currencyCode
-                    }
-                    compareAtPrice {
-                      amount
-                      currencyCode
-                    }
-                    selectedOptions {
-                      name
-                      value
-                    }
-                  }
-                }
-              }
-            }
+            id title handle description
+            products(first: 50) { nodes { ${PRODUCT_FIELDS} } }
           }
         }
-      `, {
-        variables: { id: graphqlId },
-      });
+      `, { variables: { id: gid } });
 
-      const collection = result?.collection || null;
-      this.cache.set(cacheKey, collection);
+      const collection = result?.collection ?? null;
+      this.cache.set(key, collection);
       return collection;
-    } catch (err) {
-      console.error(`Error fetching collection ${id}:`, err);
+    } catch {
       return null;
     }
   }
 
-  /**
-   * Fetch collection handles and IDs for a given product handle
-   */
   async fetchProductCollectionHandles(productHandle: string): Promise<string[]> {
-    const cacheKey = `product_collections_${productHandle}`;
-
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey);
-    }
+    const key = `pcolhandles_${productHandle}`;
+    if (this.cache.has(key)) return this.cache.get(key);
 
     try {
       const result = await this.storefront.query(`
         query ProductCollections($handle: String!) {
           product(handle: $handle) {
-            collections(first: 10) {
-              nodes { 
-                handle
-                id
-              }
-            }
+            collections(first: 10) { nodes { handle id } }
           }
         }
       `, { variables: { handle: productHandle } });
 
-      const collections = result?.product?.collections?.nodes || [];
-      const handles = collections.map((c: any) => c.handle);
-      const ids = collections.map((c: any) => c.id?.split('/').pop());
-      const allIdentifiers = [...handles, ...ids];
-      
-      this.cache.set(cacheKey, allIdentifiers);
-      return allIdentifiers;
-    } catch (err) {
-      console.error(`Error fetching collections for product ${productHandle}:`, err);
+      const nodes = result?.product?.collections?.nodes ?? [];
+      // include both handle strings AND numeric collection IDs for eligibility checks
+      const all = [
+        ...nodes.map((c: any) => c.handle),
+        ...nodes.map((c: any) => c.id?.split('/').pop()),
+      ].filter(Boolean);
+
+      this.cache.set(key, all);
+      return all;
+    } catch {
       return [];
     }
   }
 
+  // ── Product-page data ───────────────────────────────────────────────────────
   /**
-   * Fetch complementary products for cross-selling based on membership in denim/polo
+   * Fetches all data the product page needs to render applicable bundles.
+   * Derived entirely from BUNDLE_DEFINITIONS – no hardcoded IDs here.
    */
-  async fetchComplementaryProductsByHandle(productHandle: string): Promise<any[]> {
-    try {
-      const handles = await this.fetchProductCollectionHandles(productHandle);
-      const isInDenim = handles.includes(BUNDLE_COLLECTIONS.DENIM);
-      const isInPolo = handles.includes(BUNDLE_COLLECTIONS.POLO);
+  async fetchProductPageBundleData(productHandle: string) {
+    const collectionHandles = await this.fetchProductCollectionHandles(productHandle);
 
-      if (!isInDenim && !isInPolo) return [];
+    const isInDenim   = collectionHandles.includes(BUNDLE_COLLECTIONS.DENIM);
+    const isInPolo    = collectionHandles.includes(BUNDLE_COLLECTIONS.POLO);
+    const isInCaps    = collectionHandles.includes(BUNDLE_COLLECTIONS.CAPS);
+    const isInTops    = collectionHandles.includes(BUNDLE_COLLECTIONS.TOPS);
+    const isInSaltyClub = collectionHandles.includes(SALTY_CLUB_COLLECTION_HANDLE);
 
-      const complementaryCollection = isInDenim
-        ? BUNDLE_COLLECTIONS.POLO
-        : BUNDLE_COLLECTIONS.DENIM;
+    const isLinenShirt  = productHandle === 'linen-shirt';
+    const isLinenPants  = productHandle === 'linen-pants';
 
-      return await this.fetchCollectionProducts(complementaryCollection);
-    } catch (err) {
-      console.error('Error fetching complementary products:', err);
-      return [];
-    }
-  }
+    // ── Collect all productIds needed by MIXED bundles from config ────────────
+    // Resolve the current product's numeric ID for MIXED-bundle eligibility
+    const currentProduct = await this.fetchProduct(productHandle);
+    const currentProductNumericId = currentProduct?.id?.split('/').pop() ?? '';
 
-  /**
-   * Product page bundle-related data in one call to mirror existing loader shape
-   */
-  async fetchProductPageBundleData(productHandle: string): Promise<{
-    isInDenim: boolean;
-    isInPolo: boolean;
-    isInCaps: boolean;
-    isInTops: boolean;
-    isInSaltyClub: boolean;
-    isLinenShirt: boolean;
-    isLinenPants: boolean;
-    complementaryProducts: any[];
-    polos: any[];
-    caps: any[];
-    tops: any[];
-    linenShirt: any;
-    linenPants: any;
-    isZipUp: boolean;
-    isHoodie: boolean;
-    isSweatpants: boolean;
-    isInCollection619384013005: boolean;
-    zipUpProducts: any[];
-    hoodieProducts: any[];
-    sweatpantsProducts: any[];
-    collectionBundle3Products: any;
-  }> {
-    const handles = await this.fetchProductCollectionHandles(productHandle);
+    // Gather unique slots from all enabled MIXED bundle definitions
+    const allMixedIds = new Set<string>();
+    const allComplementaryIds = new Set<string>();
 
-    const isInDenim = handles.includes(BUNDLE_COLLECTIONS.DENIM);
-    const isInPolo = handles.includes(BUNDLE_COLLECTIONS.POLO);
-    const isInCaps = handles.includes(BUNDLE_COLLECTIONS.CAPS);
-    const isInTops = handles.includes(BUNDLE_COLLECTIONS.TOPS);
-    const isInSaltyClub = handles.includes(SALTY_CLUB_COLLECTION_HANDLE);
-
-    const isLinenShirt = productHandle === 'linen-shirt';
-    const isLinenPants = productHandle === 'linen-pants';
-    
-    // Check for new bundles by fetching the product and checking its ID
-    const product = await this.fetchProduct(productHandle);
-    const productId = product?.id?.split('/').pop();
-    
-    const isZipUp = productId === '9085394354381';
-    const isHoodie = ['9085406118093', '9085406052557'].includes(productId);
-    const isSweatpants = ['9085410410701', '9085413949645'].includes(productId);
-    const isInCollection619384013005 = handles.includes('619384013005');
-    
-    // Debug logging
-    if (isInCollection619384013005) {
-      console.log(`Product ${productHandle} is in collection 619384013005`);
+    for (const def of Object.values(BUNDLE_DEFINITIONS)) {
+      if (!def.enabled || def.type !== BUNDLE_TYPES.MIXED) continue;
+      def.productIds?.forEach((id) => allMixedIds.add(id));
+      def.complementaryProductIds?.forEach((id) => allComplementaryIds.add(id));
     }
 
-    const [polos, caps, tops, linenShirt, linenPants, complementaryProducts, zipUpProducts, hoodieProducts, sweatpantsProducts, collectionBundle3Products] = await Promise.all([
+    // Determine which MIXED bundles this product participates in
+    const activeMixedBundleKeys = Object.entries(BUNDLE_DEFINITIONS)
+      .filter(([, def]) => def.enabled && def.type === BUNDLE_TYPES.MIXED)
+      .filter(([, def]) =>
+        def.productIds?.includes(currentProductNumericId) ||
+        def.complementaryProductIds?.includes(currentProductNumericId),
+      )
+      .map(([key]) => key);
+
+    // Build set of IDs to pre-fetch for active mixed bundles
+    const idsToFetch = new Set<string>();
+    for (const key of activeMixedBundleKeys) {
+      const def = BUNDLE_DEFINITIONS[key];
+      def.productIds?.forEach((id) => idsToFetch.add(id));
+      def.complementaryProductIds?.forEach((id) => idsToFetch.add(id));
+    }
+
+    // ── Parallel fetches ─────────────────────────────────────────────────────
+    const [
+      polos,
+      caps,
+      tops,
+      linenShirt,
+      linenPants,
+      complementaryProducts,
+      mixedBundleProducts,
+      // Collection-3-items bundle: only when product's collection matches
+      collectionBundle3Products,
+    ] = await Promise.all([
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.POLO),
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.CAPS),
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.TOPS),
       (isLinenShirt || isLinenPants) ? this.fetchProduct('linen-shirt') : Promise.resolve(null),
       (isLinenShirt || isLinenPants) ? this.fetchProduct('linen-pants') : Promise.resolve(null),
-      this.fetchComplementaryProductsByHandle(productHandle),
-      // Always fetch zip up products if product is zip up or sweatpants
-      (isZipUp || isSweatpants) ? this.fetchProductsByIds(['9085394354381']) : Promise.resolve([]),
-      // Always fetch hoodie products if product is hoodie or sweatpants
-      (isHoodie || isSweatpants) ? this.fetchProductsByIds(['9085406118093', '9085406052557']) : Promise.resolve([]),
-      // Always fetch sweatpants products if product is zip up, hoodie, or sweatpants
-      (isZipUp || isHoodie || isSweatpants) ? this.fetchProductsByIds(['9085410410701', '9085413949645']) : Promise.resolve([]),
-      // Always fetch collection if product is in collection 619384013005
-      isInCollection619384013005 ? this.fetchCollectionById('619384013005') : Promise.resolve(null),
+      (isInDenim || isInPolo)
+        ? this.fetchCollectionProducts(isInDenim ? BUNDLE_COLLECTIONS.POLO : BUNDLE_COLLECTIONS.DENIM)
+        : Promise.resolve([]),
+      idsToFetch.size > 0 ? this.fetchProductsByIds([...idsToFetch]) : Promise.resolve([]),
+      // For collection-3-items: check if product is in collection
+      collectionHandles.includes('619384013005')
+        ? this.fetchCollectionById('619384013005')
+        : Promise.resolve(null),
     ]);
 
+    // ── Build per-bundle product maps consumed by UpsellSection ──────────────
+    // Keyed by bundle definition key → array of products for each slot group
+    const mixedBundleProductMap: Record<string, { slotProducts: any[][]; }> = {};
+    for (const key of activeMixedBundleKeys) {
+      const def = BUNDLE_DEFINITIONS[key];
+      const slot1 = mixedBundleProducts.filter((p: any) =>
+        def.productIds?.includes(p.id?.split('/').pop()),
+      );
+      const slot2 = mixedBundleProducts.filter((p: any) =>
+        def.complementaryProductIds?.includes(p.id?.split('/').pop()),
+      );
+      mixedBundleProductMap[key] = { slotProducts: [slot1, slot2] };
+    }
+
     return {
+      // Collection membership flags
       isInDenim,
       isInPolo,
       isInCaps,
@@ -464,40 +249,35 @@ export class BundleDataService {
       isInSaltyClub,
       isLinenShirt,
       isLinenPants,
-      complementaryProducts,
+
+      // Product pools
       polos,
       caps,
       tops,
       linenShirt,
       linenPants,
-      isZipUp,
-      isHoodie,
-      isSweatpants,
-      isInCollection619384013005,
-      zipUpProducts,
-      hoodieProducts,
-      sweatpantsProducts,
+      complementaryProducts,
+
+      // Mixed bundle data: { [bundleKey]: { slotProducts: any[][] } }
+      mixedBundleProductMap,
+      activeMixedBundleKeys,
+
+      // Collection-3-items bundle
       collectionBundle3Products,
+      isInCollection619384013005: collectionHandles.includes('619384013005'),
     };
   }
 
+  // ── Bundles page: fetch ALL data ─────────────────────────────────────────────
+  async fetchAllBundleData() {
+    // Collect all unique numeric IDs needed by MIXED bundles
+    const allIds = new Set<string>();
+    for (const def of Object.values(BUNDLE_DEFINITIONS)) {
+      if (!def.enabled || def.type !== BUNDLE_TYPES.MIXED) continue;
+      def.productIds?.forEach((id) => allIds.add(id));
+      def.complementaryProductIds?.forEach((id) => allIds.add(id));
+    }
 
-  /**
-   * Fetch all bundle-related data
-   */
-  async fetchAllBundleData(): Promise<{
-    polos: any[];
-    denims: any[];
-    caps: any[];
-    tops: any[];
-    linenShirt: any;
-    linenPants: any;
-    cocktailsBabyTee: any;
-    zipUpProducts: any[];
-    sweatpantsProducts: any[];
-    hoodieProducts: any[];
-    collectionBundle3Products: any;
-  }> {
     const [
       polos,
       denims,
@@ -505,11 +285,8 @@ export class BundleDataService {
       tops,
       linenShirt,
       linenPants,
-      cocktailsBabyTee,
-      zipUpProducts,
-      sweatpantsProducts,
-      hoodieProducts,
-      collectionBundle3Products
+      mixedProducts,
+      collectionBundle3Products,
     ] = await Promise.all([
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.POLO),
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.DENIM),
@@ -517,12 +294,22 @@ export class BundleDataService {
       this.fetchCollectionProducts(BUNDLE_COLLECTIONS.TOPS),
       this.fetchProduct('linen-shirt'),
       this.fetchProduct('linen-pants'),
-      this.fetchProduct('cocktails-baby-tee-pre-order'),
-      this.fetchProductsByIds(['9085394354381']), // Zip Up
-      this.fetchProductsByIds(['9085410410701', '9085413949645']), // Sweatpants
-      this.fetchProductsByIds(['9085406118093', '9085406052557']), // Hoodies
-      this.fetchCollectionById('619384013005'), // Collection for bundle 3
+      allIds.size > 0 ? this.fetchProductsByIds([...allIds]) : Promise.resolve([]),
+      this.fetchCollectionById('619384013005'),
     ]);
+
+    // Build per-bundle slot product maps
+    const mixedBundleProductMap: Record<string, { slotProducts: any[][] }> = {};
+    for (const [key, def] of Object.entries(BUNDLE_DEFINITIONS)) {
+      if (!def.enabled || def.type !== BUNDLE_TYPES.MIXED) continue;
+      const slot1 = mixedProducts.filter((p: any) =>
+        def.productIds?.includes(p.id?.split('/').pop()),
+      );
+      const slot2 = mixedProducts.filter((p: any) =>
+        def.complementaryProductIds?.includes(p.id?.split('/').pop()),
+      );
+      mixedBundleProductMap[key] = { slotProducts: [slot1, slot2] };
+    }
 
     return {
       polos,
@@ -531,39 +318,15 @@ export class BundleDataService {
       tops,
       linenShirt,
       linenPants,
-      cocktailsBabyTee,
-      zipUpProducts,
-      sweatpantsProducts,
-      hoodieProducts,
+      mixedBundleProductMap,
       collectionBundle3Products,
     };
   }
 
-  /**
-   * Fetch complementary products for cross-selling
-   */
-  async fetchComplementaryProducts(productHandle: string): Promise<any[]> {
-    // This would be implemented based on business logic
-    // For now, return empty array
-    return [];
-  }
-
-  /**
-   * Clear cache
-   */
-  clearCache(): void {
-    this.cache.clear();
-  }
-
-  /**
-   * Get cache size
-   */
-  getCacheSize(): number {
-    return this.cache.size;
-  }
+  clearCache() { this.cache.clear(); }
+  getCacheSize() { return this.cache.size; }
 }
 
-// Factory function to create a data service instance
 export function createBundleDataService(storefront: any): BundleDataService {
   return new BundleDataService(storefront);
 }

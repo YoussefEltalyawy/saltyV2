@@ -7,7 +7,6 @@ import {
   getProductOptions,
   getAdjacentAndFirstAvailableVariants,
   useSelectedOptionInUrlParam,
-  Money,
 } from '@shopify/hydrogen';
 import { ProductPrice } from '~/components/ProductPrice';
 import { ProductImageCarousel } from '~/components/ProductImageCarousel';
@@ -17,29 +16,15 @@ import { redirectIfHandleIsLocalized } from '~/lib/redirect';
 import { useState, useEffect, useMemo } from 'react';
 import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
 import { toMetaContentId } from '~/lib/meta';
-import { AddToCartButton } from '~/components/AddToCartButton';
-import { useAside } from '~/components/Aside';
-import ProductBundleCard from '~/components/ProductBundleCard';
-import BundleZipUpSweatpantsCard from '~/components/BundleZipUpSweatpantsCard';
-import BundleHoodieSweatpantsCard from '~/components/BundleHoodieSweatpantsCard';
-import BundleCollection3Card from '~/components/BundleCollection3Card';
-import { getFirstColor, getFirstSize, getVariantIdFromOptions, getVariantById, getPriceInfo } from '~/lib/bundleUtils';
 import type {
   ProductFragment,
   ProductVariantFragment,
 } from 'storefrontapi.generated';
 import type { MappedProductOptions } from '@shopify/hydrogen';
 import UpsellSection from '~/components/UpsellSection';
-import BundleUpsellCard from '~/components/BundleUpsellCard';
-import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
 import { YouMayAlsoLike } from '~/components/YouMayAlsoLike';
 import { createBundleDataService } from '~/lib/bundleDataService';
-
-import {
-  getProductUpsells,
-  getBundleDefinition,
-  BUNDLE_COLLECTIONS
-} from '~/lib/bundleConfig';
+import { getProductUpsells, BUNDLE_COLLECTIONS } from '~/lib/bundleConfig';
 
 export const meta: MetaFunction<typeof loader> = ({ data }) => {
   return [
@@ -663,23 +648,24 @@ export default function Product() {
   }, [product?.id, selectedVariant?.id]);
 
 
-  // Get product collections data
+  // Get product collections data returned by the loader
   const { productCollections } = useLoaderData<typeof loader>();
 
-  // Find upsells for this product using centralized configuration
-  const upsellKey = handle?.toLowerCase().trim();
-  const collectionHandles = [];
-  if (productCollections?.isInDenim) collectionHandles.push(BUNDLE_COLLECTIONS.DENIM);
-  if (productCollections?.isInPolo) collectionHandles.push(BUNDLE_COLLECTIONS.POLO);
-  if (productCollections?.isInCaps) collectionHandles.push(BUNDLE_COLLECTIONS.CAPS);
-  if (productCollections?.isInTops) collectionHandles.push(BUNDLE_COLLECTIONS.TOPS);
+  // Resolve which bundle/upsell keys apply to this product
+  const upsellKey = handle?.toLowerCase().trim() ?? '';
+  const collectionHandles: string[] = [
+    ...(productCollections?.isInDenim ? [BUNDLE_COLLECTIONS.DENIM] : []),
+    ...(productCollections?.isInPolo  ? [BUNDLE_COLLECTIONS.POLO]  : []),
+    ...(productCollections?.isInCaps  ? [BUNDLE_COLLECTIONS.CAPS]  : []),
+    ...(productCollections?.isInTops  ? [BUNDLE_COLLECTIONS.TOPS]  : []),
+  ];
 
-  // Get all bundles this product is eligible for
-  const upsellKeys = getProductUpsells(upsellKey || '', collectionHandles);
-  const upsells = upsellKeys.map(key => getBundleDefinition(key)).filter(Boolean);
-
-  // The centralized configuration already handles all the bundle logic
-  // No need to manually add bundles - they're all configured in bundleConfig.ts
+  // Config-driven upsell keys (collection + product-level)
+  const configUpsellKeys = getProductUpsells(upsellKey, collectionHandles);
+  // MIXED bundle keys pre-resolved by the data service
+  const mixedUpsellKeys: string[] = productCollections?.activeMixedBundleKeys ?? [];
+  // Deduplicated final list
+  const upsells = [...new Set([...configUpsellKeys, ...mixedUpsellKeys])];
 
   // Get color-specific images based on selected variant
   const colorSpecificImages = useMemo(() => {
@@ -836,28 +822,7 @@ export default function Product() {
             </div>
           )}
 
-          {/* New Bundles: Zip Up + Sweatpants */}
-          {(productCollections?.isZipUp || productCollections?.isSweatpants) && productCollections?.zipUpProducts?.length > 0 && productCollections?.sweatpantsProducts?.length > 0 && (
-            <BundleZipUpSweatpantsCard
-              zipUpProducts={productCollections.zipUpProducts}
-              sweatpantsProducts={productCollections.sweatpantsProducts}
-            />
-          )}
-
-          {/* New Bundles: Hoodie + Sweatpants */}
-          {(productCollections?.isHoodie || productCollections?.isSweatpants) && productCollections?.hoodieProducts?.length > 0 && productCollections?.sweatpantsProducts?.length > 0 && (
-            <BundleHoodieSweatpantsCard
-              hoodieProducts={productCollections.hoodieProducts}
-              sweatpantsProducts={productCollections.sweatpantsProducts}
-            />
-          )}
-
-          {/* New Bundles: Any 3 Products from Collection */}
-          {productCollections?.isInCollection619384013005 && productCollections?.collectionBundle3Products?.products?.nodes?.length > 0 && (
-            <BundleCollection3Card
-              collectionProducts={productCollections.collectionBundle3Products.products.nodes}
-            />
-          )}
+          {/* All bundles are now rendered by UpsellSection above */}
 
           <div className="product-description mt-8">
             <h3 className="text-lg font-medium text-black mb-4">Description</h3>

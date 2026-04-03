@@ -24,13 +24,14 @@ function LinenCrossSellCard({
   currentProduct,
   upsell,
 }: {
-  currentProduct: ProductFragment;
+  currentProduct: any;
   upsell: {
     title: string;
     description: string;
     discountValue: number;
-    shirtHandle: string;
-    pantsHandle: string;
+    shirtHandle?: string;
+    pantsHandle?: string;
+    [key: string]: any;
   };
 }) {
   const { open } = useAside();

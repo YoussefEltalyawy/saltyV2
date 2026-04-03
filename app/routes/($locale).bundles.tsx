@@ -1,805 +1,148 @@
-import { Await, useLoaderData } from 'react-router';
-import { Suspense } from 'react';
-import BundleUpsellCard from '~/components/BundleUpsellCard';
-import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
-import TopsCapBundleCard from '~/components/TopsCapBundleCard';
-import LinenCrossSellCard from '~/components/LinenCrossSellCard';
-
-import { useState, useEffect } from 'react';
-import { AddToCartButton } from '~/components/AddToCartButton';
+import { useLoaderData } from 'react-router';
 import { useAside } from '~/components/Aside';
 import { createBundleDataService } from '~/lib/bundleDataService';
-import { getAllBundleDefinitions, BUNDLE_TYPES } from '~/lib/bundleConfig';
 import {
-  getVariant,
-  getVariantById,
-  getPriceInfo,
-  getFirstColor,
-  getFirstSize,
-  getVariantIdFromOptions,
-  initializeProductSelections,
-  initializeVariantSelections
-} from '~/lib/bundleUtils';
-import ProductBundleCard from '~/components/ProductBundleCard';
+  BUNDLE_DEFINITIONS,
+  BUNDLE_TYPES,
+  BUNDLE_COLLECTIONS,
+  getAllEnabledBundles,
+} from '~/lib/bundleConfig';
 
+import BundleUpsellCard from '~/components/BundleUpsellCard';
+import CrossSellUpsellCard from '~/components/CrossSellUpsellCard';
+import LinenCrossSellCard from '~/components/LinenCrossSellCard';
+import TopsCapBundleCard from '~/components/TopsCapBundleCard';
+import MixedBundleCard from '~/components/MixedBundleCard';
+
+// ─── Loader ───────────────────────────────────────────────────────────────────
 export async function loader({ context }: any) {
   const { storefront } = context;
   const dataService = createBundleDataService(storefront);
-
-  // Fetch all bundle-related data using the centralized service
-  const bundleData = await dataService.fetchAllBundleData();
-
-  return bundleData;
+  return dataService.fetchAllBundleData();
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function BundlesPage() {
-  const { 
-    polos, 
-    denims, 
-    cocktailsBabyTee, 
-    caps, 
-    tops, 
-    linenShirt, 
+  const {
+    polos,
+    denims,
+    caps,
+    tops,
+    linenShirt,
     linenPants,
-    zipUpProducts,
-    sweatpantsProducts,
-    hoodieProducts,
-    collectionBundle3Products
+    mixedBundleProductMap,
+    collectionBundle3Products,
   } = useLoaderData<typeof loader>();
-  const { open } = useAside();
 
-  // Get all bundle definitions
-  const bundleDefinitions = getAllBundleDefinitions();
-
-  // --- 1. Denim + Polo Bundle ---
-  const [selectedDenim, setSelectedDenim] = useState(denims[0] || null);
-  const [selectedDenimVariantId, setSelectedDenimVariantId] = useState(
-    selectedDenim?.variants.nodes[0]?.id || '',
-  );
-  const [selectedPolo, setSelectedPolo] = useState(polos[0] || null);
-  const [selectedPoloVariantId, setSelectedPoloVariantId] = useState(
-    selectedPolo?.variants.nodes[0]?.id || '',
-  );
-
-  // --- 2. 2 Polos Bundle ---
-  const [selectedPolo1, setSelectedPolo1] = useState(polos[0] || null);
-  const [selectedPolo1VariantId, setSelectedPolo1VariantId] = useState(
-    selectedPolo1?.variants.nodes[0]?.id || '',
-  );
-  const [selectedPolo2, setSelectedPolo2] = useState(
-    polos[1] || polos[0] || null,
-  );
-  const [selectedPolo2VariantId, setSelectedPolo2VariantId] = useState(
-    selectedPolo2?.variants.nodes[0]?.id || '',
-  );
-
-  // --- 3. 3 Tops Bundle (Cocktails baby tee) ---
-  const [topSelections, setTopSelections] = useState([
-    { variantId: cocktailsBabyTee?.variants.nodes[0]?.id || '' },
-    { variantId: cocktailsBabyTee?.variants.nodes[0]?.id || '' },
-    { variantId: cocktailsBabyTee?.variants.nodes[0]?.id || '' },
-  ]);
-
-  // --- 4. 2 Tops Bundle (Cocktails baby tee) ---
-  const [topSelections2, setTopSelections2] = useState([
-    { variantId: '' },
-    { variantId: '' },
-  ]);
-
-  // --- 5. 3 Polos Bundle ---
-  const [selectedPolos, setSelectedPolos] = useState(
-    initializeProductSelections(polos, 3)
-  );
-  const [selectedPolosVariantIds, setSelectedPolosVariantIds] = useState(
-    initializeVariantSelections(polos, 3)
-  );
-
-  // --- Bundle 1: Zip Up + Sweatpants ---
-  const [selectedZipUp, setSelectedZipUp] = useState(zipUpProducts?.[0] || null);
-  const [selectedZipUpVariantId, setSelectedZipUpVariantId] = useState(
-    selectedZipUp?.variants?.nodes?.[0]?.id || '',
-  );
-  const [selectedSweatpants, setSelectedSweatpants] = useState(sweatpantsProducts?.[0] || null);
-  const [selectedSweatpantsVariantId, setSelectedSweatpantsVariantId] = useState(
-    selectedSweatpants?.variants?.nodes?.[0]?.id || '',
-  );
-
-  // --- Bundle 2: Hoodie + Sweatpants ---
-  const [selectedHoodie, setSelectedHoodie] = useState(hoodieProducts?.[0] || null);
-  const [selectedHoodieVariantId, setSelectedHoodieVariantId] = useState(
-    selectedHoodie?.variants?.nodes?.[0]?.id || '',
-  );
-  const [selectedSweatpants2, setSelectedSweatpants2] = useState(sweatpantsProducts?.[0] || null);
-  const [selectedSweatpants2VariantId, setSelectedSweatpants2VariantId] = useState(
-    selectedSweatpants2?.variants?.nodes?.[0]?.id || '',
-  );
-
-  // --- Bundle 3: Any 3 Products from Collection ---
-  const [collectionSelections, setCollectionSelections] = useState([
-    { variantId: '' },
-    { variantId: '' },
-    { variantId: '' },
-  ]);
-  const collectionProducts = collectionBundle3Products?.products?.nodes || [];
-
-  // Initialize topSelections2 when cocktailsBabyTee becomes available
-  useEffect(() => {
-    if (cocktailsBabyTee?.variants?.nodes?.[0]?.id) {
-      const defaultVariantId = cocktailsBabyTee.variants.nodes[0].id;
-      setTopSelections2([
-        { variantId: defaultVariantId },
-        { variantId: defaultVariantId },
-      ]);
+  // Map bundle keys → the products that feed their slot pickers
+  function getPoolProducts(key: string, def: (typeof BUNDLE_DEFINITIONS)[string]): any[] {
+    if (def.type === BUNDLE_TYPES.BUNDLE) {
+      if (def.collectionRestriction === BUNDLE_COLLECTIONS.POLO) return polos;
+      if (def.collectionRestriction === BUNDLE_COLLECTIONS.TOPS) return tops;
+      if (def.collectionId) return collectionBundle3Products?.products?.nodes ?? [];
     }
-  }, [cocktailsBabyTee]);
-
-  // Initialize collectionSelections when collectionProducts become available
-  useEffect(() => {
-    if (collectionProducts?.length >= 3) {
-      setCollectionSelections([
-        { variantId: collectionProducts[0]?.variants?.nodes?.[0]?.id || '' },
-        { variantId: collectionProducts[1]?.variants?.nodes?.[0]?.id || '' },
-        { variantId: collectionProducts[2]?.variants?.nodes?.[0]?.id || '' },
-      ]);
+    if (def.type === BUNDLE_TYPES.CROSS_SELL) return [...denims, ...polos];
+    if (def.type === BUNDLE_TYPES.LINEN_CROSS_SELL) return [linenShirt, linenPants].filter(Boolean);
+    if (def.type === BUNDLE_TYPES.TOPS_CAP) return [...tops, ...caps];
+    if (def.type === BUNDLE_TYPES.MIXED) {
+      const data = (mixedBundleProductMap as any)?.[key];
+      return data ? [...(data.slotProducts[0] ?? []), ...(data.slotProducts[1] ?? [])] : [];
     }
-  }, [collectionProducts]);
-
-  // Don't render until cocktailsBabyTee is available (required for existing bundles)
-  if (!cocktailsBabyTee) {
-    return (
-      <div className="max-w-3xl mx-auto py-10 px-4">
-        <h1 className="text-3xl font-bold mb-8 text-center">Shop Bundles</h1>
-        <div className="text-center text-gray-500">Loading bundles...</div>
-      </div>
-    );
+    return [];
   }
+
+  const enabledBundles = getAllEnabledBundles();
+
+  // Linen cross-sell needs both products to exist
+  const fakeLinenProduct = linenShirt; // used as a "currentProduct" placeholder on bundles page
 
   return (
     <div className="max-w-3xl mx-auto py-10 px-4">
       <h1 className="text-3xl font-bold mb-8 text-center">Shop Bundles</h1>
+
       <div className="flex flex-col gap-10">
-        {/* Bundle 1: Zip Up + Sweatpants */}
-        {zipUpProducts?.length > 0 && sweatpantsProducts?.length > 0 && (
-          <div className="mb-4 border border-gray-200 p-6">
-            <h2 className="text-2xl font-medium text-black mb-2">
-              Zip Up + Sweatpants Bundle – 10% Off!
-            </h2>
-            <p className="mb-6 text-gray-700">
-              Get a zip up and any sweatpants and save 10%.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Zip Up selection */}
-              <ProductBundleCard
-                products={Array.from(new Map(zipUpProducts.map(p => [p.id, p])).values())}
-                initialProduct={selectedZipUp}
-                title="Choose Zip Up"
-                onChange={(product, color, size) => {
-                  setSelectedZipUp(product);
-                  setSelectedZipUpVariantId(
-                    getVariantIdFromOptions(product, color, size)
-                  );
-                }}
-                initialColor={getFirstColor(selectedZipUp)}
-                initialSize={getFirstSize(selectedZipUp)}
+        {enabledBundles.map(({ key, def }) => {
+          // ── MIXED ──────────────────────────────────────────────────────────
+          if (def.type === BUNDLE_TYPES.MIXED) {
+            const data = (mixedBundleProductMap as any)?.[key];
+            if (!data) return null;
+            const [slot1, slot2] = data.slotProducts;
+            if (!slot1?.length || !slot2?.length) return null;
+
+            return (
+              <MixedBundleCard
+                key={key}
+                def={def}
+                slot1Products={slot1}
+                slot2Products={slot2}
               />
-              {/* Sweatpants selection */}
-              <ProductBundleCard
-                products={sweatpantsProducts}
-                initialProduct={selectedSweatpants}
-                title="Choose Sweatpants"
-                onChange={(product, color, size) => {
-                  setSelectedSweatpants(product);
-                  setSelectedSweatpantsVariantId(
-                    getVariantIdFromOptions(product, color, size)
-                  );
-                }}
-                initialColor={getFirstColor(selectedSweatpants)}
-                initialSize={getFirstSize(selectedSweatpants)}
+            );
+          }
+
+          // ── BUNDLE ─────────────────────────────────────────────────────────
+          if (def.type === BUNDLE_TYPES.BUNDLE) {
+            let pool: any[] = [];
+            if (def.collectionRestriction === BUNDLE_COLLECTIONS.POLO) pool = polos;
+            else if (def.collectionRestriction === BUNDLE_COLLECTIONS.TOPS) pool = tops;
+            else if (def.collectionId) pool = collectionBundle3Products?.products?.nodes ?? [];
+
+            if (!pool.length) return null;
+
+            // Use first pool product as a placeholder "current product" for the card
+            return (
+              <BundleUpsellCard
+                key={key}
+                product={pool[0]}
+                productOptions={[]}
+                upsell={{ ...def, key }}
+                poolProducts={pool}
               />
-            </div>
-            {/* Price calculation */}
-            <div className="mt-6 text-center">
-              {(() => {
-                const zipUpVariant = getVariant(selectedZipUp, getFirstColor(selectedZipUp), getFirstSize(selectedZipUp));
-                const sweatpantsVariant = getVariant(selectedSweatpants, getFirstColor(selectedSweatpants), getFirstSize(selectedSweatpants));
-                const zipUpPrice = getPriceInfo(zipUpVariant);
-                const sweatpantsPrice = getPriceInfo(sweatpantsVariant);
-                const original = (zipUpPrice.price || 0) + (sweatpantsPrice.price || 0);
-                const discounted = original * 0.9;
-                return (
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-gray-500 line-through">
-                      {original.toFixed(2)} {zipUpPrice.currency}
-                    </span>
-                    <span className="text-xl font-bold">
-                      {discounted.toFixed(2)} {zipUpPrice.currency}
-                    </span>
-                    <span className="text-green-600 text-sm">(Save 10%)</span>
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="mt-6">
-              <AddToCartButton
-                lines={[
-                  { merchandiseId: selectedZipUpVariantId, quantity: 1 },
-                  { merchandiseId: selectedSweatpantsVariantId, quantity: 1 },
-                ]}
-                onClick={() => open('cart')}
-                discountCode="XEENF2JK81SS"
-              >
-                <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-                  Add Bundle to Cart
-                </span>
-              </AddToCartButton>
-            </div>
-            <div className="text-xs text-gray-500 mt-2 text-center">
-              Discount applied automatically with code XEENF2JK81SS.
-            </div>
-          </div>
-        )}
+            );
+          }
 
-        {/* Bundle 2: Hoodie + Sweatpants */}
-        {hoodieProducts?.length > 0 && sweatpantsProducts?.length > 0 && (
-          <div className="mb-4 border border-gray-200 p-6">
-            <h2 className="text-2xl font-medium text-black mb-2">
-              Hoodie + Sweatpants Bundle – 10% Off!
-            </h2>
-            <p className="mb-6 text-gray-700">
-              Get a hoodie and any sweatpants and save 10%.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Hoodie selection */}
-              <ProductBundleCard
-                products={Array.from(new Map(hoodieProducts.map(p => [p.id, p])).values())}
-                initialProduct={selectedHoodie}
-                title="Choose Hoodie"
-                onChange={(product, color, size) => {
-                  setSelectedHoodie(product);
-                  setSelectedHoodieVariantId(
-                    getVariantIdFromOptions(product, color, size)
-                  );
-                }}
-                initialColor={getFirstColor(selectedHoodie)}
-                initialSize={getFirstSize(selectedHoodie)}
+          // ── CROSS_SELL ─────────────────────────────────────────────────────
+          if (def.type === BUNDLE_TYPES.CROSS_SELL) {
+            if (!denims.length || !polos.length) return null;
+
+            return (
+              <CrossSellUpsellCard
+                key={key}
+                currentProduct={denims[0]}
+                complementaryProducts={polos}
+                upsell={def}
               />
-              {/* Sweatpants selection */}
-              <ProductBundleCard
-                products={sweatpantsProducts}
-                initialProduct={selectedSweatpants2}
-                title="Choose Sweatpants"
-                onChange={(product, color, size) => {
-                  setSelectedSweatpants2(product);
-                  setSelectedSweatpants2VariantId(
-                    getVariantIdFromOptions(product, color, size)
-                  );
-                }}
-                initialColor={getFirstColor(selectedSweatpants2)}
-                initialSize={getFirstSize(selectedSweatpants2)}
+            );
+          }
+
+          // ── LINEN_CROSS_SELL ───────────────────────────────────────────────
+          if (def.type === BUNDLE_TYPES.LINEN_CROSS_SELL) {
+            if (!linenShirt || !linenPants) return null;
+
+            return (
+              <LinenCrossSellCard
+                key={key}
+                currentProduct={linenShirt}
+                upsell={def}
               />
-            </div>
-            {/* Price calculation */}
-            <div className="mt-6 text-center">
-              {(() => {
-                const hoodieVariant = getVariant(selectedHoodie, getFirstColor(selectedHoodie), getFirstSize(selectedHoodie));
-                const sweatpantsVariant = getVariant(selectedSweatpants2, getFirstColor(selectedSweatpants2), getFirstSize(selectedSweatpants2));
-                const hoodiePrice = getPriceInfo(hoodieVariant);
-                const sweatpantsPrice = getPriceInfo(sweatpantsVariant);
-                const original = (hoodiePrice.price || 0) + (sweatpantsPrice.price || 0);
-                const discounted = original * 0.9;
-                return (
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-gray-500 line-through">
-                      {original.toFixed(2)} {hoodiePrice.currency}
-                    </span>
-                    <span className="text-xl font-bold">
-                      {discounted.toFixed(2)} {hoodiePrice.currency}
-                    </span>
-                    <span className="text-green-600 text-sm">(Save 10%)</span>
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="mt-6">
-              <AddToCartButton
-                lines={[
-                  { merchandiseId: selectedHoodieVariantId, quantity: 1 },
-                  { merchandiseId: selectedSweatpants2VariantId, quantity: 1 },
-                ]}
-                onClick={() => open('cart')}
-                discountCode="H3KXGDBA3XKB"
-              >
-                <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-                  Add Bundle to Cart
-                </span>
-              </AddToCartButton>
-            </div>
-            <div className="text-xs text-gray-500 mt-2 text-center">
-              Discount applied automatically with code H3KXGDBA3XKB.
-            </div>
-          </div>
-        )}
+            );
+          }
 
-        {/* Bundle 3: Any 3 Products from Collection */}
-        {collectionProducts?.length > 0 && (
-          <div className="mb-4 border border-gray-200 p-6">
-            <h2 className="text-2xl font-medium text-black mb-2">
-               Any 3 Products from &quot;Made By Artist W&apos;25&quot; – 15% Off!
-            </h2>
-            <p className="mb-6 text-gray-700">
-              Pick any 3 products from the collection and save 15%.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[0, 1, 2].map((idx) => (
-                <ProductBundleCard
-                  key={idx}
-                  products={collectionProducts}
-                  initialProduct={collectionProducts[idx] || collectionProducts[0]}
-                  title={`Product ${idx + 1}`}
-                  onChange={(product, color, size) => {
-                    const newSelections = [...collectionSelections];
-                    newSelections[idx].variantId = getVariantIdFromOptions(product, color, size);
-                    setCollectionSelections(newSelections);
-                  }}
-                  initialColor={
-                    collectionSelections[idx]?.variantId
-                      ? getVariantById(collectionProducts.find((p: any) => p.variants?.nodes?.some((v: any) => v.id === collectionSelections[idx].variantId)), collectionSelections[idx].variantId)
-                        ?.selectedOptions.find((o: any) => o.name.toLowerCase() === 'color')?.value
-                      : ''
-                  }
-                  initialSize={
-                    collectionSelections[idx]?.variantId
-                      ? getVariantById(collectionProducts.find((p: any) => p.variants?.nodes?.some((v: any) => v.id === collectionSelections[idx].variantId)), collectionSelections[idx].variantId)
-                        ?.selectedOptions.find((o: any) => o.name.toLowerCase() === 'size')?.value
-                      : ''
-                  }
-                />
-              ))}
-            </div>
-            {/* Price calculation */}
-            <div className="mt-6 text-center">
-              {(() => {
-                const prices = collectionSelections.filter(sel => sel?.variantId).map((sel) => {
-                  const product = collectionProducts.find((p: any) => p.variants?.nodes?.some((v: any) => v.id === sel.variantId));
-                  if (!product) return { price: 0, currency: 'USD' };
-                  const variant = getVariantById(product, sel.variantId);
-                  return getPriceInfo(variant);
-                });
-                const original = prices.reduce(
-                  (sum, p: any) => sum + (p?.price || 0),
-                  0,
-                );
-                const discounted = original * 0.85;
-                const currency = prices[0]?.currency || 'USD';
-                return (
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-gray-500 line-through">
-                      {original.toFixed(2)} {currency}
-                    </span>
-                    <span className="text-xl font-bold">
-                      {discounted.toFixed(2)} {currency}
-                    </span>
-                    <span className="text-green-600 text-sm">(Save 15%)</span>
-                  </div>
-                );
-              })()}
-            </div>
-            <div className="mt-6">
-              <AddToCartButton
-                lines={collectionSelections.filter(sel => sel?.variantId).map((sel) => ({
-                  merchandiseId: sel.variantId,
-                  quantity: 1,
-                }))}
-                onClick={() => open('cart')}
-                discountCode="3ITEMS15"
-              >
-                <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-                  Add Bundle to Cart
-                </span>
-              </AddToCartButton>
-            </div>
-            <div className="text-xs text-gray-500 mt-2 text-center">
-              Discount applied automatically with code 3ITEMS15.
-            </div>
-          </div>
-        )}
+          // ── TOPS_CAP ───────────────────────────────────────────────────────
+          if (def.type === BUNDLE_TYPES.TOPS_CAP) {
+            if (!tops.length || !caps.length) return null;
 
-        {/* 1. Linen Shirt + Pants Bundle */}
-        {linenShirt && linenPants && (
-          <LinenCrossSellCard
-            currentProduct={linenShirt}
-            upsell={{
-              title: 'Linen Shirt + Pants Bundle – 15% Off!',
-              description: 'Complete your linen look and save 15% on the total bundle price.',
-              discountValue: 15,
-              shirtHandle: 'linen-shirt',
-              pantsHandle: 'linen-pants',
-            }}
-          />
-        )}
-
-        {/* 2. Denim + Polo Bundle */}
-        <div className="mb-4 border border-gray-200 p-6">
-          <h2 className="text-2xl font-medium text-black mb-2">
-            Denim + Polo Bundle – 10% Off!
-          </h2>
-          <p className="mb-6 text-gray-700">
-            Add a matching piece to complete your look and save 10%.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Denim selection */}
-            <ProductBundleCard
-              products={Array.from(new Map(denims.map(p => [p.id, p])).values())}
-              initialProduct={selectedDenim}
-              title="Choose Denim"
-              onChange={(product, color, size) => {
-                setSelectedDenim(product);
-                setSelectedDenimVariantId(
-                  getVariantIdFromOptions(product, color, size)
-                );
-              }}
-              initialColor={getFirstColor(selectedDenim)}
-              initialSize={getFirstSize(selectedDenim)}
-            />
-            {/* Polo selection */}
-            <ProductBundleCard
-              products={Array.from(new Map(polos.map(p => [p.id, p])).values())}
-              initialProduct={selectedPolo}
-              title="Choose Polo"
-              onChange={(product, color, size) => {
-                setSelectedPolo(product);
-                setSelectedPoloVariantId(
-                  getVariantIdFromOptions(product, color, size)
-                );
-              }}
-              initialColor={getFirstColor(selectedPolo)}
-              initialSize={getFirstSize(selectedPolo)}
-            />
-          </div>
-          {/* Price calculation */}
-          <div className="mt-6 text-center">
-            {(() => {
-              const denimVariant = getVariant(selectedDenim, getFirstColor(selectedDenim), getFirstSize(selectedDenim));
-              const poloVariant = getVariant(selectedPolo, getFirstColor(selectedPolo), getFirstSize(selectedPolo));
-              const denimPrice = getPriceInfo(denimVariant);
-              const poloPrice = getPriceInfo(poloVariant);
-              const original = (denimPrice.price || 0) + (poloPrice.price || 0);
-              const discounted = original * 0.9;
-              return (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-gray-500 line-through">
-                    {original.toFixed(2)} {denimPrice.currency}
-                  </span>
-                  <span className="text-xl font-bold">
-                    {discounted.toFixed(2)} {denimPrice.currency}
-                  </span>
-                  <span className="text-green-600 text-sm">(Save 10%)</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div className="mt-6">
-            <AddToCartButton
-              lines={[
-                { merchandiseId: selectedDenimVariantId, quantity: 1 },
-                { merchandiseId: selectedPoloVariantId, quantity: 1 },
-              ]}
-              onClick={() => open('cart')}
-            >
-              <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-                Add Bundle to Cart
-              </span>
-            </AddToCartButton>
-          </div>
-        </div>
-
-        {/* 3. 2 Polos Bundle */}
-        <div className="mb-4 border border-gray-200 p-6">
-          <h2 className="text-2xl font-medium text-black mb-2">
-            2 Polos Bundle – 10% Off!
-          </h2>
-          <p className="mb-6 text-gray-700">
-            Pick any 2 polos (choose color and size for each) and get 10% off.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[0, 1].map((idx) => (
-              <ProductBundleCard
-                key={idx}
-                products={Array.from(new Map(polos.map(p => [p.id, p])).values())}
-                initialProduct={idx === 0 ? selectedPolo1 : selectedPolo2}
-                title={`Choose Polo ${idx + 1}`}
-                onChange={(product, color, size) => {
-                  if (idx === 0) {
-                    setSelectedPolo1(product);
-                    setSelectedPolo1VariantId(
-                      getVariantIdFromOptions(product, color, size)
-                    );
-                  } else {
-                    setSelectedPolo2(product);
-                    setSelectedPolo2VariantId(
-                      getVariantIdFromOptions(product, color, size)
-                    );
-                  }
-                }}
-                initialColor={getFirstColor(idx === 0 ? selectedPolo1 : selectedPolo2)}
-                initialSize={getFirstSize(idx === 0 ? selectedPolo1 : selectedPolo2)}
+            return (
+              <TopsCapBundleCard
+                key={key}
+                product={tops[0]}
+                productOptions={[]}
+                upsell={def}
               />
-            ))}
-          </div>
-          {/* Price calculation */}
-          <div className="mt-6 text-center">
-            {(() => {
-              const v1 = getVariant(selectedPolo1, getFirstColor(selectedPolo1), getFirstSize(selectedPolo1));
-              const v2 = getVariant(selectedPolo2, getFirstColor(selectedPolo2), getFirstSize(selectedPolo2));
-              const p1 = getPriceInfo(v1);
-              const p2 = getPriceInfo(v2);
-              const original = (p1.price || 0) + (p2.price || 0);
-              const discounted = original * 0.9;
-              return (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-gray-500 line-through">
-                    {original.toFixed(2)} {p1.currency}
-                  </span>
-                  <span className="text-xl font-bold">
-                    {discounted.toFixed(2)} {p1.currency}
-                  </span>
-                  <span className="text-green-600 text-sm">(Save 10%)</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div className="mt-6">
-            <AddToCartButton
-              lines={[
-                { merchandiseId: selectedPolo1VariantId, quantity: 1 },
-                { merchandiseId: selectedPolo2VariantId, quantity: 1 },
-              ]}
-              onClick={() => open('cart')}
-            >
-              <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-                Add Bundle to Cart
-              </span>
-            </AddToCartButton>
-          </div>
-        </div>
+            );
+          }
 
-        {/* 4. 3 Tops Bundle (Cocktails baby tee) */}
-        <div className="mb-4 border border-gray-200 p-6">
-          <h2 className="text-2xl font-medium text-black mb-2">
-            3 Tops Bundle – 15% Off!
-          </h2>
-          <p className="mb-6 text-gray-700">
-            Pick any 3 tops (choose color and size for each) and get 15% off.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[0, 1, 2].map((idx) => (
-              <ProductBundleCard
-                key={idx}
-                products={[cocktailsBabyTee]}
-                initialProduct={cocktailsBabyTee}
-                title={`Top ${idx + 1}`}
-                onChange={(product, color, size) => {
-                  const newSelections = [...topSelections];
-                  newSelections[idx].variantId = getVariantIdFromOptions(product, color, size);
-                  setTopSelections(newSelections);
-                }}
-                initialColor={
-                  topSelections[idx]?.variantId
-                    ? getVariantById(cocktailsBabyTee, topSelections[idx].variantId)
-                      ?.selectedOptions.find((o: any) => o.name.toLowerCase() === 'color')?.value
-                    : ''
-                }
-                initialSize={
-                  topSelections[idx]?.variantId
-                    ? getVariantById(cocktailsBabyTee, topSelections[idx].variantId)
-                      ?.selectedOptions.find((o: any) => o.name.toLowerCase() === 'size')?.value
-                    : ''
-                }
-              />
-            ))}
-          </div>
-          {/* Price calculation */}
-          <div className="mt-6 text-center">
-            {(() => {
-              const prices = topSelections.filter(sel => sel?.variantId).map((sel) =>
-                getPriceInfo(getVariantById(cocktailsBabyTee, sel.variantId)),
-              );
-              const original = prices.reduce(
-                (sum, p) => sum + (p.price || 0),
-                0,
-              );
-              const discounted = original * 0.85;
-              return (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-gray-500 line-through">
-                    {original.toFixed(2)} {prices[0]?.currency}
-                  </span>
-                  <span className="text-xl font-bold">
-                    {discounted.toFixed(2)} {prices[0]?.currency}
-                  </span>
-                  <span className="text-green-600 text-sm">(Save 15%)</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div className="mt-6">
-            <AddToCartButton
-              lines={topSelections.filter(sel => sel?.variantId).map((sel) => ({
-                merchandiseId: sel.variantId,
-                quantity: 1,
-              }))}
-              onClick={() => open('cart')}
-              discountCode="3TOPS15"
-            >
-              <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-                Add Bundle to Cart
-              </span>
-            </AddToCartButton>
-          </div>
-          <div className="text-xs text-gray-500 mt-2 text-center">
-            Discount applied automatically with code 3TOPS15.
-          </div>
-        </div>
-
-        {/* 5. 3 Polos Bundle */}
-        <div className="mb-4 border border-gray-200 p-6">
-          <h2 className="text-2xl font-medium text-black mb-2">
-            3 Polos Bundle – 15% Off!
-          </h2>
-          <p className="mb-6 text-gray-700">
-            Pick any 3 polos (choose color and size for each) and get 15% off.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[0, 1, 2].map((idx) => (
-              <ProductBundleCard
-                key={idx}
-                products={Array.from(new Map(polos.map(p => [p.id, p])).values())}
-                initialProduct={selectedPolos[idx]}
-                title={`Polo ${idx + 1}`}
-                onChange={(product, color, size) => {
-                  const newPolos = [...selectedPolos];
-                  const newVariants = [...selectedPolosVariantIds];
-                  newPolos[idx] = product;
-                  newVariants[idx] = getVariantIdFromOptions(product, color, size);
-                  setSelectedPolos(newPolos);
-                  setSelectedPolosVariantIds(newVariants);
-                }}
-                initialColor={getFirstColor(selectedPolos[idx])}
-                initialSize={getFirstSize(selectedPolos[idx])}
-              />
-            ))}
-          </div>
-          {/* Price calculation */}
-          <div className="mt-6 text-center">
-            {(() => {
-              const prices = selectedPolosVariantIds.map((variantId, idx) =>
-                getPriceInfo(getVariantById(selectedPolos[idx], variantId)),
-              );
-              const original = prices.reduce(
-                (sum, p) => sum + (p.price || 0),
-                0,
-              );
-              const discounted = original * 0.85;
-              return (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-gray-500 line-through">
-                    {original.toFixed(2)} {prices[0]?.currency}
-                  </span>
-                  <span className="text-xl font-bold">
-                    {discounted.toFixed(2)} {prices[0]?.currency}
-                  </span>
-                  <span className="text-green-600 text-sm">(Save 15%)</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div className="mt-6">
-            <AddToCartButton
-              lines={selectedPolosVariantIds.map((variantId) => ({
-                merchandiseId: variantId,
-                quantity: 1,
-              }))}
-              onClick={() => open('cart')}
-            >
-              <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-                Add Bundle to Cart
-              </span>
-            </AddToCartButton>
-          </div>
-        </div>
-
-        {/* 6. 2 Tops Bundle */}
-        <div className="mb-4 border border-gray-200 p-6">
-          <h2 className="text-2xl font-medium text-black mb-2">
-            2 Tops Bundle – 10% Off!
-          </h2>
-          <p className="mb-6 text-gray-700">
-            Pick any 2 tops (choose color and size for each) and get 10% off.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[0, 1].map((idx) => (
-              <ProductBundleCard
-                key={idx}
-                products={[cocktailsBabyTee]}
-                initialProduct={cocktailsBabyTee}
-                title={`Top ${idx + 1}`}
-                onChange={(product, color, size) => {
-                  const newSelections = [...topSelections2];
-                  newSelections[idx].variantId = getVariantIdFromOptions(product, color, size);
-                  setTopSelections2(newSelections);
-                }}
-                initialColor={
-                  topSelections2[idx].variantId
-                    ? getVariantById(cocktailsBabyTee, topSelections2[idx].variantId)
-                      ?.selectedOptions.find((o: any) => o.name.toLowerCase() === 'color')?.value
-                    : ''
-                }
-                initialSize={
-                  topSelections2[idx].variantId
-                    ? getVariantById(cocktailsBabyTee, topSelections2[idx].variantId)
-                      ?.selectedOptions.find((o: any) => o.name.toLowerCase() === 'size')?.value
-                    : ''
-                }
-              />
-            ))}
-          </div>
-          {/* Price calculation */}
-          <div className="mt-6 text-center">
-            {(() => {
-              const prices = topSelections2.filter(sel => sel?.variantId).map((sel) =>
-                getPriceInfo(getVariantById(cocktailsBabyTee, sel.variantId)),
-              );
-              const original = prices.reduce(
-                (sum, p) => sum + (p.price || 0),
-                0,
-              );
-              const discounted = original * 0.9;
-              return (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-gray-500 line-through">
-                    {original.toFixed(2)} {prices[0]?.currency}
-                  </span>
-                  <span className="text-xl font-bold">
-                    {discounted.toFixed(2)} {prices[0]?.currency}
-                  </span>
-                  <span className="text-green-600 text-sm">(Save 10%)</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div className="mt-6">
-            <AddToCartButton
-              lines={topSelections2.filter(sel => sel?.variantId).map((sel) => ({
-                merchandiseId: sel.variantId,
-                quantity: 1,
-              }))}
-              onClick={() => open('cart')}
-              discountCode="2TOPS10"
-            >
-              <span className="block w-full text-center py-3 px-6 tracking-wide text-base font-medium transition-all duration-200 bg-black text-white hover:bg-gray-800 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">
-                Add Bundle to Cart
-              </span>
-            </AddToCartButton>
-          </div>
-          <div className="text-xs text-gray-500 mt-2 text-center">
-            Discount applied automatically with code 2TOPS10.
-          </div>
-        </div>
-
-        {/* 7. 4 Tops + 1 Cap Bundle */}
-        {caps.length > 0 && tops.length > 0 && (
-          <TopsCapBundleCard
-            product={tops[0] || caps[0]}
-            productOptions={[]}
-            upsell={{
-              title: 'Buy 4 Tops Get 1 Cap Free!',
-              description: 'Choose 4 tops and get a cap of your choice absolutely free.',
-              discountCode: '4TOPSFREECAP',
-              minTopsQuantity: 4,
-              freeCapsQuantity: 1,
-            }}
-          />
-        )}
+          return null;
+        })}
       </div>
     </div>
   );
