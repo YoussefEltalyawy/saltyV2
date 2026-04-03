@@ -1,12 +1,11 @@
 import { useLoaderData } from 'react-router';
 import {
-  BUNDLE_DEFINITIONS,
   BUNDLE_TYPES,
   getBundleDefinition,
-  getProductUpsells,
   BUNDLE_COLLECTIONS,
+  getSlotLabel,
 } from '~/lib/bundleConfig';
-import BundleUpsellCard from './BundleUpsellCard';
+import BundlesPageBundleCard from './BundlesPageBundleCard';
 import CrossSellUpsellCard from './CrossSellUpsellCard';
 import LinenCrossSellCard from './LinenCrossSellCard';
 import TopsCapBundleCard from './TopsCapBundleCard';
@@ -15,7 +14,7 @@ import MixedBundleCard from './MixedBundleCard';
 interface UpsellSectionProps {
   product: any;
   productOptions: any[];
-  upsells: string[];  // Array of bundle definition keys
+  upsells: string[]; // bundle definition keys
 }
 
 export default function UpsellSection({ product, productOptions, upsells }: UpsellSectionProps) {
@@ -30,7 +29,7 @@ export default function UpsellSection({ product, productOptions, upsells }: Upse
         const def = getBundleDefinition(key);
         if (!def || !def.enabled) return null;
 
-        // ── MIXED: zip-up/hoodie style bundles ──────────────────────────────
+        // ── MIXED ────────────────────────────────────────────────────────────
         if (def.type === BUNDLE_TYPES.MIXED) {
           const bundleData = productCollections?.mixedBundleProductMap?.[key];
           if (!bundleData) return null;
@@ -47,32 +46,41 @@ export default function UpsellSection({ product, productOptions, upsells }: Upse
           );
         }
 
-        // ── BUNDLE: polo / tops same-collection multi-picker ─────────────────
+        // ── BUNDLE (polo / tops / collection) — per-slot product picker ──────
         if (def.type === BUNDLE_TYPES.BUNDLE) {
-          // Determine product pool from collectionRestriction or collectionId
-          let poolProducts: any[] = [];
+          let pool: any[] = [];
           if (def.collectionRestriction === BUNDLE_COLLECTIONS.POLO) {
-            poolProducts = productCollections?.polos ?? [];
+            pool = productCollections?.polos ?? [];
           } else if (def.collectionRestriction === BUNDLE_COLLECTIONS.TOPS) {
-            poolProducts = productCollections?.tops ?? [];
+            pool = productCollections?.tops ?? [];
           } else if (def.collectionId) {
-            poolProducts = productCollections?.collectionBundle3Products?.products?.nodes ?? [];
+            pool = productCollections?.collectionBundle3Products?.products?.nodes ?? [];
           }
 
-          if (!poolProducts.length) return null;
+          if (!pool.length) return null;
 
-          return (
-            <BundleUpsellCard
-              key={key}
-              product={product}
-              productOptions={productOptions}
-              upsell={{ ...def, key }}
-              poolProducts={poolProducts}
-            />
-          );
+          const minQty = def.minQuantity ?? 2;
+
+          // Pre-select the current product page product in slot 1 (if it's in the pool).
+          // We re-order the pool so the current product is first for slot 1,
+          // meaning ProductBundleCard will initialise to it automatically.
+          const currentInPool = pool.find((p: any) => p.handle === product?.handle);
+
+          const slots = Array.from({ length: minQty }, (_, i) => {
+            if (i === 0 && currentInPool) {
+              // Slot 1: current product first, rest of pool after
+              return {
+                title: getSlotLabel(def, i, minQty),
+                products: [currentInPool, ...pool.filter((p: any) => p.handle !== currentInPool.handle)],
+              };
+            }
+            return { title: getSlotLabel(def, i, minQty), products: pool };
+          });
+
+          return <BundlesPageBundleCard key={key} def={def} slots={slots} />;
         }
 
-        // ── CROSS_SELL: denim ↔ polo ─────────────────────────────────────────
+        // ── CROSS_SELL ───────────────────────────────────────────────────────
         if (def.type === BUNDLE_TYPES.CROSS_SELL) {
           const complementaryProducts = productCollections?.complementaryProducts ?? [];
           if (!complementaryProducts.length) return null;
