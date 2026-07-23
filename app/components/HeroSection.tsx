@@ -7,92 +7,381 @@ import logoAnimation from '../../public/logo-animation.json';
 import { LoadingOverlay } from './LoadingOverlay';
 import { useFetcher, NavLink } from 'react-router';
 import type { FeaturedCollectionFragment } from 'storefrontapi.generated';
-import type { HeroContent } from '~/lib/graphql/hero';
+import type { HeroContent, HeroSlideContent } from '~/lib/graphql/hero';
 
-export function HeroSection({ hero }: { hero?: HeroContent }) {
+function HeroSlideItem({ 
+  slide, 
+  isActive, 
+  isPrevious,
+  isHeaderVisible, 
+  isMobile,
+  isSwipingRef
+}: { 
+  slide: HeroSlideContent, 
+  isActive: boolean, 
+  isPrevious: boolean,
+  isHeaderVisible: boolean,
+  isMobile: boolean,
+  isSwipingRef: React.RefObject<boolean>
+}) {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
-  const [overlayVisible, setOverlayVisible] = useState(true);
-  const [overlayInteractive, setOverlayInteractive] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
-  const { setHeaderVisible, isHeaderVisible } = useHeaderAnimation();
-  const { setHeaderColor } = useHeaderColor();
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const lottieRef = useRef<any>(null);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const keepRef = useRef<HTMLSpanElement>(null);
-  const itRef = useRef<HTMLSpanElement>(null);
-  const saltyRef = useRef<HTMLSpanElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const headlineRef = useRef<HTMLHeadingElement>(null);
   const exploreBtnRef = useRef<HTMLAnchorElement>(null);
-  const sectionRef = useRef<HTMLElement>(null);
 
-  // Fetch S25 collection data
-  const s25Fetcher = useFetcher<FeaturedCollectionFragment>();
-  const [s25Collection, setS25Collection] = useState<FeaturedCollectionFragment | null>(null);
+  // The headline from Shopify — split into individual words for animation
+  const headlineWords = slide?.headline?.trim().split(/\s+/).filter(Boolean) || [];
 
-  useEffect(() => {
-    const mql = window.matchMedia('(max-width: 767px)');
-    const handleMediaChange = (e: MediaQueryListEvent | MediaQueryList) => {
-      setIsMobile(e.matches);
-    };
-    
-    // Initial check
-    handleMediaChange(mql);
-    
-    // Use the appropriate listener method
-    if (mql.addEventListener) {
-      mql.addEventListener('change', handleMediaChange);
-    } else {
-      // Fallback for older browsers
-      mql.addListener(handleMediaChange);
-    }
-    
-    return () => {
-      if (mql.removeEventListener) {
-        mql.removeEventListener('change', handleMediaChange);
-      } else {
-        mql.removeListener(handleMediaChange);
-      }
-    };
-  }, []);
+  // Handle cached images that might not fire onLoad
+  const imageUrl = isMobile 
+    ? (slide?.mobileImageUrl || slide?.desktopImageUrl)
+    : (slide?.desktopImageUrl || slide?.mobileImageUrl);
 
   useEffect(() => {
-    // Fetch S25 collection data when component mounts
-    if (s25Fetcher.state === 'idle' && !s25Fetcher.data) {
-      s25Fetcher.load('/api/s25collection');
+    if (imageRef.current && imageRef.current.complete) {
+      setIsImageLoaded(true);
     }
-  }, [s25Fetcher]);
+  }, [imageUrl, isActive]);
 
-  // Handle video ready check for cached videos
+  // Handle video ready check
   useEffect(() => {
     const checkVideo = () => {
       if (videoRef.current && videoRef.current.readyState >= 3) {
         setIsVideoLoaded(true);
       }
     };
-    
     checkVideo();
-    const interval = setInterval(checkVideo, 500); // Check every 500ms for a bit
-    const timer = setTimeout(() => clearInterval(interval), 5000); // Stop checking after 5s
+    const interval = setInterval(checkVideo, 500);
+    const timer = setTimeout(() => clearInterval(interval), 5000);
+    return () => { clearInterval(interval); clearTimeout(timer); };
+  }, []);
+
+  // GSAP animation for text when slide becomes active
+  useGSAP(() => {
+    if (!isHeaderVisible || !isActive) return;
+    if (!headlineRef.current) return;
+
+    const wordSpans = headlineRef.current.querySelectorAll('span');
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { duration: 0.7, ease: 'power3.out', force3D: true } });
+
+      gsap.set([...wordSpans, exploreBtnRef.current], {
+        filter: 'blur(10px)',
+        y: 20,
+        opacity: 0,
+        willChange: 'filter, transform, opacity',
+      });
+
+      tl.to([...wordSpans], {
+        filter: 'blur(0px)',
+        y: 0,
+        opacity: 1,
+        stagger: 0.08,
+      }).to(exploreBtnRef.current, {
+        filter: 'blur(0px)',
+        y: 0,
+        opacity: 1,
+      }, '-=0.5');
+    });
     
+    return () => ctx.revert();
+  }, [isHeaderVisible, isActive]);
+
+  const ctaLink = slide?.ctaCollectionHandle ? `/collections/${slide.ctaCollectionHandle}` : '/collections/s25-collection';
+  const textColor = slide?.textColor || 'white';
+
+  return (
+    <div 
+      className={`absolute inset-0 ${
+        isActive 
+          ? 'opacity-100 z-10 transition-opacity duration-1000 pointer-events-auto' 
+          : isPrevious
+            ? 'opacity-100 z-[5] pointer-events-none'
+            : 'opacity-0 z-0 transition-opacity duration-1000 pointer-events-none'
+      }`}
+    >
+      <NavLink
+        to={ctaLink}
+        className="absolute inset-0 z-0 block cursor-pointer focus:outline-none"
+        onClick={(e) => {
+          if (isSwipingRef.current) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+      >
+        {imageUrl ? (
+          <>
+            <img 
+              src="/hero-placeholder.png"
+              alt=""
+              className={`absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-1000 ${isImageLoaded ? 'opacity-0' : 'opacity-100'}`}
+            />
+            <img
+              ref={imageRef}
+              src={imageUrl}
+              alt=""
+              onLoad={() => setIsImageLoaded(true)}
+              className={`absolute top-0 left-0 w-full h-full object-cover z-0 transition-opacity duration-1000 ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              style={{ willChange: 'opacity' }}
+            />
+          </>
+        ) : (() => {
+          const sources = isMobile ? slide?.mobileVideoSources : slide?.desktopVideoSources;
+          const fallbackUrl = isMobile
+            ? (slide?.mobileVideoUrl || '/hero-mobile.mp4')
+            : (slide?.desktopVideoUrl || slide?.mobileVideoUrl || '/hero.mp4');
+          const hasSources = !!(sources && sources.length > 0);
+          return (
+            <>
+              <img 
+                src="/hero-placeholder.png"
+                alt=""
+                className={`absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-1000 ${isVideoLoaded ? 'opacity-0' : 'opacity-100'}`}
+              />
+              <video
+                key={isMobile ? 'mobile-video' : 'desktop-video'}
+                ref={videoRef}
+                className="absolute top-0 left-0 w-full h-full object-cover z-0"
+                autoPlay loop muted playsInline preload="auto" crossOrigin="anonymous"
+                onCanPlay={() => setIsVideoLoaded(true)}
+                onPlaying={() => setIsVideoLoaded(true)}
+                onLoadedData={() => setIsVideoLoaded(true)}
+                onError={() => setIsVideoLoaded(false)}
+                style={{ opacity: isVideoLoaded ? 1 : 0.01 }}
+                src={hasSources ? undefined : fallbackUrl}
+              >
+                {hasSources && sources!.map((s, idx) => (
+                  <source key={`${s.url}-${idx}`} src={s.url} type={s.mimeType || undefined} />
+                ))}
+              </video>
+            </>
+          );
+        })()}
+
+        {/* Headline */}
+        <div className="absolute top-0 left-0 w-full h-full flex items-start pt-[calc(var(--header-height)+1.25rem)] pl-4 z-[1] pointer-events-none">
+          <h1
+            ref={headlineRef}
+            className="font-normal text-4xl sm:text-5xl md:text-5xl tracking-tight text-left leading-[0.95] max-w-[85%]"
+            style={{ color: textColor }}
+          >
+            {headlineWords.map((word, i) => (
+              <span
+                key={i}
+                className="inline-block mr-[0.25em]"
+                style={{ opacity: 0, filter: 'blur(10px)', transform: 'translateY(20px)', willChange: 'filter, transform, opacity' }}
+              >
+                {word}
+              </span>
+            ))}
+          </h1>
+        </div>
+      </NavLink>
+
+      {/* CTA Button — outside the NavLink to avoid nested <a> */}
+      <NavLink
+        to={ctaLink}
+        className="absolute bottom-12 right-8 z-[8] text-md tracking-widest font-medium uppercase underline hover:opacity-70 focus:outline-none transition-opacity duration-300"
+        style={{ color: textColor, opacity: 0, filter: 'blur(10px)', transform: 'translateY(20px)' }}
+        ref={exploreBtnRef}
+        onClick={(e) => {
+          if (isSwipingRef.current) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }}
+      >
+        {(slide?.ctaText || 'SHOP HERE').toUpperCase()}
+      </NavLink>
+    </div>
+  );
+}
+
+// Arrow icon component
+function ArrowIcon({ direction }: { direction: 'left' | 'right' }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {direction === 'left'
+        ? <path d="M13 4L7 10L13 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        : <path d="M7 4L13 10L7 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      }
+    </svg>
+  );
+}
+
+export function HeroSection({ hero }: { hero?: HeroContent }) {
+  const [overlayVisible, setOverlayVisible] = useState(true);
+  const [overlayInteractive, setOverlayInteractive] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [previousSlideIndex, setPreviousSlideIndex] = useState(0);
+  const { setHeaderVisible, isHeaderVisible } = useHeaderAnimation();
+  const { setHeaderColor } = useHeaderColor();
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const lottieRef = useRef<any>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isHeroInView, setIsHeroInView] = useState(false);
+
+  // Touch & Swipe state
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+  const touchEndY = useRef<number | null>(null);
+  const isSwipingRef = useRef(false);
+
+  const slides = hero?.slides?.length ? hero.slides : (hero ? [hero] : []);
+  const s25Fetcher = useFetcher<FeaturedCollectionFragment>();
+
+  const goToSlide = useCallback((idx: number) => {
+    setCurrentSlideIndex(prev => {
+      setPreviousSlideIndex(prev);
+      return idx;
+    });
+  }, []);
+
+  const goPrev = useCallback(() => {
+    goToSlide((currentSlideIndex - 1 + slides.length) % slides.length);
+  }, [currentSlideIndex, slides.length, goToSlide]);
+
+  const goNext = useCallback(() => {
+    goToSlide((currentSlideIndex + 1) % slides.length);
+  }, [currentSlideIndex, slides.length, goToSlide]);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handleMediaChange = (e: MediaQueryListEvent | MediaQueryList) => setIsMobile(e.matches);
+    handleMediaChange(mql);
+    if (mql.addEventListener) mql.addEventListener('change', handleMediaChange);
+    else mql.addListener(handleMediaChange);
     return () => {
-      clearInterval(interval);
-      clearTimeout(timer);
+      if (mql.removeEventListener) mql.removeEventListener('change', handleMediaChange);
+      else mql.removeListener(handleMediaChange);
     };
   }, []);
 
-  // Update s25Collection state when data is fetched
   useEffect(() => {
-    if (s25Fetcher.data) {
-      setS25Collection(s25Fetcher.data);
+    if (s25Fetcher.state === 'idle' && !s25Fetcher.data) {
+      s25Fetcher.load('/api/s25collection');
     }
-  }, [s25Fetcher.data]);
+  }, [s25Fetcher]);
 
-  // GSAP fade out when Lottie finishes
+  // Auto-slide logic — reset timer on manual navigation
+  useEffect(() => {
+    if (slides.length <= 1 || overlayVisible) return;
+    const interval = setInterval(() => {
+      setCurrentSlideIndex(prev => {
+        setPreviousSlideIndex(prev);
+        return (prev + 1) % slides.length;
+      });
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [slides.length, overlayVisible, currentSlideIndex]);
+
+  // Touch handlers for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    touchEndX.current = e.touches[0].clientX;
+    touchEndY.current = e.touches[0].clientY;
+    isSwipingRef.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    touchEndX.current = e.touches[0].clientX;
+    touchEndY.current = e.touches[0].clientY;
+    const dx = touchEndX.current - touchStartX.current;
+    const dy = touchEndY.current - touchStartY.current;
+    if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+      isSwipingRef.current = true;
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchStartX.current === null || touchEndX.current === null) return;
+    const dx = touchEndX.current - touchStartX.current;
+    const dy = (touchEndY.current ?? 0) - (touchStartY.current ?? 0);
+
+    if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) {
+        goNext();
+      } else {
+        goPrev();
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+    touchEndX.current = null;
+    touchEndY.current = null;
+    setTimeout(() => {
+      isSwipingRef.current = false;
+    }, 150);
+  }, [goNext, goPrev]);
+
+  const handleTouchCancel = useCallback(() => {
+    touchStartX.current = null;
+    touchStartY.current = null;
+    touchEndX.current = null;
+    touchEndY.current = null;
+    isSwipingRef.current = false;
+  }, []);
+
+  // Pointer event handlers for mouse drag swiping on desktop
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
+    touchStartX.current = e.clientX;
+    touchStartY.current = e.clientY;
+    touchEndX.current = e.clientX;
+    touchEndY.current = e.clientY;
+    isSwipingRef.current = false;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (_) {}
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch' || touchStartX.current === null || touchStartY.current === null) return;
+    touchEndX.current = e.clientX;
+    touchEndY.current = e.clientY;
+    const dx = touchEndX.current - touchStartX.current;
+    const dy = touchEndY.current - touchStartY.current;
+    if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+      isSwipingRef.current = true;
+    }
+  }, []);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch (_) {}
+    if (touchStartX.current === null || touchEndX.current === null) return;
+    const dx = touchEndX.current - touchStartX.current;
+    const dy = (touchEndY.current ?? 0) - (touchStartY.current ?? 0);
+    if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) goNext();
+      else goPrev();
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+    touchEndX.current = null;
+    touchEndY.current = null;
+    setTimeout(() => {
+      isSwipingRef.current = false;
+    }, 150);
+  }, [goNext, goPrev]);
+
   const handleLottieComplete = useCallback(() => {
     setOverlayInteractive(false);
     let triggered = false;
     if (overlayRef.current) {
-      // Use gsap.context for scoping and cleanup
       const ctx = gsap.context(() => {
         gsap.to(overlayRef.current, {
           opacity: 0,
@@ -105,9 +394,7 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
               triggered = true;
             }
           },
-          onComplete: () => {
-            setOverlayVisible(false);
-          },
+          onComplete: () => setOverlayVisible(false),
         });
       }, overlayRef);
       return () => ctx.revert();
@@ -115,79 +402,52 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
   }, [setHeaderVisible]);
 
   useGSAP(() => {
-    if (overlayRef.current) {
-      gsap.set(overlayRef.current, { opacity: 1, force3D: true });
-    }
+    if (overlayRef.current) gsap.set(overlayRef.current, { opacity: 1, force3D: true });
   }, [overlayVisible]);
 
-  // Intersection observer to set header color back to white when hero is in view
+  // Viewport tracking for header color scope
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
-
     const observer = new IntersectionObserver(
       ([entry]) => {
+        setIsHeroInView(entry.isIntersecting);
         if (entry.isIntersecting) {
-          setHeaderColor(hero?.textColor || 'default');
+          const color = slides[currentSlideIndex]?.textColor || 'default';
+          setHeaderColor(color);
         }
       },
-      { threshold: 0.5 }
+      { threshold: 0.3 }
     );
-
     observer.observe(section);
     return () => observer.disconnect();
-  }, [setHeaderColor]);
+  }, [setHeaderColor, currentSlideIndex, slides]);
 
-  // GSAP animation for title text
-  useGSAP(() => {
-    if (!isHeaderVisible) return;
+  // Sync color on slide change — only when hero is in view
+  useEffect(() => {
+    if (!isHeroInView) return;
+    const color = slides[currentSlideIndex]?.textColor || 'default';
+    setHeaderColor(color);
+  }, [currentSlideIndex, slides, setHeaderColor, isHeroInView]);
 
-    // Use gsap.context for scoping and cleanup
-    const ctx = gsap.context(() => {
-      const tl = gsap.timeline({
-        defaults: {
-          duration: 0.8,
-          ease: 'power3.out',
-          force3D: true,
-        }
-      });
+  const currentTextColor = slides[currentSlideIndex]?.textColor || 'white';
 
-      // Prepare elements for animation
-      gsap.set([keepRef.current, itRef.current, saltyRef.current, exploreBtnRef.current], {
-        filter: 'blur(10px)',
-        y: 20,
-        opacity: 0,
-        willChange: 'filter, transform, opacity',
-      });
-
-      tl.to(keepRef.current, {
-        filter: 'blur(0px)', y: 0, opacity: 1,
-      })
-        .to(itRef.current, {
-          filter: 'blur(0px)', y: 0, opacity: 1,
-        }, '-=0.6')
-        .to(saltyRef.current, {
-          filter: 'blur(0px)', y: 0, opacity: 1,
-        }, '-=0.6')
-        .to(exploreBtnRef.current, {
-          filter: 'blur(0px)', y: 0, opacity: 1,
-        }, '-=0.8');
-    }, [keepRef, itRef, saltyRef, exploreBtnRef]);
-    return () => ctx.revert();
-  }, [isHeaderVisible]);
-
-  // (debug logs removed)
+  const pad = (n: number) => String(n).padStart(2, '0');
 
   return (
     <section
       ref={sectionRef}
-      className="relative w-screen left-1/2 right-1/2 -mx-[50vw] overflow-hidden flex items-center justify-center"
-      style={{
-        // Use 'dvh' (dynamic viewport height) to account for mobile browser UI
-        height: '93dvh',
-      }}
+      className="relative w-screen left-1/2 right-1/2 -mx-[50vw] overflow-hidden flex items-center justify-center select-none cursor-grab active:cursor-grabbing"
+      style={{ height: '93dvh', touchAction: 'pan-y' }}
+      onDragStart={(e) => e.preventDefault()}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
     >
-      {/* Overlay with Lottie animation */}
       <LoadingOverlay
         visible={overlayVisible}
         interactive={overlayInteractive}
@@ -196,77 +456,53 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
         animationData={logoAnimation}
         onComplete={handleLottieComplete}
       />
-      {/* Hero Content Wrapper - Clickable area */}
-      <NavLink
-        to={hero?.ctaCollectionHandle ? `/collections/${hero.ctaCollectionHandle}` : '/collections/s25-collection'}
-        className="absolute inset-0 z-0 block cursor-pointer group focus:outline-none"
-      >
-        {/* Placeholder image as a fallback background */}
-        <img 
-          src="/hero-placeholder.png"
-          alt=""
-          className={`absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-1000 ${isVideoLoaded ? 'opacity-0' : 'opacity-100'}`}
+      
+      {slides.map((slide, index) => (
+        <HeroSlideItem 
+          key={index}
+          slide={slide}
+          isActive={index === currentSlideIndex}
+          isPrevious={index === previousSlideIndex && index !== currentSlideIndex}
+          isHeaderVisible={isHeaderVisible}
+          isMobile={isMobile}
+          isSwipingRef={isSwipingRef}
         />
-        
-        {/* Hero background video */}
-        {(() => {
-          const sources = isMobile ? hero?.mobileVideoSources : hero?.desktopVideoSources;
-          const fallbackUrl = isMobile
-            ? (hero?.mobileVideoUrl || '/hero-mobile.mp4')
-            : (hero?.desktopVideoUrl || hero?.mobileVideoUrl || '/hero.mp4');
+      ))}
 
-          const hasSources = !!(sources && sources.length > 0);
-
-          return (
-            <video
-              key={isMobile ? 'mobile-video' : 'desktop-video'}
-              ref={videoRef}
-              className="absolute top-0 left-0 w-full h-full object-cover z-0 transition-opacity duration-1000"
-              autoPlay
-              loop
-              muted
-              playsInline
-              preload="auto"
-              crossOrigin="anonymous"
-              onCanPlay={() => setIsVideoLoaded(true)}
-              onPlaying={() => setIsVideoLoaded(true)}
-              onLoadedData={() => setIsVideoLoaded(true)}
-              onError={() => setIsVideoLoaded(false)}
-              style={{ 
-                willChange: 'opacity, filter',
-                opacity: isVideoLoaded ? 1 : 0.01 // Minimal opacity to allow browser to start loading but hide initial 'snap'
-              }}
-              src={hasSources ? undefined : fallbackUrl}
+      {/* Uncluttered bottom bar: slide counter left, full-width segmented progress bars bottom */}
+      {slides.length > 1 && (
+        <>
+          {/* Slide counter bottom-left */}
+          <div className="absolute bottom-5 left-6 z-20 pointer-events-none">
+            <span
+              className="text-[11px] font-mono tracking-[0.25em] tabular-nums pointer-events-auto uppercase"
+              style={{ color: currentTextColor, opacity: 0.75 }}
             >
-              {hasSources && sources.map((s, idx) => (
-                <source key={`${s.url}-${idx}`} src={s.url} type={s.mimeType || undefined} />
-              ))}
-            </video>
-          );
-        })()}
+              {pad(currentSlideIndex + 1)}&nbsp;/&nbsp;{pad(slides.length)}
+            </span>
+          </div>
 
-        <div className="absolute top-5 left-0 w-full h-full flex items-start pt-[var(--header-height)] pl-4 z-[1]">
-          <h1 
-            className='font-normal text-4xl sm:text-5xl md:text-5xl tracking-tight max-w-[80%] sm:max-w-[60%] md:max-w-[100%] text-left overflow-hidden leading-[0.9]'
-            style={{ color: hero?.textColor || 'white' }}
-          >
-            <span ref={keepRef} className="inline-block" style={{ willChange: 'filter, transform, opacity', opacity: 0, filter: 'blur(10px)', transform: 'translateY(20px)' }}>{hero?.headline?.split(' ')[0] || 'KEEP'}</span>{' '}
-            <span ref={itRef} className="inline-block" style={{ willChange: 'filter, transform, opacity', opacity: 0, filter: 'blur(10px)', transform: 'translateY(20px)' }}>{hero?.headline?.split(' ')[1] || 'IT'}</span>{' '}
-            <span ref={saltyRef} className="inline-block" style={{ willChange: 'filter, transform, opacity', opacity: 0, filter: 'blur(10px)', transform: 'translateY(20px)' }}>{hero?.headline?.split(' ').slice(2).join(' ') || 'SALTY.'}</span>
-          </h1>
-        </div>
-      </NavLink>
-
-      {/* S25 Collection button container - removed as per request */}
-      {/* SHOP HERE link at bottom right */}
-      <NavLink
-        to={hero?.ctaCollectionHandle ? `/collections/${hero.ctaCollectionHandle}` : '/collections/s25-collection'}
-        className="absolute bottom-8 right-8 z-[8] text-md tracking-widest font-medium uppercase underline hover:opacity-80 focus:underline outline-none transition-opacity duration-300"
-        style={{ color: hero?.textColor || 'white', opacity: 0, filter: 'blur(10px)', transform: 'translateY(20px)' }}
-        ref={exploreBtnRef}
-      >
-        {(hero?.ctaText || 'SHOP HERE').toUpperCase()}
-      </NavLink>
+          {/* Sleek progress lines at very bottom edge */}
+          <div className="absolute bottom-0 left-0 w-full flex z-20 gap-1 px-1">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => { if (idx !== currentSlideIndex) goToSlide(idx); }}
+                className="flex-1 h-[2px] cursor-pointer focus:outline-none group/bar py-2 flex items-end"
+                aria-label={`Go to slide ${idx + 1}`}
+              >
+                <div 
+                  className={`w-full h-[2px] transition-all duration-500 rounded-full ${
+                    idx === currentSlideIndex ? 'bg-white opacity-100' : 'bg-white/30 group-hover/bar:bg-white/60'
+                  }`} 
+                />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }
+
+

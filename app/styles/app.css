@@ -632,7 +632,7 @@ button.reset:hover:not(:has(> *)) {
   top: 0;
   left: 0;
   width: 100vw;
-  z-index: 10;
+  z-index: 50;
   background: transparent;
   transition:
     background 0.3s,

@@ -53,11 +53,13 @@ function PageLayoutWithHeaderColor({
     /^\/[a-zA-Z]{2}-[a-zA-Z]{2}\/?$/.test(location.pathname);
 
   useEffect(() => {
-    if (isHomePage) {
-      setHeaderColor('default');
-    } else {
+    // On non-home pages, always use black header.
+    // On the homepage, the HeroSection's IntersectionObserver owns the color
+    // so we only set a safe initial fallback and let the hero override it.
+    if (!isHomePage) {
       setHeaderColor('black');
     }
+    // Don't touch color on homepage — HeroSection handles it per-slide.
   }, [location.pathname, setHeaderColor, isHomePage]);
 
   const headerHeight = 'var(--header-height)';
