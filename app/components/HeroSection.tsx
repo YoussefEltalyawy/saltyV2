@@ -339,9 +339,6 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
     touchEndX.current = e.clientX;
     touchEndY.current = e.clientY;
     isSwipingRef.current = false;
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch (_) {}
   }, []);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -351,17 +348,20 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
     const dx = touchEndX.current - touchStartX.current;
     const dy = touchEndY.current - touchStartY.current;
     if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
-      isSwipingRef.current = true;
+      if (!isSwipingRef.current) {
+        isSwipingRef.current = true;
+        if (e.currentTarget.hasPointerCapture && !e.currentTarget.hasPointerCapture(e.pointerId)) {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }
+      }
     }
   }, []);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (e.pointerType === 'touch') return;
-    try {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
-    } catch (_) {}
+    if (e.currentTarget.hasPointerCapture && e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
     if (touchStartX.current === null || touchEndX.current === null) return;
     const dx = touchEndX.current - touchStartX.current;
     const dy = (touchEndY.current ?? 0) - (touchStartY.current ?? 0);
