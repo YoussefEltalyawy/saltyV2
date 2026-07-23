@@ -58,7 +58,7 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
 
   return {
     featuredCollection: collection,
-    hero: heroData?.metaobject ?? null,
+    heroData: heroData ?? null,
   };
 }
 
@@ -75,7 +75,7 @@ export default function Homepage() {
   const data = useLoaderData<typeof loader>();
   return (
     <div className="home">
-      <HeroSection hero={parseHeroMetaobject(data.hero)} />
+      <HeroSection hero={parseHeroMetaobject(data.heroData)} />
       <BrowseCollectionsSection />
       <BrowseCategoriesSection />
       {data.featuredCollection?.products?.nodes?.length > 0 ? (
@@ -187,7 +187,7 @@ const RECOMMENDED_PRODUCTS_QUERY = `#graphql
 ` as const;
 
 const PRODUCT_VARIANT_FRAGMENT = `#graphql
-  fragment ProductVariant on ProductVariant {
+  fragment IndexProductVariant on ProductVariant {
     availableForSale
     compareAtPrice {
       amount
@@ -264,7 +264,7 @@ const PRODUCT_ITEM_FRAGMENT = `#graphql
       optionValues {
         name
         firstSelectableVariant {
-          ...ProductVariant
+          ...IndexProductVariant
         }
         swatch {
           color
@@ -277,14 +277,14 @@ const PRODUCT_ITEM_FRAGMENT = `#graphql
       }
     }
     selectedOrFirstAvailableVariant {
-      ...ProductVariant
+      ...IndexProductVariant
     }
     adjacentVariants {
-      ...ProductVariant
+      ...IndexProductVariant
     }
     variants(first: 100) {
       nodes {
-        ...ProductVariant
+        ...IndexProductVariant
       }
     }
   }

@@ -48,8 +48,17 @@ export function Header({
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const iconColor = headerColor === 'black' ? '#000' : (headerColor === 'default' ? '#fff' : headerColor);
+  // Resolve the actual color to display.
+  // On the homepage: 'default' = white (hero overlay). On other pages: always black.
+  // If a specific hex/color is set via slide textColor, use that directly.
+  const resolvedColor = (() => {
+    if (!isHomePage) return '#000';
+    if (headerColor === 'default') return '#fff';
+    if (headerColor === 'black') return '#000';
+    return headerColor; // any raw CSS color value from Shopify
+  })();
   const { shop, menu } = header;
+
 
   // GSAP animation for header elements
   useGSAP(() => {
@@ -95,27 +104,31 @@ export function Header({
       style={{
         filter: isHomePage ? (isHeaderVisible ? 'blur(0px)' : 'blur(10px)') : 'blur(0px)',
         marginBottom: isHomePage ? undefined : '2rem',
+        color: resolvedColor,
+        transition: isHomePage
+          ? 'color 1s ease-in-out, filter 0.6s ease-out, transform 0.6s ease-out'
+          : 'filter 0.6s ease-out',
       }}
     >
       <div ref={leftRef} className="header-left">
         <button className="icon-btn" aria-label="Menu" onClick={() => open('mobile')}>
-          <Menu color={iconColor} size={24} />
+          <Menu size={24} stroke="currentColor" />
         </button>
         <NavLink prefetch="intent" to="/account" className="icon-btn" aria-label="Account">
-          <User color={iconColor} size={24} />
+          <User size={24} stroke="currentColor" />
         </NavLink>
       </div>
       <div ref={centerRef} className="header-center">
         <NavLink prefetch="intent" to="/" className="header-logo-link">
-          <span className="header-logo-text" style={{ color: iconColor }}>SALTY.</span>
+          <span className="header-logo-text" style={{ color: 'inherit' }}>SALTY.</span>
         </NavLink>
       </div>
       <div ref={rightRef} className="header-right">
         <button className="icon-btn" aria-label="Search" onClick={() => open('search')}>
-          <Search color={iconColor} size={24} />
+          <Search size={24} stroke="currentColor" />
         </button>
         <button className="icon-btn" aria-label="Cart" onClick={() => open('cart')}>
-          <ShoppingCart color={iconColor} size={24} />
+          <ShoppingCart size={24} stroke="currentColor" />
         </button>
       </div>
     </header>

@@ -152,18 +152,18 @@ export function Aside({
   // Layout for top animation (full width, top-0, left-0, h-auto)
   const asideClass =
     animation === 'top'
-      ? 'fixed left-0 top-0 w-full max-w-full bg-white shadow-2xl z-50 flex flex-col'
+      ? 'fixed left-0 top-0 w-full max-w-full bg-white shadow-2xl z-[101] flex flex-col'
       : animation === 'right'
-        ? 'fixed right-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-50 flex flex-col px-4'
-        : 'fixed left-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-50 flex flex-col px-4';
+        ? 'fixed right-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-[101] flex flex-col px-4'
+        : 'fixed left-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-[101] flex flex-col px-4';
 
   return (
     <div
       aria-modal
-      className={`fixed inset-0 z-40 bg-black/20 ${expanded ? 'block' : 'hidden'}`}
+      className={`overlay fixed inset-0 z-[100] bg-black/20 ${expanded ? 'expanded block' : 'hidden'}`}
       role="dialog"
     >
-      <button className="absolute inset-0 w-full h-full bg-transparent cursor-default z-40" onClick={handleClose} />
+      <button className="absolute inset-0 w-full h-full bg-transparent cursor-default z-[100]" onClick={handleClose} />
       <div
         ref={asideRef}
         className={asideClass}
@@ -178,7 +178,7 @@ export function Aside({
           </header>
         ) : (
           <button
-            className="absolute top-4 right-6 opacity-80 hover:opacity-100 z-50"
+            className="absolute top-4 right-6 opacity-80 hover:opacity-100 z-[102]"
             onClick={handleClose}
             aria-label="Close"
             type="button"

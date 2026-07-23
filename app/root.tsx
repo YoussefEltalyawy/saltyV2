@@ -12,7 +12,6 @@ import {
   useRouteLoaderData,
 } from 'react-router';
 import { useState, useEffect } from 'react';
-import favicon from '~/assets/favicon.ico';
 import { FOOTER_QUERY, HEADER_QUERY } from '~/lib/fragments';
 import { LOCK_PAGE_QUERY } from '~/graphql/lockQuery';
 import { NEWSLETTER_METAOBJECT_QUERY, parseNewsletterMetaobject } from '~/lib/graphql/newsletter';
@@ -82,7 +81,7 @@ export function links() {
       href: 'https://fonts.gstatic.com',
       crossOrigin: 'anonymous',
     },
-    { rel: 'icon', type: 'image/svg+xml', href: favicon },
+    { rel: 'icon', type: 'image/png', href: '/black-logo.png' },
   ];
 }
 
