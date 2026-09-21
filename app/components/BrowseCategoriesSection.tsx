@@ -3,7 +3,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { useRouteLoaderData, useFetcher } from 'react-router';
 import type { RootLoader } from '~/root';
 import { Image } from '@shopify/hydrogen';
-import { useHeaderColor } from '~/components/HeaderColorContext';
+import { useHeaderColorSection } from '~/components/HeaderColorContext';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 // Custom hook for fetching a collection image by handle
@@ -19,7 +19,9 @@ function useCollectionImage(handle: string | undefined) {
 
 export function BrowseCategoriesSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const { setHeaderColor } = useHeaderColor();
+  // Single-winner scroll-spy (viewport middle band). Same black as Featured,
+  // so the guarded setter produces no animation when moving between them.
+  useHeaderColorSection(sectionRef, 'black');
   const data = useRouteLoaderData<RootLoader>('root');
   const [emblaRef, emblaApi] = useEmblaCarousel({ 
     loop: false, 
@@ -78,23 +80,7 @@ export function BrowseCategoriesSection() {
   }, [emblaApi, onSelect]);
   const categoriesMenu: any[] = useMemo(() => data?.browseCategories?.menu?.items || [], [data]);
 
-  // Intersection observer to set header color back to white when categories section is in view
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setHeaderColor('black');
-        }
-      },
-      { threshold: 0.5 }
-    );
-
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, [setHeaderColor]);
+  // Header color is owned by useHeaderColorSection above (single-winner).
 
   useEffect(() => {
     if (!emblaApi) return;

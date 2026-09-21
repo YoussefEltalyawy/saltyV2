@@ -4,25 +4,44 @@ import {
   useEffect,
   Suspense,
   useMemo,
+  useCallback,
 } from 'react';
 import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
-import { useHeaderColor } from '~/components/HeaderColorContext';
+import { useHeaderColorSection } from '~/components/HeaderColorContext';
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
-import { Await, NavLink, useRouteLoaderData, useFetcher } from 'react-router';
+import { Await, useRouteLoaderData } from 'react-router';
 import type { RootLoader } from '~/root';
-import type { FooterQuery } from 'storefrontapi.generated';
-import { throttle } from 'lodash';
 import CollectionsSkeleton from './CollectionsSkeleton';
 import CollectionsList from './CollectionsList';
 
 gsap.registerPlugin(ScrollToPlugin);
 
+// Request a viewport-appropriate size from the Shopify CDN instead of the
+// full-res original. Full-screen backgrounds at original resolution were the
+// main decode/composite jank source (cached = smooth, uncached = laggy).
+function getSizedImageUrl(url: string | undefined, width = 1600): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set('width', String(width));
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+function preloadImage(url: string | undefined) {
+  if (!url) return;
+  const img = new Image();
+  img.src = url;
+  // Warm the decoder off the critical path; ignore failures.
+  (img as any).decode?.()?.catch?.(() => {});
+}
+
 export function BrowseCollectionsSection() {
-  const { isHeaderVisible } = useHeaderAnimation();
-  const { setHeaderColor } = useHeaderColor();
   const sectionRef = useRef<HTMLDivElement>(null);
+  // Single-winner scroll-spy (viewport middle band). Dark section -> white logo.
+  useHeaderColorSection(sectionRef, 'default');
   const bg1Ref = useRef<HTMLDivElement>(null);
   const bg2Ref = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
@@ -35,12 +54,20 @@ export function BrowseCollectionsSection() {
   const activeLayerRef = useRef<number>(1);
   const lastImageRef = useRef<string | null>(null);
   const isUnlockingRef = useRef<boolean>(false);
-  const unlockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const unlockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Sync mirror of activeIndex so wheel/touch handlers compute the next index
+  // synchronously instead of inside a setState updater (which batches and
+  // made preventDefault decisions stale — the "sometimes laggy" input).
+  const activeIndexRef = useRef(0);
+  // Cooldown between slide steps so fast wheel ticks don't pile up killed
+  // mid-flight tweens. Slightly shorter than the crossfade duration.
+  const lastStepAtRef = useRef(0);
 
-  // Helper to get image URL for a handle
-  const getImageUrl = (handle: string) => {
-    return collectionImages[handle]?.image?.url;
-  };
+  // Helper to get a sized image URL for a handle
+  const getImageUrl = useCallback((handle: string) => {
+    const raw = collectionImages[handle]?.image?.url;
+    return getSizedImageUrl(raw);
+  }, [collectionImages]);
 
   const collections = useMemo(
     () => data?.browseCollections?.menu?.items || [],
@@ -48,7 +75,6 @@ export function BrowseCollectionsSection() {
   );
 
   const fetchingRef = useRef<Set<string>>(new Set());
-  const collectionsRef = useRef<any[]>([]);
 
   useEffect(() => {
     setIsClient(true);
@@ -74,15 +100,12 @@ export function BrowseCollectionsSection() {
   useEffect(() => {
     if (!isClient || !collections.length) return;
 
-    // Track which collections we've already tried to fetch
-    const attemptedHandles = new Set<string>();
-
     collections.forEach((item) => {
       const handle = extractHandle(item.url || '');
       if (!handle || collectionImages[handle] || fetchingRef.current.has(handle)) return;
 
       fetchingRef.current.add(handle);
-      
+
       // Use native fetch to allow parallel requests
       fetch(`/api/collection-image?handle=${encodeURIComponent(handle)}`)
         .then(res => {
@@ -96,35 +119,28 @@ export function BrowseCollectionsSection() {
               [handle]: data
             }));
 
-            // Preload the image in browser cache
-            if (data.image?.url) {
-              const img = new Image();
-              img.src = data.image.url;
-            }
+            // Warm the decoder with a viewport-sized image, not full-res.
+            preloadImage(getSizedImageUrl(data.image?.url));
           }
         })
         .catch(err => {
-          // Log and keep in fetching set to avoid infinite retries if desired, 
+          // Log and keep in fetching set to avoid infinite retries if desired,
           // or remove to allow retry. Here we keep it to be safe.
           console.error(`Error loading image for ${handle}:`, err);
-        })
-        .finally(() => {
-          // We don't remove from fetchingRef here because we don't want to re-fetch 
-          // in the next cycle if setCollectionImages triggered it but it's not yet in the state
         });
     });
-  }, [isClient, collections]);
+  }, [isClient, collections, collectionImages]);
 
-  // Preload all images and put them in cache
+  // Preload the neighbour slides' backgrounds so stepping never waits on network.
   useEffect(() => {
-    Object.values(collectionImages).forEach((data: any) => {
-      const url = data?.image?.url;
-      if (url) {
-        const img = new Image();
-        img.src = url;
-      }
+    if (!collections.length) return;
+    [activeIndex - 1, activeIndex + 1].forEach((idx) => {
+      if (idx < 0 || idx >= collections.length) return;
+      const item = collections[idx];
+      const handle = extractHandle(item?.url || '');
+      if (handle) preloadImage(getImageUrl(handle));
     });
-  }, [collectionImages]);
+  }, [activeIndex, collections, getImageUrl]);
 
   // Setup initial background for current active index
   useEffect(() => {
@@ -148,7 +164,8 @@ export function BrowseCollectionsSection() {
     }
   }, [collections, collectionImages, currentBackgroundImage, activeIndex]);
 
-  // Optimized background transition
+  // Background crossfade — kept short with overwrite so rapid steps don't
+  // pile up killed mid-flight tweens (the stutter source).
   useEffect(() => {
     if (!collections.length || activeIndex >= collections.length) return;
 
@@ -163,77 +180,53 @@ export function BrowseCollectionsSection() {
 
       if (nextLayer && currentLayer) {
         lastImageRef.current = newImageUrl;
-        
-        // Prepare next layer - use a new image object for preloading just in case
-        const img = new Image();
-        img.onload = () => {
-          // Skip if this load finished but we've already moved on to another image
+
+        const show = () => {
+          // Skip if we've already moved on to another image
           if (newImageUrl !== lastImageRef.current) return;
 
-          // Kill any existing animations on the layers
-          gsap.killTweensOf([nextLayer, currentLayer]);
-          
           // Set background and move to front
-          gsap.set(nextLayer, { 
-            backgroundImage: `url(${newImageUrl})`,
+          gsap.set(nextLayer, {
+            backgroundImage: `url("${newImageUrl}")`,
             zIndex: 1,
             opacity: 0,
-            scale: 1.05
           });
           gsap.set(currentLayer, { zIndex: 0 });
 
-          // Crossfade: Fade in the TOP layer (next), and ONLY fade out the bottom layer (current) after the top is visible
-          // This prevents any "white/gap" phase where both layers are semi-transparent.
+          // Crossfade the TOP layer in; hide the previous one only after the
+          // top is visible so there's never a white/gap phase.
           gsap.to(nextLayer, {
             opacity: 1,
-            duration: 0.8,
-            ease: 'power2.inOut',
+            duration: 0.5,
+            ease: 'power2.out',
+            overwrite: 'auto',
             onComplete: () => {
-              // Now that nextLayer is fully visible, we can safely hide the previous one
               gsap.set(currentLayer, { opacity: 0 });
               activeLayerRef.current = isFirstLayerActive ? 2 : 1;
               setCurrentBackgroundImage(newImageUrl);
             }
           });
         };
+
+        // Neighbours are preloaded, so this is usually instant; only wait
+        // on network when the image genuinely isn't cached yet.
+        const img = new Image();
+        let shown = false;
+        const showOnce = () => {
+          if (shown) return;
+          shown = true;
+          show();
+        };
+        img.onload = showOnce;
+        img.onerror = showOnce;
         img.src = newImageUrl;
+        // Cached images may never fire onload — show synchronously.
+        if (img.complete && img.naturalWidth) showOnce();
       }
     }
-  }, [activeIndex, collections, collectionImages]);
+  }, [activeIndex, collections, getImageUrl]);
 
-  // Initial section animation
-  // useGSAP(() => {
-  //   if (sectionRef.current) {
-  //     gsap.set(sectionRef.current, { y: 30, opacity: 0 });
-  //     if (isHeaderVisible) {
-  //       gsap.to(sectionRef.current, {
-  //         y: 0,
-  //         opacity: 1,
-  //         duration: 0.8,
-  //         delay: 1,
-  //         ease: 'power2.out',
-  //       });
-  //     }
-  //   }
-  // }, [isHeaderVisible]);
-
-  // Intersection observer to set header color back to white when collections section is in view
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setHeaderColor('default');
-        }
-      },
-      { threshold: 0.5 }
-    );
-
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, [setHeaderColor]);
+  // Header color is owned by useHeaderColorSection above (single-winner).
 
   // Intersection observer for section activation
   useEffect(() => {
@@ -276,23 +269,27 @@ export function BrowseCollectionsSection() {
     };
   }, [isClient, isSectionActive]);
 
-  // Replace releaseSectionLockAndScrollToHero with a direction-aware function
+  // Direction-aware unlock: 'up' returns to the previous section
+  // (categories), 'down' continues to the footer.
   const releaseSectionLockAndScroll = (direction: 'up' | 'down') => {
     isUnlockingRef.current = true;
     setIsSectionActive(false);
-    
+
     document.body.style.overflow = '';
     document.body.style.touchAction = '';
 
-    // Scroll animation
+    const section = sectionRef.current;
     if (direction === 'up') {
+      // Land on the previous section instead of jumping to page top.
+      const target = section
+        ? Math.max(0, section.offsetTop - window.innerHeight * 0.8)
+        : 0;
       gsap.to(window, {
-        scrollTo: 0,
+        scrollTo: target,
         duration: 0.8,
         ease: 'power2.inOut',
       });
     } else if (direction === 'down') {
-      const section = sectionRef.current;
       if (section) {
         const nextScrollPos = section.offsetTop + section.offsetHeight;
         gsap.to(window, {
@@ -310,43 +307,55 @@ export function BrowseCollectionsSection() {
     }, 800);
   };
 
-  // Scroll handling for collections
+  // Step to a collection index, keeping the sync ref in lock-step.
+  const stepToIndex = useCallback((next: number) => {
+    activeIndexRef.current = next;
+    lastStepAtRef.current = performance.now();
+    setActiveIndex(next);
+  }, []);
+
+  // Direct selection (list click): sync the ref too, but skip the cooldown.
+  const selectIndex = useCallback((next: number) => {
+    activeIndexRef.current = next;
+    setActiveIndex(next);
+  }, []);
+
+  // Scroll handling for collections — decisions are computed synchronously
+  // from refs (no setState-updater side effects), with a short cooldown so
+  // high-frequency trackpad ticks step cleanly instead of piling up.
   useEffect(() => {
     if (!isClient || collections.length === 0) return;
 
-    const handleCollectionScroll = throttle((event: WheelEvent) => {
-      if (!isSectionActive) return;
+    const STEP_COOLDOWN_MS = 450;
 
-      const scrollDirection = event.deltaY > 0 ? 'down' : 'up';
-      let handled = false;
-      let releaseLock: 'up' | 'down' | null = null;
-
-      setActiveIndex((prevIndex) => {
-        if (scrollDirection === 'down') {
-          if (prevIndex < collections.length - 1) {
-            handled = true;
-            return prevIndex + 1;
-          } else if (prevIndex === collections.length - 1) {
-            releaseLock = 'down';
-          }
-        } else {
-          if (prevIndex > 0) {
-            handled = true;
-            return prevIndex - 1;
-          } else if (prevIndex === 0) {
-            releaseLock = 'up';
-          }
+    const step = (direction: 'down' | 'up'): boolean => {
+      const now = performance.now();
+      if (now - lastStepAtRef.current < STEP_COOLDOWN_MS) return true; // swallow, still locked
+      const current = activeIndexRef.current;
+      if (direction === 'down') {
+        if (current < collections.length - 1) {
+          stepToIndex(current + 1);
+          return true;
         }
-        return prevIndex;
-      });
-
-      if (handled) {
-        event.preventDefault();
-      } else if (releaseLock) {
-        event.preventDefault();
-        releaseSectionLockAndScroll(releaseLock);
+        releaseSectionLockAndScroll('down');
+        return true;
+      } else {
+        if (current > 0) {
+          stepToIndex(current - 1);
+          return true;
+        }
+        releaseSectionLockAndScroll('up');
+        return true;
       }
-    }, 150, { leading: true, trailing: false });
+    };
+
+    const handleCollectionScroll = (event: WheelEvent) => {
+      if (!isSectionActive || isUnlockingRef.current) return;
+      // Ignore horizontal/trackpad noise; only intentional vertical scrolls step.
+      if (Math.abs(event.deltaY) < 4 || Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
+      const handled = step(event.deltaY > 0 ? 'down' : 'up');
+      if (handled) event.preventDefault();
+    };
 
     // Touch support for mobile
     let touchStartY: number | null = null;
@@ -364,41 +373,14 @@ export function BrowseCollectionsSection() {
     };
 
     const handleTouchEnd = (event: TouchEvent) => {
-      if (!isSectionActive || touchStartY === null) return;
+      if (!isSectionActive || isUnlockingRef.current || touchStartY === null) return;
       const touchEndY = event.changedTouches[0].clientY;
       const deltaY = touchStartY - touchEndY;
-      
+
       // Increased sensitivity for intentional swipes
       if (Math.abs(deltaY) < 50) return;
 
-      const swipeDirection = deltaY > 0 ? 'down' : 'up';
-      let handled = false;
-      let releaseLock: 'up' | 'down' | null = null;
-
-      setActiveIndex((prevIndex) => {
-        if (swipeDirection === 'down') {
-          if (prevIndex < collections.length - 1) {
-            handled = true;
-            return prevIndex + 1;
-          } else if (prevIndex === collections.length - 1) {
-            releaseLock = 'down';
-          }
-        } else {
-          if (prevIndex > 0) {
-            handled = true;
-            return prevIndex - 1;
-          } else if (prevIndex === 0) {
-            releaseLock = 'up';
-          }
-        }
-        return prevIndex;
-      });
-
-      if (handled) {
-        // No extra action needed, activeIndex update handles it
-      } else if (releaseLock) {
-        releaseSectionLockAndScroll(releaseLock);
-      }
+      step(deltaY > 0 ? 'down' : 'up');
       touchStartY = null;
     };
 
@@ -413,7 +395,7 @@ export function BrowseCollectionsSection() {
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isClient, isSectionActive, collections.length]);
+  }, [isClient, isSectionActive, collections.length, stepToIndex]);
 
   return (
     <section
@@ -435,9 +417,6 @@ export function BrowseCollectionsSection() {
           backgroundSize: 'cover',
           backgroundPosition: 'center 30%',
           backgroundRepeat: 'no-repeat',
-          filter: 'brightness(0.8)',
-          transform: 'scale(1.05)',
-          willChange: 'transform, opacity',
         }}
       />
 
@@ -449,10 +428,14 @@ export function BrowseCollectionsSection() {
           backgroundSize: 'cover',
           backgroundPosition: 'center 30%',
           backgroundRepeat: 'no-repeat',
-          filter: 'brightness(0.8)',
-          transform: 'scale(1.05)',
-          willChange: 'transform, opacity',
         }}
+      />
+
+      {/* Static dim overlay (replaces per-layer filter: brightness, which
+          forced a repaint of the full-screen image on every tween frame) */}
+      <div
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        style={{ background: 'rgba(0, 0, 0, 0.2)', zIndex: 2 }}
       />
 
       {/* Fallback background */}
@@ -468,7 +451,7 @@ export function BrowseCollectionsSection() {
       {/* Content */}
       <div className="relative z-10 w-full h-full flex flex-col">
         <h2 className="text-2xl md:text-3xl font-medium mb-0">
-          Collections
+          Salty&apos;s Brand Journey
         </h2>
       </div>
 
@@ -486,7 +469,7 @@ export function BrowseCollectionsSection() {
                 <CollectionsList
                   menu={browseCollections?.menu}
                   activeIndex={activeIndex}
-                  setActiveIndex={setActiveIndex}
+                  setActiveIndex={selectIndex}
                 />
               )}
             </Await>

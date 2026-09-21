@@ -3,7 +3,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import type { ProductItemFullFragment as ProductItemFragment } from 'storefrontapi.generated';
 import { Image } from '@shopify/hydrogen';
 import { Link } from 'react-router';
-import { useHeaderColor } from '~/components/HeaderColorContext';
+import { useHeaderColorSection } from '~/components/HeaderColorContext';
 import { AddToCartButton } from '~/components/AddToCartButton';
 import { getProductOptions } from '@shopify/hydrogen';
 import { useAside } from '~/components/Aside';
@@ -66,8 +66,11 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
   const sectionRef = useRef<HTMLDivElement | null>(null);
-  const { setHeaderColor } = useHeaderColor();
   const { open } = useAside();
+
+  // Single-winner scroll-spy (viewport middle band). Guarded setter skips
+  // same-color re-renders, so Featured -> Categories (both black) = no animation.
+  useHeaderColorSection(sectionRef, 'black');
 
   // State: selected options per product id
   const [selectedOptionsMap, setSelectedOptionsMap] = useState<Record<string, SelectedOptions>>(() => {
@@ -96,24 +99,7 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
     };
   }, [emblaApi, onSelect]);
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-    const observer = new window.IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setHeaderColor('black');
-        }
-        // Remove the else clause - don't reset to default when leaving
-      },
-      { threshold: 0.5 }
-    );
-    observer.observe(section);
-    return () => {
-      observer.disconnect();
-      // Don't reset header color on cleanup
-    };
-  }, [setHeaderColor]);
+  // Header color is owned by useHeaderColorSection above (single-winner).
 
   // Handler for selecting an option value
   function handleOptionChange(productId: string, optionName: string, value: string) {

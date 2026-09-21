@@ -106,7 +106,7 @@ export function Header({
         marginBottom: isHomePage ? undefined : '2rem',
         color: resolvedColor,
         transition: isHomePage
-          ? 'color 1s ease-in-out, filter 0.6s ease-out, transform 0.6s ease-out'
+          ? 'color 0.4s ease-in-out, filter 0.6s ease-out, transform 0.6s ease-out'
           : 'filter 0.6s ease-out',
       }}
     >

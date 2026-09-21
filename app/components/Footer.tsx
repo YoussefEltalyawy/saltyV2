@@ -1,4 +1,6 @@
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
+import { useRef } from 'react';
+import { useHeaderColorSection } from '~/components/HeaderColorContext';
 import type { FooterQuery, HeaderQuery } from 'storefrontapi.generated';
 
 interface FooterProps {
@@ -12,8 +14,16 @@ export function Footer({
   header,
   publicStoreDomain,
 }: FooterProps) {
+  const footerRef = useRef<HTMLElement>(null);
+  const location = useLocation();
+  const isHomePage =
+    location.pathname === '/' ||
+    /^\/[a-zA-Z]{2}-[a-zA-Z]{2}\/?$/.test(location.pathname);
+  // Light beige footer needs a dark logo — only takes over when footer
+  // occupies the viewport middle (single-winner, no fighting).
+  useHeaderColorSection(footerRef, 'black', isHomePage);
   return (
-    <footer className="w-full bg-[#beb1a1] py-8 px-5">
+    <footer ref={footerRef} className="w-full bg-[#beb1a1] py-8 px-5">
       <div className="max-w-6xl mx-auto">
         {/* Brand Name */}
         <div className="mb-12">

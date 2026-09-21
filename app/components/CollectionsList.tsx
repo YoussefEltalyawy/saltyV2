@@ -1,6 +1,4 @@
-import React, { useRef } from 'react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
+import React from 'react';
 import type { FooterQuery } from 'storefrontapi.generated';
 import { useNavigate } from 'react-router';
 
@@ -10,46 +8,11 @@ interface CollectionsListProps {
   setActiveIndex: (index: number) => void;
 }
 
+// Active-state styling is pure CSS (no GSAP). The old timeline reverted and
+// re-animated every item on each step, which fought the background crossfade
+// and read as lag during fast scrolling.
 const CollectionsList: React.FC<CollectionsListProps> = ({ menu, activeIndex, setActiveIndex }) => {
-  const itemRefs = useRef<(HTMLElement | null)[]>([]);
   const navigate = useNavigate();
-
-  useGSAP(
-    () => {
-      if (!itemRefs.current.length) return;
-
-      const validRefs = itemRefs.current.filter(Boolean);
-      const ctx = gsap.context(() => {
-        const tl = gsap.timeline();
-
-        // Animate all items to inactive state
-        tl.to(validRefs, {
-          fontWeight: 400,
-          scale: 1,
-          color: '#FFFFFF',
-          x: 0,
-          duration: 0.25,
-          ease: 'power2.out',
-          stagger: 0.02,
-        });
-
-        // Animate the active item with more visible changes (no color or x shift)
-        const activeItem = itemRefs.current[activeIndex];
-        if (activeItem) {
-          tl.to(activeItem, {
-            fontWeight: 700,
-            scale: 1.1, // Slightly larger
-            color: '#FFFFFF', // Keep color unchanged
-            x: 0, // No shift
-            duration: 0.35,
-            ease: 'power2.out',
-          }, '-=0.1');
-        }
-      }, validRefs);
-      return () => ctx.revert();
-    },
-    { dependencies: [activeIndex, menu] },
-  );
 
   if (!menu) return null;
 
@@ -78,10 +41,13 @@ const CollectionsList: React.FC<CollectionsListProps> = ({ menu, activeIndex, se
           return (
             <div
               key={item.id}
-              ref={(el) => (itemRefs.current[index] = el)}
-              className="text-base font-[200] transition-colors cursor-pointer select-none"
+              className="text-base cursor-pointer select-none transition-all duration-300 ease-out will-change-transform"
               style={{
                 transformOrigin: 'left center',
+                transform: isActive ? 'scale(1.1)' : 'scale(1)',
+                fontWeight: isActive ? 700 : 200,
+                opacity: isActive ? 1 : 0.75,
+                color: '#FFFFFF',
               }}
               onClick={() => isActive ? navigate(url) : setActiveIndex(index)}
             >

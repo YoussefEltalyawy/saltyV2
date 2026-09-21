@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from '@shopify/remix-oxygen';
 import { Await, useLoaderData, Link, type MetaFunction } from 'react-router';
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
 import { Image, Money } from '@shopify/hydrogen';
 import type {
   FeaturedCollectionFragment,
@@ -73,14 +73,17 @@ function loadDeferredData({ context }: LoaderFunctionArgs) {
 
 export default function Homepage() {
   const data = useLoaderData<typeof loader>();
+  // Memoize so HeroSection gets a stable reference (prevents observer +
+  // interval re-creation every render, which caused flicker and jank).
+  const hero = useMemo(() => parseHeroMetaobject(data.heroData), [data.heroData]);
   return (
     <div className="home">
-      <HeroSection hero={parseHeroMetaobject(data.heroData)} />
-      <BrowseCollectionsSection />
-      <BrowseCategoriesSection />
+      <HeroSection hero={hero} />
       {data.featuredCollection?.products?.nodes?.length > 0 ? (
         <FeaturedProductsCarousel products={data.featuredCollection.products.nodes} />
       ) : null}
+      <BrowseCategoriesSection />
+      <BrowseCollectionsSection />
     </div>
   );
 }

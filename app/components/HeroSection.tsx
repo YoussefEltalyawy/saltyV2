@@ -1,25 +1,27 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useHeaderAnimation } from '~/components/HeaderAnimationContext';
-import { useHeaderColor } from '~/components/HeaderColorContext';
+import { useHeaderColorSection } from '~/components/HeaderColorContext';
 import logoAnimation from '../../public/logo-animation.json';
 import { LoadingOverlay } from './LoadingOverlay';
 import { useFetcher, NavLink } from 'react-router';
 import type { FeaturedCollectionFragment } from 'storefrontapi.generated';
 import type { HeroContent, HeroSlideContent } from '~/lib/graphql/hero';
 
-function HeroSlideItem({ 
-  slide, 
-  isActive, 
+function HeroSlideItem({
+  slide,
+  isActive,
   isPrevious,
-  isHeaderVisible, 
+  shouldLoad,
+  isHeaderVisible,
   isMobile,
   isSwipingRef
-}: { 
-  slide: HeroSlideContent, 
-  isActive: boolean, 
+}: {
+  slide: HeroSlideContent,
+  isActive: boolean,
   isPrevious: boolean,
+  shouldLoad: boolean,
   isHeaderVisible: boolean,
   isMobile: boolean,
   isSwipingRef: React.RefObject<boolean>
@@ -57,6 +59,18 @@ function HeroSlideItem({
     const timer = setTimeout(() => clearInterval(interval), 5000);
     return () => { clearInterval(interval); clearTimeout(timer); };
   }, []);
+
+  // Perf: only the active slide's video plays. Inactive videos pause and
+  // release the decoder so N slides don't decode simultaneously (the lag source).
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (isActive) {
+      video.play?.().catch(() => {});
+    } else {
+      video.pause?.();
+    }
+  }, [isActive]);
 
   // GSAP animation for text when slide becomes active
   useGSAP(() => {
@@ -115,21 +129,28 @@ function HeroSlideItem({
       >
         {imageUrl ? (
           <>
-            <img 
+            <img
               src="/hero-placeholder.png"
               alt=""
+              aria-hidden
               className={`absolute inset-0 w-full h-full object-cover z-0 transition-opacity duration-1000 ${isImageLoaded ? 'opacity-0' : 'opacity-100'}`}
             />
-            <img
-              ref={imageRef}
-              src={imageUrl}
-              alt=""
-              onLoad={() => setIsImageLoaded(true)}
-              className={`absolute top-0 left-0 w-full h-full object-cover z-0 transition-opacity duration-1000 ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
-              style={{ willChange: 'opacity' }}
-            />
+            {shouldLoad ? (
+              <img
+                ref={imageRef}
+                src={imageUrl}
+                alt=""
+                onLoad={() => setIsImageLoaded(true)}
+                loading={isActive ? 'eager' : 'lazy'}
+                decoding="async"
+                // @ts-expect-error - fetchPriority is valid in modern browsers
+                fetchpriority={isActive ? 'high' : 'low'}
+                className={`absolute top-0 left-0 w-full h-full object-cover z-0 transition-opacity duration-1000 ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                style={{ willChange: 'opacity', transform: 'translateZ(0)' }}
+              />
+            ) : null}
           </>
-        ) : (() => {
+        ) : shouldLoad ? (() => {
           const sources = isMobile ? slide?.mobileVideoSources : slide?.desktopVideoSources;
           const fallbackUrl = isMobile
             ? (slide?.mobileVideoUrl || '/hero-mobile.mp4')
@@ -146,7 +167,12 @@ function HeroSlideItem({
                 key={isMobile ? 'mobile-video' : 'desktop-video'}
                 ref={videoRef}
                 className="absolute top-0 left-0 w-full h-full object-cover z-0"
-                autoPlay loop muted playsInline preload="auto" crossOrigin="anonymous"
+                autoPlay={isActive}
+                loop
+                muted
+                playsInline
+                preload={isActive || isPrevious ? 'auto' : 'metadata'}
+                crossOrigin="anonymous"
                 onCanPlay={() => setIsVideoLoaded(true)}
                 onPlaying={() => setIsVideoLoaded(true)}
                 onLoadedData={() => setIsVideoLoaded(true)}
@@ -160,7 +186,14 @@ function HeroSlideItem({
               </video>
             </>
           );
-        })()}
+        })() : (
+          <img
+            src="/hero-placeholder.png"
+            alt=""
+            aria-hidden
+            className="absolute inset-0 w-full h-full object-cover z-0"
+          />
+        )}
 
         {/* Headline */}
         <div className="absolute top-0 left-0 w-full h-full flex items-start pt-[calc(var(--header-height)+1.25rem)] pl-4 z-[1] pointer-events-none">
@@ -220,11 +253,9 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [previousSlideIndex, setPreviousSlideIndex] = useState(0);
   const { setHeaderVisible, isHeaderVisible } = useHeaderAnimation();
-  const { setHeaderColor } = useHeaderColor();
   const overlayRef = useRef<HTMLDivElement>(null);
   const lottieRef = useRef<any>(null);
   const sectionRef = useRef<HTMLElement>(null);
-  const [isHeroInView, setIsHeroInView] = useState(false);
 
   // Touch & Swipe state
   const touchStartX = useRef<number | null>(null);
@@ -233,8 +264,24 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
   const touchEndY = useRef<number | null>(null);
   const isSwipingRef = useRef(false);
 
-  const slides = hero?.slides?.length ? hero.slides : (hero ? [hero] : []);
+  const slides = useMemo(() => {
+    if (hero?.slides?.length) return hero.slides;
+    if (hero) return [hero];
+    return [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hero]);
   const s25Fetcher = useFetcher<FeaturedCollectionFragment>();
+
+  // Stable slide color for header — memoized so the scroll-spy hook
+  // doesn't re-subscribe every render (that was a flicker + jank source).
+  const activeSlideColor = useMemo(
+    () => slides[currentSlideIndex]?.textColor || 'default',
+    [slides, currentSlideIndex],
+  );
+
+  // Single-winner scroll-spy: hero owns the header color only while it
+  // occupies the viewport middle. No fighting with sections below.
+  useHeaderColorSection(sectionRef, activeSlideColor as any);
 
   const goToSlide = useCallback((idx: number) => {
     setCurrentSlideIndex(prev => {
@@ -405,32 +452,10 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
     if (overlayRef.current) gsap.set(overlayRef.current, { opacity: 1, force3D: true });
   }, [overlayVisible]);
 
-  // Viewport tracking for header color scope
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsHeroInView(entry.isIntersecting);
-        if (entry.isIntersecting) {
-          const color = slides[currentSlideIndex]?.textColor || 'default';
-          setHeaderColor(color);
-        }
-      },
-      { threshold: 0.3 }
-    );
-    observer.observe(section);
-    return () => observer.disconnect();
-  }, [setHeaderColor, currentSlideIndex, slides]);
+  // Single-winner scroll-spy owns the header color (see hook above).
+  // Slide changes while hero is active are pushed via the hook's color dep.
 
-  // Sync color on slide change — only when hero is in view
-  useEffect(() => {
-    if (!isHeroInView) return;
-    const color = slides[currentSlideIndex]?.textColor || 'default';
-    setHeaderColor(color);
-  }, [currentSlideIndex, slides, setHeaderColor, isHeroInView]);
-
-  const currentTextColor = slides[currentSlideIndex]?.textColor || 'white';
+  const currentTextColor = activeSlideColor === 'default' ? 'white' : activeSlideColor;
 
   const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -457,17 +482,27 @@ export function HeroSection({ hero }: { hero?: HeroContent }) {
         onComplete={handleLottieComplete}
       />
       
-      {slides.map((slide, index) => (
-        <HeroSlideItem 
-          key={index}
-          slide={slide}
-          isActive={index === currentSlideIndex}
-          isPrevious={index === previousSlideIndex && index !== currentSlideIndex}
-          isHeaderVisible={isHeaderVisible}
-          isMobile={isMobile}
-          isSwipingRef={isSwipingRef}
-        />
-      ))}
+      {slides.map((slide, index) => {
+        const isActive = index === currentSlideIndex;
+        const isPrevious = index === previousSlideIndex && index !== currentSlideIndex;
+        // Only active + immediate neighbours mount heavy media. Others keep
+        // the lightweight placeholder so N videos/images never decode at once.
+        const nextIndex = (currentSlideIndex + 1) % slides.length;
+        const prevIndex = (currentSlideIndex - 1 + slides.length) % slides.length;
+        const shouldLoad = isActive || isPrevious || index === nextIndex || index === prevIndex;
+        return (
+          <HeroSlideItem
+            key={index}
+            slide={slide}
+            isActive={isActive}
+            isPrevious={isPrevious}
+            shouldLoad={shouldLoad}
+            isHeaderVisible={isHeaderVisible}
+            isMobile={isMobile}
+            isSwipingRef={isSwipingRef}
+          />
+        );
+      })}
 
       {/* Uncluttered bottom bar: slide counter left, full-width segmented progress bars bottom */}
       {slides.length > 1 && (
