@@ -84,7 +84,7 @@ export function Footer({
         {/* Copyright */}
         <div className="flex justify-between items-end">
           <div className="text-[12px] text-black">
-            COPYRIGHT 2025 © SALTY.CAI
+            COPYRIGHT {new Date().getFullYear()} © SALTY.CAI
           </div>
           <div className="text-[12px] text-black">
             SITE BY{' '}
