@@ -196,7 +196,7 @@ function HeroSlideItem({
         )}
 
         {/* Headline */}
-        <div className="absolute top-0 left-0 w-full h-full flex items-start pt-[calc(var(--header-height)+1.25rem)] pl-4 z-[1] pointer-events-none">
+        <div className="absolute top-0 left-0 w-full h-full flex items-start pt-[calc(var(--header-height)+var(--announcement-height,0px)+1.25rem)] pl-4 z-[1] pointer-events-none">
           <h1
             ref={headlineRef}
             className="font-normal text-4xl sm:text-5xl md:text-5xl tracking-tight text-left leading-[0.95] max-w-[85%]"

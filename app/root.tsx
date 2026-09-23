@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react';
 import { FOOTER_QUERY, HEADER_QUERY } from '~/lib/fragments';
 import { LOCK_PAGE_QUERY } from '~/graphql/lockQuery';
 import { NEWSLETTER_METAOBJECT_QUERY, parseNewsletterMetaobject } from '~/lib/graphql/newsletter';
+import { ANNOUNCEMENT_METAOBJECTS_QUERY, parseAnnouncementMetaobjects } from '~/lib/graphql/announcement';
 import resetStyles from '~/styles/reset.css?url';
 import appStyles from '~/styles/app.css?url';
 import tailwindCss from './styles/tailwind.css?url';
@@ -121,7 +122,7 @@ export async function loader(args: LoaderFunctionArgs) {
 async function loadCriticalData({ context, request }: LoaderFunctionArgs) {
   const { storefront } = context;
 
-  const [header, browseCollections, browseCategories, lockData, newsletterData] = await Promise.all([
+  const [header, browseCollections, browseCategories, lockData, newsletterData, announcementData] = await Promise.all([
     storefront.query(HEADER_QUERY, {
       cache: storefront.CacheLong(),
       variables: {
@@ -155,6 +156,17 @@ async function loadCriticalData({ context, request }: LoaderFunctionArgs) {
       // Log query errors, but don't throw them so the page can still render
       console.error('Error fetching newsletter metafield:', error);
       console.error('Error details:', JSON.stringify(error, null, 2));
+      return null;
+    }),
+    storefront.query(ANNOUNCEMENT_METAOBJECTS_QUERY, {
+      variables: {
+        country: storefront.i18n.country,
+        language: storefront.i18n.language,
+      },
+      cache: storefront.CacheShort(),
+    }).catch((error) => {
+      // Announcements are non-critical — hide the bar instead of erroring.
+      console.error('Error fetching announcements:', error);
       return null;
     }),
     // Add other queries here, so that they are loaded in parallel
@@ -210,10 +222,13 @@ async function loadCriticalData({ context, request }: LoaderFunctionArgs) {
     ? parseNewsletterMetaobject(newsletterData.metaobject)
     : null;
 
+  const announcements = parseAnnouncementMetaobjects(announcementData);
+
   return {
     header,
     browseCollections,
     browseCategories,
+    announcements,
     isLockedServer,
     backgroundImageUrl,
     lockTitle: title,

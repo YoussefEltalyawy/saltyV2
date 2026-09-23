@@ -8,6 +8,7 @@ html {
   --cart-aside-summary-height: 250px;
   --grid-item-width: 355px;
   --header-height: 64px;
+  --announcement-height: 0px;
   --color-dark: #000;
   --color-light: #fff;
   --font-manrope: 'Manrope', sans-serif;
@@ -629,7 +630,7 @@ button.reset:hover:not(:has(> *)) {
 /* HEADER LAYOUT & SCROLL EFFECT */
 .custom-header {
   position: fixed;
-  top: 0;
+  top: var(--announcement-height, 0px);
   left: 0;
   width: 100vw;
   z-index: 50;
@@ -695,6 +696,100 @@ button.reset:hover:not(:has(> *)) {
 }
 .icon-btn:focus {
   outline: 2px solid #000;
+}
+
+/* ANNOUNCEMENT BAR — fixed at the very top, above the header */
+.announcement-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.55rem 1rem;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  transition: background-color 0.35s ease, color 0.35s ease;
+  /* Hidden until the entrance is triggered (homepage waits for the intro
+     splash to start clearing — otherwise it plays invisibly behind it). */
+  opacity: 0;
+}
+.announcement-bar.is-ready {
+  opacity: 1;
+  animation: announcement-enter 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.announcement-bar-link {
+  display: inline-block;
+  text-decoration: none;
+  color: inherit;
+}
+.announcement-bar-link:hover .announcement-link-label {
+  opacity: 0.75;
+}
+.announcement-link-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: opacity 0.2s;
+}
+/* Rotation crossfade: incoming fades in over the outgoing, which is pinned
+   in place (absolute) so the bar height never jumps mid-transition. */
+.announcement-stack {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.announcement-msg {
+  display: inline-block;
+}
+.announcement-msg.is-entering {
+  animation: announcement-fade-in 0.35s ease-out;
+}
+.announcement-msg.is-leaving {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: announcement-fade-out 0.35s ease-out forwards;
+}
+@keyframes announcement-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes announcement-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+/* Initial page-load entrance: bar sweeps down into its reserved space. */
+@keyframes announcement-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (min-width: 768px) {
+  .announcement-bar {
+    font-size: 12px;
+  }
 }
 
 @media (max-width: 600px) {

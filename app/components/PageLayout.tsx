@@ -19,11 +19,14 @@ import { CartAside } from '~/components/CartAside';
 import { SearchAside } from '~/components/SearchAside';
 import { MenuAside } from '~/components/MenuAside';
 import { HeaderColorProvider, useHeaderColor } from './HeaderColorContext';
+import { AnnouncementBar } from '~/components/AnnouncementBar';
+import type { AnnouncementItem } from '~/lib/graphql/announcement';
 
 interface PageLayoutProps {
   cart: Promise<CartApiQueryFragment | null>;
   footer: Promise<FooterQuery | null>;
   header: HeaderQuery;
+  announcements: AnnouncementItem[];
   isLoggedIn: Promise<boolean>;
   publicStoreDomain: string;
   children?: React.ReactNode;
@@ -42,6 +45,7 @@ function PageLayoutWithHeaderColor({
   children = null,
   footer,
   header,
+  announcements = [],
   isLoggedIn,
   publicStoreDomain,
 }: PageLayoutProps) {
@@ -62,7 +66,8 @@ function PageLayoutWithHeaderColor({
     // Don't touch color on homepage — HeroSection handles it per-slide.
   }, [location.pathname, setHeaderColor, isHomePage]);
 
-  const headerHeight = 'var(--header-height)';
+  const pageTopOffset =
+    'calc(var(--header-height) + var(--announcement-height, 0px))';
 
   return (
     <HeaderAnimationProvider>
@@ -71,18 +76,21 @@ function PageLayoutWithHeaderColor({
         <SearchAside />
         <MenuAside header={header} publicStoreDomain={publicStoreDomain} />
         {header && (
-          <Header
-            header={header}
-            cart={cart}
-            isLoggedIn={isLoggedIn}
-            publicStoreDomain={publicStoreDomain}
-            showMarginButton={!isHomePage}
-            isHomePage={isHomePage}
-          />
+          <>
+            <AnnouncementBar announcements={announcements} />
+            <Header
+              header={header}
+              cart={cart}
+              isLoggedIn={isLoggedIn}
+              publicStoreDomain={publicStoreDomain}
+              showMarginButton={!isHomePage}
+              isHomePage={isHomePage}
+            />
+          </>
         )}
         <main
           style={{
-            paddingTop: isHomePage ? undefined : headerHeight,
+            paddingTop: isHomePage ? undefined : pageTopOffset,
           }}
         >
           {children}
