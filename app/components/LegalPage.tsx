@@ -98,25 +98,28 @@ export function LegalPage({
         </div>
       </section>
 
-      {/* Mobile section strip */}
+      {/* Mobile section list — wraps instead of scrolling so every
+          section is visible with proper page padding and no edge-bleed. */}
       {hasToc ? (
         <nav className="border-b border-black/10 lg:hidden">
-          <div className="mx-auto flex w-full max-w-6xl snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain px-5 py-4 [scrollbar-width:none] sm:px-8 [&::-webkit-scrollbar]:hidden">
-            {sections.map((section) => (
-              <a
-                key={section.id}
-                href={`#${section.id}`}
-                onClick={(event) => handleJump(event, section.id)}
-                // py-3 keeps the tap target at ~44px, the mobile minimum.
-                className={`flex shrink-0 snap-start items-center border px-3.5 py-3 text-[11px] font-bold tracking-[0.15em] whitespace-nowrap uppercase transition-colors ${
-                  activeId === section.id
-                    ? 'border-black bg-black text-white'
-                    : 'border-black/15 text-black/55'
-                }`}
-              >
-                {section.text}
-              </a>
-            ))}
+          <div className="mx-auto w-full max-w-6xl px-5 py-4 sm:px-8">
+            <div className="flex flex-wrap gap-2">
+              {sections.map((section) => (
+                <a
+                  key={section.id}
+                  href={`#${section.id}`}
+                  onClick={(event) => handleJump(event, section.id)}
+                  // py-3 keeps the tap target at ~44px, the mobile minimum.
+                  className={`flex items-center border px-3.5 py-3 text-[11px] font-bold tracking-[0.15em] uppercase transition-colors ${
+                    activeId === section.id
+                      ? 'border-black bg-black text-white'
+                      : 'border-black/15 text-black/55'
+                  }`}
+                >
+                  {section.text}
+                </a>
+              ))}
+            </div>
           </div>
         </nav>
       ) : null}
@@ -124,7 +127,7 @@ export function LegalPage({
       <div className="mx-auto flex w-full max-w-6xl gap-16 px-5 pt-10 pb-20 sm:px-8 sm:pt-14 sm:pb-28">
         {/* On this page */}
         {hasToc ? (
-          <aside className="hidden w-60 shrink-0 lg:block">
+          <aside className="hidden w-60 shrink-0 static lg:block lg:static">
             <div className="sticky top-28">
               <p className="mb-5 text-[11px] font-bold tracking-[0.25em] text-black/35 uppercase">
                 On this page
@@ -206,17 +209,20 @@ function renderBlock(block: RichTextBlock, number?: number) {
         );
       }
       return (
-        <h2 id={block.id} className="legal-heading flex items-baseline gap-4">
+        <h2
+          id={block.id}
+          className="legal-heading flex items-baseline justify-start gap-4 text-left"
+        >
           {number !== undefined ? (
             <span
               aria-hidden
-              className="pt-1 text-[11px] font-bold tracking-[0.18em] tabular-nums text-black/25"
+              className="hidden pt-1 text-[11px] font-bold tracking-[0.18em] tabular-nums text-black/25 sm:block"
             >
               {String(number).padStart(2, '0')}
             </span>
           ) : null}
           <span
-            className="text-2xl font-black tracking-tight text-black uppercase sm:text-3xl"
+            className="text-left text-2xl font-black tracking-tight text-black uppercase sm:text-3xl"
             dangerouslySetInnerHTML={{__html: block.html}}
           />
         </h2>

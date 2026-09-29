@@ -152,10 +152,10 @@ export function Aside({
   // Layout for top animation (full width, top-0, left-0, h-auto)
   const asideClass =
     animation === 'top'
-      ? 'fixed left-0 top-0 w-full max-w-full bg-white shadow-2xl z-[101] flex flex-col'
+      ? 'aside-drawer fixed left-0 top-0 w-full max-w-full bg-white shadow-2xl z-[101] flex flex-col'
       : animation === 'right'
-        ? 'fixed right-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-[101] flex flex-col px-4'
-        : 'fixed left-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-[101] flex flex-col px-4';
+        ? 'aside-drawer fixed right-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-[101] flex flex-col px-4'
+        : 'aside-drawer fixed left-0 top-0 h-screen w-[var(--aside-width)] max-w-full bg-white shadow-2xl z-[101] flex flex-col px-4';
 
   return (
     <div

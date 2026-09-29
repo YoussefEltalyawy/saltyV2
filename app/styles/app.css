@@ -78,7 +78,7 @@ html {
   }
 }
 
-aside {
+.aside-drawer {
   background: var(--color-light);
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.3);
   height: 100vh;
@@ -88,7 +88,7 @@ aside {
   z-index: 101;
 }
 
-aside header {
+.aside-drawer header {
   align-items: center;
   border-bottom: 1px solid var(--color-dark);
   display: flex;
@@ -97,11 +97,11 @@ aside header {
   padding: 0 20px;
 }
 
-aside header h3 {
+.aside-drawer header h3 {
   margin: 0;
 }
 
-aside header .close {
+.aside-drawer header .close {
   font-weight: bold;
   opacity: 0.8;
   text-decoration: none;
@@ -109,28 +109,28 @@ aside header .close {
   width: 20px;
 }
 
-aside header .close:hover {
+.aside-drawer header .close:hover {
   opacity: 1;
 }
 
-aside header h2 {
+.aside-drawer header h2 {
   margin-bottom: 0.6rem;
   margin-top: 0;
 }
 
-aside main {
+.aside-drawer main {
   margin: 1rem;
 }
 
-aside p {
+.aside-drawer p {
   margin: 0 0 0.25rem;
 }
 
-aside p:last-child {
+.aside-drawer p:last-child {
   margin: 0;
 }
 
-aside li {
+.aside-drawer li {
   margin-bottom: 0.125rem;
 }
 
@@ -184,19 +184,9 @@ aside li {
   visibility: hidden;
 }
 
-/* Remove right-side slide and transition for aside, let GSAP handle it */
-aside {
-  background: var(--color-light);
-  box-shadow: 0 0 50px rgba(0, 0, 0, 0.3);
-  height: 100vh;
-  width: min(var(--aside-width), 100vw);
-  position: fixed;
-  top: 0;
-  z-index: 101;
-}
-
-/* Remove overlay aside transform/transition for slide */
-.overlay aside {
+/* Drawer positioning is handled by Tailwind + GSAP in Aside.tsx;
+ * keep this scoped so plain <aside> elements (e.g. LegalPage TOC) are untouched. */
+.overlay .aside-drawer {
   z-index: 101;
 }
 
