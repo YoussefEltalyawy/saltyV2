@@ -825,8 +825,16 @@ body {
 * markup that survives inside our styled blocks gets its defaults here.
 * --------------------------------------------------
 */
+/* Keeps shared #anchor links (and native hash jumps) clear of the fixed
+   header + announcement bar, which are published as CSS vars. */
 .legal-heading {
-  scroll-margin-top: 7.5rem;
+  scroll-margin-top: calc(
+    var(--header-height, 64px) + var(--announcement-height, 0px) + 24px
+  );
+}
+/* Long emails/URLs/tracking codes must not force a sideways scroll on phones. */
+.legal-inline {
+  overflow-wrap: break-word;
 }
 .legal-inline a {
   color: inherit;

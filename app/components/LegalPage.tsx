@@ -11,8 +11,21 @@ interface LegalPageProps {
   backLink?: {to: string; label: string};
 }
 
-/** Clears the fixed header + announcement bar when jumping to a section. */
-const HEADER_OFFSET = 112;
+/**
+ * Breathing room when jumping to a section. The header and announcement bar
+ * are fixed, so the real offset is header + announcement + gap; those are
+ * published as CSS vars, so read them rather than guessing a pixel value.
+ */
+const SCROLL_GAP = 24;
+
+function getScrollOffset(): number {
+  if (typeof window === 'undefined') return 112;
+  const styles = getComputedStyle(document.documentElement);
+  const header = parseFloat(styles.getPropertyValue('--header-height')) || 64;
+  const announcement =
+    parseFloat(styles.getPropertyValue('--announcement-height')) || 0;
+  return header + announcement + SCROLL_GAP;
+}
 
 export function LegalPage({
   title,
@@ -24,7 +37,7 @@ export function LegalPage({
 }: LegalPageProps) {
   const sectionIds = useMemo(() => sections.map((s) => s.id), [sections]);
   const activeId = useActiveSection(sectionIds);
-  const progress = useReadingProgress();
+  const progressBarRef = useReadingProgress();
 
   // Number the top-level sections (01, 02, …) in the editorial header style.
   const sectionNumbers = useMemo(() => {
@@ -48,7 +61,7 @@ export function LegalPage({
     const target = document.getElementById(id);
     if (!target) return;
     event.preventDefault();
-    const top = target.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
+    const top = target.getBoundingClientRect().top + window.scrollY - getScrollOffset();
     window.scrollTo({top, behavior: 'smooth'});
     window.history.replaceState(null, '', `#${id}`);
   };
@@ -78,8 +91,9 @@ export function LegalPage({
         {/* Reading progress */}
         <div className="h-px w-full overflow-hidden bg-black/5">
           <div
-            className="h-full w-full origin-left bg-black/70"
-            style={{transform: `scaleX(${progress})`}}
+            ref={progressBarRef}
+            className="h-full w-full origin-left bg-black/70 will-change-transform"
+            style={{transform: 'scaleX(0)'}}
           />
         </div>
       </section>
@@ -87,13 +101,14 @@ export function LegalPage({
       {/* Mobile section strip */}
       {hasToc ? (
         <nav className="border-b border-black/10 lg:hidden">
-          <div className="mx-auto flex w-full max-w-6xl gap-2 overflow-x-auto px-5 py-4 sm:px-8">
+          <div className="mx-auto flex w-full max-w-6xl snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain px-5 py-4 [scrollbar-width:none] sm:px-8 [&::-webkit-scrollbar]:hidden">
             {sections.map((section) => (
               <a
                 key={section.id}
                 href={`#${section.id}`}
                 onClick={(event) => handleJump(event, section.id)}
-                className={`shrink-0 border px-3 py-1.5 text-[11px] font-bold tracking-[0.15em] whitespace-nowrap uppercase transition-colors ${
+                // py-3 keeps the tap target at ~44px, the mobile minimum.
+                className={`flex shrink-0 snap-start items-center border px-3.5 py-3 text-[11px] font-bold tracking-[0.15em] whitespace-nowrap uppercase transition-colors ${
                   activeId === section.id
                     ? 'border-black bg-black text-white'
                     : 'border-black/15 text-black/55'
@@ -298,8 +313,12 @@ function useActiveSection(sectionIds: string[]): string | null {
           );
         if (visible[0]) setActiveId(visible[0].target.id);
       },
-      // A band just under the header counts as "current".
-      {rootMargin: '-120px 0px -60% 0px', threshold: 0},
+      // A band just under the header counts as "current". Reads the same CSS
+      // vars the layout uses so it stays correct at any header size.
+      {
+        rootMargin: `-${getScrollOffset()}px 0px -55% 0px`,
+        threshold: 0,
+      },
     );
 
     targets.forEach((target) => observer.observe(target));
@@ -309,20 +328,27 @@ function useActiveSection(sectionIds: string[]): string | null {
   return activeId;
 }
 
-function useReadingProgress(): number {
-  const [progress, setProgress] = useState(0);
+/**
+ * Writes scroll progress straight to the DOM via a CSS variable instead of
+ * React state. State here would re-render the whole document body on every
+ * animation frame while scrolling, which is very costly on mobile.
+ */
+function useReadingProgress(): React.RefObject<HTMLDivElement> {
+  const barRef = useRef<HTMLDivElement>(null);
   const frame = useRef(0);
 
   useEffect(() => {
     const update = () => {
       frame.current = 0;
+      const bar = barRef.current;
+      if (!bar) return;
       const scrollable =
         document.documentElement.scrollHeight - window.innerHeight;
-      setProgress(
+      const ratio =
         scrollable > 0
           ? Math.min(1, Math.max(0, window.scrollY / scrollable))
-          : 0,
-      );
+          : 0;
+      bar.style.transform = `scaleX(${ratio})`;
     };
 
     const schedule = () => {
@@ -339,5 +365,5 @@ function useReadingProgress(): number {
     };
   }, []);
 
-  return progress;
+  return barRef;
 }
