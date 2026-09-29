@@ -817,6 +817,82 @@ body {
   font-family: var(--font-manrope), Manrope, sans-serif !important;
 }
 
+/*
+* --------------------------------------------------
+* components/LegalPage (CMS pages, policies)
+*
+* Shopify rich text arrives with no opinion about typography, so the inline
+* markup that survives inside our styled blocks gets its defaults here.
+* --------------------------------------------------
+*/
+.legal-heading {
+  scroll-margin-top: 7.5rem;
+}
+.legal-inline a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 0, 0, 0.35);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s;
+}
+.legal-inline a:hover {
+  text-decoration-color: currentColor;
+}
+.legal-inline strong,
+.legal-inline b {
+  color: #000;
+  font-weight: 700;
+}
+.legal-inline ul,
+.legal-inline ol {
+  margin: 0.6rem 0 0;
+  padding-left: 1.15rem;
+}
+.legal-inline ul {
+  list-style: disc;
+}
+.legal-inline ol {
+  list-style: decimal;
+}
+.legal-inline li {
+  margin-bottom: 0.35rem;
+}
+.legal-inline li::marker {
+  color: rgba(0, 0, 0, 0.35);
+}
+.legal-inline blockquote {
+  margin: 1.25rem 0;
+  border-left: 2px solid #beb1a1;
+  padding-left: 1rem;
+  font-style: italic;
+}
+.legal-inline img {
+  max-width: 100%;
+  height: auto;
+}
+.legal-inline hr {
+  margin: 1.5rem 0;
+  border: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+.legal-inline table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.legal-inline th,
+.legal-inline td {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+}
+.legal-html > * + * {
+  margin-top: 1rem;
+}
+.legal-html > *:first-child {
+  margin-top: 0;
+}
+
 /* Hero/Browse Collections Layout Fixes */
 /* .hero-section {
   position: relative;

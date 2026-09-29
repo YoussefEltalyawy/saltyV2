@@ -1,6 +1,8 @@
 import {type LoaderFunctionArgs} from '@shopify/remix-oxygen';
-import {Link, useLoaderData, type MetaFunction} from 'react-router';
+import {useLoaderData, type MetaFunction} from 'react-router';
 import {type Shop} from '@shopify/hydrogen/storefront-api-types';
+import {parseRichText} from '~/lib/richText';
+import {LegalPage} from '~/components/LegalPage';
 
 type SelectedPolicies = keyof Pick<
   Shop,
@@ -38,23 +40,25 @@ export async function loader({params, context}: LoaderFunctionArgs) {
     throw new Response('Could not find the policy', {status: 404});
   }
 
-  return {policy};
+  return {
+    policy,
+    // Store policies are pasted as flat text, so they need the inference pass.
+    ...parseRichText(policy.body, {title: policy.title, inferHeadings: true}),
+  };
 }
 
 export default function Policy() {
-  const {policy} = useLoaderData<typeof loader>();
+  const {policy, blocks, sections} = useLoaderData<typeof loader>();
 
   return (
-    <div className="policy">
-      <br />
-      <br />
-      <div>
-        <Link to="/policies">← Back to Policies</Link>
-      </div>
-      <br />
-      <h1>{policy.title}</h1>
-      <div dangerouslySetInnerHTML={{__html: policy.body}} />
-    </div>
+    <LegalPage
+      title={policy.title}
+      eyebrow="Policies"
+      intro="the official store policies, written out in plain english."
+      blocks={blocks}
+      sections={sections}
+      backLink={{to: '/policies', label: 'All policies'}}
+    />
   );
 }
 

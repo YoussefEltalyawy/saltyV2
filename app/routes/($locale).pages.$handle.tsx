@@ -1,9 +1,31 @@
 import {type LoaderFunctionArgs} from '@shopify/remix-oxygen';
 import {useLoaderData, type MetaFunction} from 'react-router';
 import {redirectIfHandleIsLocalized} from '~/lib/redirect';
+import {parseRichText} from '~/lib/richText';
+import {LegalPage} from '~/components/LegalPage';
+
+/**
+ * Optional brand copy per page handle. Anything not listed here just renders
+ * the title, which is the right call for one-off pages like /pages/about-us.
+ */
+const PAGE_COPY: Record<
+  string,
+  {eyebrow?: string; intro?: string; inferHeadings?: boolean}
+> = {
+  'terms-conditions': {
+    eyebrow: 'Legal',
+    intro:
+      'the small print, in plain english — shipping, returns, and everything in between.',
+    inferHeadings: true,
+  },
+};
 
 export const meta: MetaFunction<typeof loader> = ({data}) => {
-  return [{title: `SALTY | ${data?.page.title ?? ''}`}];
+  const description = data?.page.seo?.description;
+  return [
+    {title: `SALTY | ${data?.page.title ?? ''}`},
+    ...(description ? [{name: 'description', content: description}] : []),
+  ];
 };
 
 export async function loader(args: LoaderFunctionArgs) {
@@ -46,6 +68,12 @@ async function loadCriticalData({
 
   return {
     page,
+    // Only legal copy opts into inference; every other CMS page is rendered
+    // conservatively so shouty marketing lines aren't mistaken for headings.
+    ...parseRichText(page.body, {
+      title: page.title,
+      inferHeadings: PAGE_COPY[params.handle]?.inferHeadings === true,
+    }),
   };
 }
 
@@ -59,15 +87,19 @@ function loadDeferredData({context}: LoaderFunctionArgs) {
 }
 
 export default function Page() {
-  const {page} = useLoaderData<typeof loader>();
+  const {page, blocks, sections} = useLoaderData<typeof loader>();
+  // Non-legal pages (About, lookbooks, …) get no eyebrow/intro, so the layout
+  // is a neutral editorial page rather than a legal one.
+  const copy = PAGE_COPY[page.handle];
 
   return (
-    <div className="page">
-      <header>
-        <h1>{page.title}</h1>
-      </header>
-      <main dangerouslySetInnerHTML={{__html: page.body}} />
-    </div>
+    <LegalPage
+      title={page.title}
+      eyebrow={copy?.eyebrow}
+      intro={copy?.intro}
+      blocks={blocks}
+      sections={sections}
+    />
   );
 }
 
