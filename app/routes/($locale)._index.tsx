@@ -12,6 +12,13 @@ import { HERO_METAOBJECT_QUERY, parseHeroMetaobject } from '~/lib/graphql/hero';
 import { BrowseCollectionsSection } from '~/components/BrowseCollectionsSection';
 import { FeaturedProductsCarousel } from '~/components/FeaturedProductsCarousel';
 import { BrowseCategoriesSection } from '~/components/BrowseCategoriesSection';
+import { ClubMembershipSection } from '~/components/ClubMembershipSection';
+import {
+  CLUB_METAOBJECT_HANDLE,
+  CLUB_METAOBJECT_QUERY,
+  CLUB_METAOBJECT_TYPE,
+  parseClubMetaobject,
+} from '~/lib/graphql/club';
 
 export const meta: MetaFunction = () => {
   return [{ title: 'SALTY | Home' }];
@@ -33,7 +40,7 @@ export async function loader(args: LoaderFunctionArgs) {
  */
 async function loadCriticalData({ context }: LoaderFunctionArgs) {
   const { storefront } = context;
-  const [{ collection }, heroData] = await Promise.all([
+  const [{ collection }, heroData, clubData] = await Promise.all([
     storefront.query(FEATURED_COLLECTION_PRODUCTS_QUERY, {
       variables: {
         handle: 'featured',
@@ -50,6 +57,21 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
       },
       cache: storefront.CacheShort(),
     }),
+    // Club section is non-critical — missing entry falls back to defaults.
+    storefront
+      .query(CLUB_METAOBJECT_QUERY, {
+        variables: {
+          handle: CLUB_METAOBJECT_HANDLE,
+          type: CLUB_METAOBJECT_TYPE,
+          country: storefront.i18n.country,
+          language: storefront.i18n.language,
+        },
+        cache: storefront.CacheShort(),
+      })
+      .catch((error) => {
+        console.error('Error fetching club membership metaobject:', error);
+        return null;
+      }),
   ]);
 
   if (!collection) {
@@ -59,6 +81,7 @@ async function loadCriticalData({ context }: LoaderFunctionArgs) {
   return {
     featuredCollection: collection,
     heroData: heroData ?? null,
+    club: parseClubMetaobject((clubData as any)?.metaobject),
   };
 }
 
@@ -84,6 +107,7 @@ export default function Homepage() {
       ) : null}
       <BrowseCategoriesSection />
       <BrowseCollectionsSection />
+      <ClubMembershipSection club={data.club ?? null} />
     </div>
   );
 }

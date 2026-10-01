@@ -288,6 +288,56 @@ export type FooterQuery = {
   >;
 };
 
+export type AnnouncementMetaobjectsQueryVariables = StorefrontAPI.Exact<{
+  country?: StorefrontAPI.InputMaybe<StorefrontAPI.CountryCode>;
+  language?: StorefrontAPI.InputMaybe<StorefrontAPI.LanguageCode>;
+}>;
+
+export type AnnouncementMetaobjectsQuery = {
+  announcements: {
+    nodes: Array<
+      Pick<StorefrontAPI.Metaobject, 'id' | 'handle'> & {
+        fields: Array<
+          Pick<StorefrontAPI.MetaobjectField, 'key' | 'value'> & {
+            reference?: StorefrontAPI.Maybe<
+              | ({__typename: 'Collection'} & Pick<
+                  StorefrontAPI.Collection,
+                  'handle' | 'title'
+                >)
+              | {
+                  __typename:
+                    | 'GenericFile'
+                    | 'MediaImage'
+                    | 'Metaobject'
+                    | 'Model3d'
+                    | 'Page'
+                    | 'Product'
+                    | 'ProductVariant'
+                    | 'Video';
+                }
+            >;
+          }
+        >;
+      }
+    >;
+  };
+};
+
+export type ClubMembershipMetaobjectQueryVariables = StorefrontAPI.Exact<{
+  handle: StorefrontAPI.Scalars['String']['input'];
+  type: StorefrontAPI.Scalars['String']['input'];
+  country?: StorefrontAPI.InputMaybe<StorefrontAPI.CountryCode>;
+  language?: StorefrontAPI.InputMaybe<StorefrontAPI.LanguageCode>;
+}>;
+
+export type ClubMembershipMetaobjectQuery = {
+  metaobject?: StorefrontAPI.Maybe<
+    Pick<StorefrontAPI.Metaobject, 'id' | 'handle'> & {
+      fields: Array<Pick<StorefrontAPI.MetaobjectField, 'key' | 'value'>>;
+    }
+  >;
+};
+
 export type HeroMetaobjectQueryVariables = StorefrontAPI.Exact<{
   handle: StorefrontAPI.Scalars['String']['input'];
   country?: StorefrontAPI.InputMaybe<StorefrontAPI.CountryCode>;
@@ -2355,6 +2405,14 @@ interface GeneratedQueryTypes {
   '#graphql\n  query Footer(\n    $country: CountryCode\n    $footerMenuHandle: String!\n    $language: LanguageCode\n  ) @inContext(language: $language, country: $country) {\n    menu(handle: $footerMenuHandle) {\n      ...Menu\n    }\n  }\n  #graphql\n  fragment MenuItem on MenuItem {\n    id\n    resourceId\n    tags\n    title\n    type\n    url\n  }\n  fragment ChildMenuItem on MenuItem {\n    ...MenuItem\n  }\n  fragment ParentMenuItem on MenuItem {\n    ...MenuItem\n    items {\n      ...ChildMenuItem\n    }\n  }\n  fragment Menu on Menu {\n    id\n    items {\n      ...ParentMenuItem\n    }\n  }\n\n': {
     return: FooterQuery;
     variables: FooterQueryVariables;
+  };
+  '#graphql\n  query AnnouncementMetaobjects($country: CountryCode, $language: LanguageCode)\n    @inContext(country: $country, language: $language) {\n    # Metaobject definition type in the Shopify dashboard: "announcement".\n    announcements: metaobjects(type: "announcement", first: 10) {\n      nodes {\n        id\n        handle\n        fields {\n          key\n          value\n          reference {\n            __typename\n            ... on Collection {\n              handle\n              title\n            }\n          }\n        }\n      }\n    }\n  }\n': {
+    return: AnnouncementMetaobjectsQuery;
+    variables: AnnouncementMetaobjectsQueryVariables;
+  };
+  '#graphql\n  query ClubMembershipMetaobject($handle: String!, $type: String!, $country: CountryCode, $language: LanguageCode)\n    @inContext(country: $country, language: $language) {\n    metaobject(handle: { type: $type, handle: $handle }) {\n      id\n      handle\n      fields {\n        key\n        value\n      }\n    }\n  }\n': {
+    return: ClubMembershipMetaobjectQuery;
+    variables: ClubMembershipMetaobjectQueryVariables;
   };
   '#graphql\n  query HeroMetaobject($handle: String!, $country: CountryCode, $language: LanguageCode)\n    @inContext(country: $country, language: $language) {\n    metaobject(handle: { type: "hero", handle: $handle }) {\n      id\n      handle\n      fields {\n        key\n        value\n        reference {\n          __typename\n          ... on Video {\n            sources { url mimeType }\n          }\n          ... on MediaImage {\n            image { url altText width height }\n          }\n          ... on Collection {\n            handle\n          }\n        }\n      }\n    }\n    heroSlides: metaobjects(type: "hero_slide", first: 10) {\n      nodes {\n        id\n        handle\n        fields {\n          key\n          value\n          reference {\n            __typename\n            ... on Video {\n              sources { url mimeType }\n            }\n            ... on MediaImage {\n              image { url altText width height }\n            }\n            ... on Collection {\n              handle\n            }\n          }\n        }\n      }\n    }\n  }\n': {
     return: HeroMetaobjectQuery;

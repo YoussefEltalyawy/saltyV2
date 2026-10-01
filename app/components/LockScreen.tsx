@@ -22,6 +22,7 @@ export function LockScreen({
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
 
   const fetcher = useFetcher();
   const actionData = fetcher.data as { success?: boolean; error?: string; message?: string } | undefined;
@@ -110,6 +111,16 @@ export function LockScreen({
                     placeholder="Email Address"
                     className="w-full px-4 py-3 bg-transparent border border-white/50 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#beb1a1] focus:border-transparent transition-all"
                     required
+                  />
+                </div>
+                <div>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    placeholder="Phone Number (optional)"
+                    className="w-full px-4 py-3 bg-transparent border border-white/50 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#beb1a1] focus:border-transparent transition-all"
                   />
                   {actionData?.error && <p className="mt-2 text-sm text-red-400">{actionData.error}</p>}
                 </div>

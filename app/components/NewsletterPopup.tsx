@@ -17,6 +17,7 @@ interface NewsletterPopupProps {
 export function NewsletterPopup({ isOpen, onClose, newsletterData }: NewsletterPopupProps) {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const fetcher = useFetcher();
@@ -39,6 +40,7 @@ export function NewsletterPopup({ isOpen, onClose, newsletterData }: NewsletterP
           setIsSubmitted(false);
           setEmail('');
           setName('');
+          setPhone('');
         }, 500); // allow out animation
       }, 5000);
       return () => clearTimeout(timer);
@@ -129,6 +131,24 @@ export function NewsletterPopup({ isOpen, onClose, newsletterData }: NewsletterP
                         disabled={isSubmitting}
                         autoComplete="email"
                       />
+                    </div>
+                    <div>
+                      <label htmlFor="phone" className="sr-only">Phone number (optional)</label>
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        placeholder="Phone number (optional)"
+                        className={[
+                          "w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent transition-all",
+                          brandFocus,
+                          actionData?.error ? "border-red-500 focus:ring-red-500" : ''
+                        ].join(' ')}
+                        disabled={isSubmitting}
+                        autoComplete="tel"
+                      />
                       {actionData?.error && (
                         <p className="mt-2 text-sm text-red-600">
                           {actionData.error}
@@ -159,7 +179,7 @@ export function NewsletterPopup({ isOpen, onClose, newsletterData }: NewsletterP
                   </div>
                 </fetcher.Form>
                 <p className="text-xs text-gray-500 text-center mt-4">
-                  By subscribing, you agree to receive marketing emails from us. You can unsubscribe at any time.
+                  By subscribing, you agree to receive marketing emails (and SMS if you add your number) from us. You can unsubscribe at any time.
                 </p>
               </>
             ) : (

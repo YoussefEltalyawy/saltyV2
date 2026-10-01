@@ -1,8 +1,40 @@
 import { z } from 'zod';
 
+/**
+ * Normalize Egyptian + international numbers to E.164 before validation:
+ * - strips spaces, dashes, parens, dots
+ * - 01xxxxxxxxx (11 digits) -> +20xxxxxxxxxx
+ * - 0020xxxxxxxxxx -> +20xxxxxxxxxx
+ * - 201xxxxxxxxxx -> +20xxxxxxxxxx
+ * - bare digit strings get a leading +
+ * Empty stays empty (phone is optional everywhere).
+ */
+function normalizePhone(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  let value = raw.trim().replace(/[\s\-().]/g, '');
+  if (!value) return undefined;
+  if (/^01\d{9}$/.test(value)) {
+    value = `+20${value.slice(1)}`;
+  } else if (/^0020\d{9}$/.test(value)) {
+    value = `+${value.slice(2)}`;
+  } else if (/^20\d{10}$/.test(value)) {
+    value = `+${value}`;
+  } else if (/^\d{7,15}$/.test(value)) {
+    value = `+${value}`;
+  }
+  return value;
+}
+
 const subscribeSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   name: z.string().min(1, 'Please enter your name'),
+  phone: z.preprocess(
+    normalizePhone,
+    z
+      .string()
+      .regex(/^\+[1-9]\d{6,14}$/, 'Please enter a valid phone number')
+      .optional(),
+  ),
 });
 
 export async function action({ request, context }: any) {
@@ -17,8 +49,9 @@ export async function action({ request, context }: any) {
     const formData = await request.formData();
     const email = formData.get('email');
     const name = formData.get('name');
+    const phone = formData.get('phone');
 
-    const validation = subscribeSchema.safeParse({ email, name });
+    const validation = subscribeSchema.safeParse({ email, name, phone });
     if (!validation.success) {
       return new Response(
         JSON.stringify({ error: validation.error.errors[0].message }),
@@ -26,7 +59,11 @@ export async function action({ request, context }: any) {
       );
     }
 
-    const { email: validatedEmail, name: validatedName } = validation.data;
+    const {
+      email: validatedEmail,
+      name: validatedName,
+      phone: validatedPhone,
+    } = validation.data;
     const adminApiToken = context.env.SHOPIFY_ADMIN_API_TOKEN;
     const shopDomain = context.env.PUBLIC_STORE_DOMAIN;
 
@@ -51,11 +88,36 @@ export async function action({ request, context }: any) {
         adminApiToken,
         validatedName,
       );
+      // Returning subscriber: fill in anything they skipped last time
+      // (name and/or phone) so re-submitting with a phone number updates
+      // the customer instead of dropping the new info.
+      if (validatedPhone || validatedName) {
+        await updateCustomerContact(
+          existingCustomer.id,
+          shopDomain,
+          adminApiToken,
+          {firstName: validatedName, phone: validatedPhone},
+        );
+      }
+      if (validatedPhone) {
+        // SMS consent is separate from email consent — never let it fail
+        // the whole signup (e.g. region limits); the number is still saved.
+        try {
+          await updateCustomerSmsMarketingConsent(
+            existingCustomer.id,
+            shopDomain,
+            adminApiToken,
+          );
+        } catch (smsError) {
+          console.error('Newsletter SMS consent error:', smsError);
+        }
+      }
       customerId = existingCustomer.id;
     } else {
       const newCustomer = await createCustomerWithEmailMarketingConsent(
         validatedEmail,
         validatedName,
+        validatedPhone,
         shopDomain,
         adminApiToken,
       );
@@ -73,6 +135,10 @@ export async function action({ request, context }: any) {
       } else {
         tags = ['EarlyAccess_Drop_UnknownDate'];
       }
+    }
+    // Makes phone owners segmentable in Shopify admin (Customers > Tagged with).
+    if (validatedPhone) {
+      tags.push('Has_Phone');
     }
 
     await addTagsToCustomer(customerId, tags, shopDomain, adminApiToken);
@@ -135,6 +201,7 @@ async function findCustomerByEmail(
 async function createCustomerWithEmailMarketingConsent(
   email: string,
   name: string,
+  phone: string | undefined,
   shopDomain: string,
   adminApiToken: string,
 ) {
@@ -170,10 +237,19 @@ async function createCustomerWithEmailMarketingConsent(
         input: {
           email,
           firstName: name,
+          ...(phone ? {phone} : {}),
           emailMarketingConsent: {
             marketingState: 'SUBSCRIBED',
             marketingOptInLevel: 'SINGLE_OPT_IN',
           },
+          ...(phone
+            ? {
+                smsMarketingConsent: {
+                  marketingState: 'SUBSCRIBED',
+                  marketingOptInLevel: 'SINGLE_OPT_IN',
+                },
+              }
+            : {}),
         },
       },
     }),
@@ -243,6 +319,108 @@ async function updateCustomerEmailMarketingConsent(
 
   // Optionally update their name as a separate mutation if needed, but not critical for newsletter sub
   return data.data?.customerEmailMarketingConsentUpdate?.customer;
+}
+
+/**
+ * Fill in contact details a returning subscriber skipped last time
+ * (name and/or phone). Called only for existing customers, so a second
+ * signup that adds a phone number updates the customer instead of
+ * dropping the new info.
+ */
+async function updateCustomerContact(
+  customerId: string,
+  shopDomain: string,
+  adminApiToken: string,
+  contact: {firstName?: string; phone?: string},
+) {
+  const mutation = `
+    mutation customerUpdate($input: CustomerUpdateInput!) {
+      customerUpdate(input: $input) {
+        customer {
+          id
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const response = await fetch(`https://${shopDomain}/admin/api/2024-01/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': adminApiToken,
+    },
+    body: JSON.stringify({
+      query: mutation,
+      variables: {
+        input: {
+          id: customerId,
+          ...(contact.firstName ? {firstName: contact.firstName} : {}),
+          ...(contact.phone ? {phone: contact.phone} : {}),
+        },
+      },
+    }),
+  });
+
+  const data = (await response.json()) as any;
+
+  if (data.data?.customerUpdate?.userErrors?.length > 0) {
+    throw new Error(data.data.customerUpdate.userErrors[0].message);
+  }
+
+  return data.data?.customerUpdate?.customer;
+}
+
+/** Opt an existing customer into SMS marketing (separate from email consent). */
+async function updateCustomerSmsMarketingConsent(
+  customerId: string,
+  shopDomain: string,
+  adminApiToken: string,
+) {
+  const mutation = `
+    mutation customerSmsMarketingConsentUpdate($input: CustomerSmsMarketingConsentUpdateInput!) {
+      customerSmsMarketingConsentUpdate(input: $input) {
+        customer {
+          id
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+  `;
+
+  const response = await fetch(`https://${shopDomain}/admin/api/2024-01/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': adminApiToken,
+    },
+    body: JSON.stringify({
+      query: mutation,
+      variables: {
+        input: {
+          customerId,
+          smsMarketingConsent: {
+            marketingState: 'SUBSCRIBED',
+            marketingOptInLevel: 'SINGLE_OPT_IN',
+          },
+        },
+      },
+    }),
+  });
+
+  const data = (await response.json()) as any;
+
+  if (data.data?.customerSmsMarketingConsentUpdate?.userErrors?.length > 0) {
+    throw new Error(data.data.customerSmsMarketingConsentUpdate.userErrors[0].message);
+  }
+
+  return data.data?.customerSmsMarketingConsentUpdate?.customer;
 }
 
 async function addTagsToCustomer(customerId: string, tags: string[], shopDomain: string, adminApiToken: string) {
