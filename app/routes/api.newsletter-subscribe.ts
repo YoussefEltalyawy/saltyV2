@@ -25,6 +25,24 @@ function normalizePhone(raw: unknown): string | undefined {
   return value;
 }
 
+/**
+ * Shopify reports *field* problems in `userErrors`, but *request* problems
+ * (an invalid input type, a missing scope, a malformed field) come back as
+ * top-level `errors` with `data` set to null. Code that only inspects
+ * `userErrors` sees `undefined` and sails on, so the write silently no-ops.
+ *
+ * That is exactly how phone numbers stopped being saved for returning
+ * subscribers: the mutation declared a non-existent input type, so every
+ * call failed invisibly and the SMS consent call that followed always
+ * failed with "a phone number is required". Every Shopify call below now
+ * passes through here first so that can never happen quietly again.
+ */
+function throwOnGraphqlErrors(data: any, context: string) {
+  if (Array.isArray(data?.errors) && data.errors.length > 0) {
+    throw new Error(`${context}: ${data.errors[0]?.message ?? 'unknown error'}`);
+  }
+}
+
 const subscribeSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   name: z.string().min(1, 'Please enter your name'),
@@ -109,7 +127,10 @@ export async function action({ request, context }: any) {
             adminApiToken,
           );
         } catch (smsError) {
-          console.error('Newsletter SMS consent error:', smsError);
+          console.error(
+            `Newsletter SMS consent error for ${existingCustomer.id}:`,
+            smsError,
+          );
         }
       }
       customerId = existingCustomer.id;
@@ -195,6 +216,7 @@ async function findCustomerByEmail(
   }
 
   const data = (await response.json()) as any;
+  throwOnGraphqlErrors(data, 'customer search');
   return data.data?.customers?.edges?.[0]?.node || null;
 }
 
@@ -312,6 +334,7 @@ async function updateCustomerEmailMarketingConsent(
   });
 
   const data = (await response.json()) as any;
+  throwOnGraphqlErrors(data, 'customerEmailMarketingConsentUpdate');
 
   if (data.data?.customerEmailMarketingConsentUpdate?.userErrors?.length > 0) {
     throw new Error(data.data.customerEmailMarketingConsentUpdate.userErrors[0].message);
@@ -334,7 +357,7 @@ async function updateCustomerContact(
   contact: {firstName?: string; phone?: string},
 ) {
   const mutation = `
-    mutation customerUpdate($input: CustomerUpdateInput!) {
+    mutation customerUpdate($input: CustomerInput!) {
       customerUpdate(input: $input) {
         customer {
           id
@@ -366,6 +389,7 @@ async function updateCustomerContact(
   });
 
   const data = (await response.json()) as any;
+  throwOnGraphqlErrors(data, 'customerUpdate');
 
   if (data.data?.customerUpdate?.userErrors?.length > 0) {
     throw new Error(data.data.customerUpdate.userErrors[0].message);
@@ -415,6 +439,7 @@ async function updateCustomerSmsMarketingConsent(
   });
 
   const data = (await response.json()) as any;
+  throwOnGraphqlErrors(data, 'customerSmsMarketingConsentUpdate');
 
   if (data.data?.customerSmsMarketingConsentUpdate?.userErrors?.length > 0) {
     throw new Error(data.data.customerSmsMarketingConsentUpdate.userErrors[0].message);
@@ -450,6 +475,7 @@ async function addTagsToCustomer(customerId: string, tags: string[], shopDomain:
   });
 
   const data = (await response.json()) as any;
+  throwOnGraphqlErrors(data, 'tagsAdd');
   if (data.data?.tagsAdd?.userErrors?.length > 0) {
     console.error("Failed to add tags:", data.data.tagsAdd.userErrors[0].message);
   }
