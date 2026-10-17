@@ -98,6 +98,12 @@ export async function action({ request, context }: any) {
       adminApiToken,
     );
 
+    // `phoneSaved` means "Shopify accepted the phone number and it is on the
+    // customer record" — not "the form included a phone". Keep it that way:
+    // tagging the submitted value instead is what produced phantom
+    // `Has_Phone` tags on customers who had no number at all.
+    let phoneSaved = false;
+
     let customerId;
     if (existingCustomer) {
       await updateCustomerEmailMarketingConsent(
@@ -110,12 +116,15 @@ export async function action({ request, context }: any) {
       // (name and/or phone) so re-submitting with a phone number updates
       // the customer instead of dropping the new info.
       if (validatedPhone || validatedName) {
+        // Throws if Shopify rejects the write, so a number that never
+        // landed can never be tagged below.
         await updateCustomerContact(
           existingCustomer.id,
           shopDomain,
           adminApiToken,
           {firstName: validatedName, phone: validatedPhone},
         );
+        phoneSaved = Boolean(validatedPhone);
       }
       if (validatedPhone) {
         // SMS consent is separate from email consent — never let it fail
@@ -135,6 +144,8 @@ export async function action({ request, context }: any) {
       }
       customerId = existingCustomer.id;
     } else {
+      // The number goes in at creation, so a successful create is what
+      // proves it is on the record.
       const newCustomer = await createCustomerWithEmailMarketingConsent(
         validatedEmail,
         validatedName,
@@ -143,6 +154,24 @@ export async function action({ request, context }: any) {
         adminApiToken,
       );
       customerId = newCustomer.id;
+      phoneSaved = Boolean(validatedPhone);
+
+      if (validatedPhone) {
+        // Same best-effort treatment as returning subscribers: a consent
+        // rejection must never cost the number, the signup, or the tag.
+        try {
+          await updateCustomerSmsMarketingConsent(
+            customerId,
+            shopDomain,
+            adminApiToken,
+          );
+        } catch (smsError) {
+          console.error(
+            `Newsletter SMS consent error for ${customerId}:`,
+            smsError,
+          );
+        }
+      }
     }
 
     const source = formData.get('source');
@@ -157,8 +186,10 @@ export async function action({ request, context }: any) {
         tags = ['EarlyAccess_Drop_UnknownDate'];
       }
     }
-    // Makes phone owners segmentable in Shopify admin (Customers > Tagged with).
-    if (validatedPhone) {
+    // Makes phone owners segmentable in Shopify admin (Customers > Tagged
+    // with). Gated on phoneSaved, never on the submitted value, so the tag
+    // keeps meaning "this customer has a number we can text".
+    if (phoneSaved) {
       tags.push('Has_Phone');
     }
 
@@ -264,26 +295,24 @@ async function createCustomerWithEmailMarketingConsent(
             marketingState: 'SUBSCRIBED',
             marketingOptInLevel: 'SINGLE_OPT_IN',
           },
-          ...(phone
-            ? {
-                smsMarketingConsent: {
-                  marketingState: 'SUBSCRIBED',
-                  marketingOptInLevel: 'SINGLE_OPT_IN',
-                },
-              }
-            : {}),
         },
       },
     }),
   });
 
   const data = (await response.json()) as any;
+  throwOnGraphqlErrors(data, 'customerCreate');
 
   if (data.data?.customerCreate?.userErrors?.length > 0) {
     throw new Error(data.data.customerCreate.userErrors[0].message);
   }
 
-  return data.data?.customerCreate?.customer;
+  const customer = data.data?.customerCreate?.customer;
+  if (!customer?.id) {
+    throw new Error('customerCreate returned no customer');
+  }
+
+  return customer;
 }
 
 async function updateCustomerEmailMarketingConsent(
