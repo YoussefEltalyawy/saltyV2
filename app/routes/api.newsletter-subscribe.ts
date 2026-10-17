@@ -219,7 +219,6 @@ async function findCustomerByEmail(
         edges {
           node {
             id
-            email
             emailMarketingConsent {
               marketingState
               marketingOptInLevel
@@ -263,8 +262,6 @@ async function createCustomerWithEmailMarketingConsent(
       customerCreate(input: $input) {
         customer {
           id
-          email
-          firstName
           emailMarketingConsent {
             marketingState
             marketingOptInLevel
@@ -327,8 +324,6 @@ async function updateCustomerEmailMarketingConsent(
       customerEmailMarketingConsentUpdate(input: $input) {
         customer {
           id
-          email
-          firstName
           emailMarketingConsent {
             marketingState
             marketingOptInLevel
