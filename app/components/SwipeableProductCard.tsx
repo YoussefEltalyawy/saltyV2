@@ -278,7 +278,7 @@ export function SwipeableProductCard({product}: SwipeableProductCardProps) {
         <h4 className="text-sm text-gray-900 group-hover:underline truncate">
           {product.title}
         </h4>
-        <p className="text-[13px]">
+        <div className="text-[13px]">
           {product.selectedOrFirstAvailableVariant ? (
             <ProductPrice
               price={product.selectedOrFirstAvailableVariant.price}
@@ -289,10 +289,10 @@ export function SwipeableProductCard({product}: SwipeableProductCardProps) {
             />
           ) : (
             <span>
-              <Money data={product.priceRange.minVariantPrice} />
+              <Money data={product.priceRange.minVariantPrice} as="span" />
             </span>
           )}
-        </p>
+        </div>
         {colorOption && (
           <div className="flex items-center mt-1">
             {colorOption.optionValues.map((value: any) => {

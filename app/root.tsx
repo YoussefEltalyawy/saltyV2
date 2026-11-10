@@ -28,6 +28,7 @@ import { NewsletterPopup } from '~/components/NewsletterPopup';
 import { NewsletterPopupProvider } from '~/components/NewsletterPopupContext';
 import { useNewsletterPopup } from '~/hooks/useNewsletterPopup';
 import { MetaPixel } from '~/components/MetaPixel';
+import { normalizeCheckoutDomain } from '~/lib/checkoutDomain';
 
 export type RootLoader = typeof loader;
 
@@ -99,13 +100,19 @@ export async function loader(args: LoaderFunctionArgs) {
     ...deferredData,
     ...criticalData,
     publicStoreDomain: env.PUBLIC_STORE_DOMAIN,
-    metaPixelId: '1023189219674873',
+    // Keep the browser pixel and the server-side CAPI on the same pixel ID.
+    metaPixelId:
+      (env as any).META_PIXEL_ID ||
+      (env as any).PUBLIC_META_PIXEL_ID ||
+      '1269815641476314',
     shop: getShopAnalytics({
       storefront,
       publicStorefrontId: env.PUBLIC_STOREFRONT_ID,
     }),
     consent: {
-      checkoutDomain: env.PUBLIC_CHECKOUT_DOMAIN,
+      checkoutDomain:
+        normalizeCheckoutDomain(env.PUBLIC_CHECKOUT_DOMAIN) ||
+        normalizeCheckoutDomain(env.PUBLIC_STORE_DOMAIN),
       storefrontAccessToken: env.PUBLIC_STOREFRONT_API_TOKEN,
       withPrivacyBanner: true,
       // localize the privacy banner
@@ -298,12 +305,19 @@ export function Layout({ children }: { children?: React.ReactNode }) {
   }
 
   const isLocked = data.isLockedServer;
+  const metaPixelId = String(data?.metaPixelId ?? '').replace(/[^0-9]/g, '');
 
   return (
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
+        {metaPixelId ? (
+          <>
+            <meta name="facebook-pixel-id" content={metaPixelId} />
+            <script src="/meta-pixel.js?v=6" nonce={nonce} />
+          </>
+        ) : null}
         <link rel="stylesheet" href={tailwindCss}></link>
         <link rel="stylesheet" href={resetStyles}></link>
         <link rel="stylesheet" href={appStyles}></link>
@@ -313,7 +327,7 @@ export function Layout({ children }: { children?: React.ReactNode }) {
       </head>
       <body>
         {/* Meta Pixel */}
-        <MetaPixel pixelId={data?.metaPixelId} />
+        <MetaPixel pixelId={metaPixelId} nonce={nonce} />
         <NewsletterPopupProvider
           openPopup={openNewsletterPopup}
           closePopup={closeNewsletterPopup}

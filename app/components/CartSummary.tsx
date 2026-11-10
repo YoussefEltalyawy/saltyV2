@@ -59,15 +59,21 @@ export function CartSummary({ cart, layout }: CartSummaryProps) {
           const eventId = generateEventId();
           
           // Track the pixel event first
-          trackPixelEvent('InitiateCheckout', {
-            content_type: 'product',
-            content_ids: ids,
-            contents,
-            value,
-            currency,
-            num_items: contents.reduce((sum, c) => sum + (c.quantity || 0), 0),
-            eventID: eventId,
-          });
+          trackPixelEvent(
+            'InitiateCheckout',
+            {
+              content_type: 'product',
+              content_ids: ids,
+              contents,
+              value,
+              currency,
+              num_items: contents.reduce(
+                (sum, c) => sum + (c.quantity || 0),
+                0,
+              ),
+            },
+            eventId,
+          );
           
           // Small delay to ensure pixel event is sent before navigation
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -115,15 +121,21 @@ function CartCheckoutActions({ checkoutUrl, cart }: { checkoutUrl?: string; cart
             const eventId = generateEventId();
             
             // Track the pixel event first
-            trackPixelEvent('InitiateCheckout', {
-              content_type: 'product',
-              content_ids: ids,
-              contents,
-              value,
-              currency,
-              num_items: contents.reduce((sum, c) => sum + (c.quantity || 0), 0),
-              eventID: eventId,
-            });
+            trackPixelEvent(
+              'InitiateCheckout',
+              {
+                content_type: 'product',
+                content_ids: ids,
+                contents,
+                value,
+                currency,
+                num_items: contents.reduce(
+                  (sum, c) => sum + (c.quantity || 0),
+                  0,
+                ),
+              },
+              eventId,
+            );
             
             // Small delay to ensure pixel event is sent before navigation
             await new Promise(resolve => setTimeout(resolve, 100));

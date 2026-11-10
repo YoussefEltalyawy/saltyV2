@@ -6,16 +6,16 @@ import {
   useOptimisticVariant,
   getProductOptions,
   getAdjacentAndFirstAvailableVariants,
-  useSelectedOptionInUrlParam,
 } from '@shopify/hydrogen';
 import { ProductPrice } from '~/components/ProductPrice';
 import { ProductImageCarousel } from '~/components/ProductImageCarousel';
 import { ProductForm } from '~/components/ProductForm';
 import { flattenConnection } from '@shopify/hydrogen';
 import { redirectIfHandleIsLocalized } from '~/lib/redirect';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { trackPixelEvent, generateEventId } from '~/components/MetaPixel';
 import { toMetaContentId } from '~/lib/meta';
+import { useSelectedOptionInUrlParamQuiet } from '~/lib/useSelectedOptionInUrlParam';
 import type {
   ProductFragment,
   ProductVariantFragment,
@@ -620,7 +620,7 @@ export default function Product() {
 
   // Sets the search param to the selected variant without navigation
   // only when no search params are set in the url
-  useSelectedOptionInUrlParam(selectedVariant.selectedOptions);
+  useSelectedOptionInUrlParamQuiet(selectedVariant.selectedOptions);
 
   // Get the product options array
   const productOptions = getProductOptions({
@@ -631,20 +631,28 @@ export default function Product() {
   const { title, descriptionHtml, handle } = product;
   const isLimited = (product as any).tags?.some?.((tag: string) => tag.toUpperCase() === 'LIMITED');
 
+  const lastViewContentKey = useRef<string | null>(null);
+
   useEffect(() => {
     const variantId = selectedVariant?.id;
     if (!product?.id || !variantId) return;
+    const viewContentKey = `${product.id}:${variantId}`;
+    if (lastViewContentKey.current === viewContentKey) return;
+    lastViewContentKey.current = viewContentKey;
     const priceAmount = Number(selectedVariant?.price?.amount || 0);
     const currency = selectedVariant?.price?.currencyCode || 'USD';
     const eventId = generateEventId();
     const mappedId = toMetaContentId(variantId);
-    trackPixelEvent('ViewContent', {
-      content_type: 'product',
-      content_ids: mappedId ? [mappedId] : undefined,
-      value: priceAmount,
-      currency,
-      eventID: eventId,
-    });
+    trackPixelEvent(
+      'ViewContent',
+      {
+        content_type: 'product',
+        content_ids: mappedId ? [mappedId] : undefined,
+        value: priceAmount,
+        currency,
+      },
+      eventId,
+    );
   }, [product?.id, selectedVariant?.id]);
 
 

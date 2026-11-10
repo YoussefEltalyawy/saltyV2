@@ -4,6 +4,7 @@ import { isbot } from 'isbot';
 import { renderToReadableStream } from 'react-dom/server';
 import { createContentSecurityPolicy } from '@shopify/hydrogen';
 import type { EntryContext } from 'react-router';
+import { normalizeCheckoutDomain } from '~/lib/checkoutDomain';
 
 export default async function handleRequest(
   request: Request,
@@ -14,14 +15,21 @@ export default async function handleRequest(
 ) {
   const { nonce, header, NonceProvider } = createContentSecurityPolicy({
     shop: {
-      checkoutDomain: context.env.PUBLIC_CHECKOUT_DOMAIN,
+      checkoutDomain:
+        normalizeCheckoutDomain(context.env.PUBLIC_CHECKOUT_DOMAIN) ||
+        normalizeCheckoutDomain(context.env.PUBLIC_STORE_DOMAIN),
       storeDomain: context.env.PUBLIC_STORE_DOMAIN,
     },
     // Extend defaults to allow Meta Pixel assets and other required domains
     scriptSrc: [
       "'self'",
-      'https://connect.facebook.net',
       'https://cdn.shopify.com',
+      'https://shopify.com',
+      'https://*.shopify.com',
+      'https://connect.facebook.net',
+      'https://*.facebook.net',
+      'https://www.facebook.com',
+      'https://*.facebook.com',
       'http://localhost:*',
     ],
     imgSrc: [
@@ -30,11 +38,43 @@ export default async function handleRequest(
       'blob:',
       'http://localhost:*',
       'https://cdn.shopify.com',
+      'https://*.shopifycdn.com',
+      'https://shopify.com',
+      'https://connect.facebook.net',
+      'https://*.facebook.net',
       'https://www.facebook.com',
+      'https://*.facebook.com',
+      'https://*.fbcdn.net',
     ],
     connectSrc: [
+      "'self'",
+      'https://cdn.shopify.com',
+      'https://*.shopifycdn.com',
+      'https://shopify.com',
+      'https://*.shopify.com',
+      'https://monorail-edge.shopifysvc.com',
+      'https://*.shopifysvc.com',
+      'https://otlp-http-production.shopifysvc.com',
+      'https://connect.facebook.net',
+      'https://*.facebook.net',
       'https://graph.facebook.com',
       'https://www.facebook.com',
+      'https://*.facebook.com',
+      'https://*.fbcdn.net',
+      'https://*.run.app',
+      'https://*.on.aws',
+    ],
+    // Meta Pixel falls back to a form POST inside an iframe when the event
+    // payload is too large for an image GET. Without frame-src the iframe
+    // navigation to facebook.com is blocked and events are silently dropped.
+    frameSrc: [
+      "'self'",
+      'https://cdn.shopify.com',
+      'https://shopify.com',
+      'https://*.shopify.com',
+      'https://www.facebook.com',
+      'https://*.facebook.com',
+      'https://connect.facebook.net',
     ],
     mediaSrc: [
       "'self'",

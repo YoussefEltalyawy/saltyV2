@@ -82,15 +82,18 @@ export default function OrderRoute() {
       const currency = order?.totalPrice?.currencyCode || 'USD';
       const num_items = contents.reduce((s, c) => s + (c.quantity || 0), 0);
       const eventID = generateEventId();
-      trackPixelEvent('Purchase', {
-        content_type: 'product',
-        content_ids,
-        contents,
-        value,
-        currency,
-        num_items,
+      trackPixelEvent(
+        'Purchase',
+        {
+          content_type: 'product',
+          content_ids,
+          contents,
+          value,
+          currency,
+          num_items,
+        },
         eventID,
-      });
+      );
     } catch {}
   }, [order?.id]);
   return (

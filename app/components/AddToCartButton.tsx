@@ -44,22 +44,33 @@ export function AddToCartButton({
                 const merchandiseId: string | undefined = first?.merchandiseId;
                 const mappedId = toMetaContentId(merchandiseId);
                 const quantity: number | undefined = first?.quantity;
+                const price = first?.selectedVariant?.price ?? first?.price;
+                const value =
+                  price?.amount != null ? Number(price.amount) : undefined;
+                const currency: string | undefined = price?.currencyCode;
                 const eventId = generateEventId();
                 if (analyticsInputRef.current) {
                   try {
                     analyticsInputRef.current.value = JSON.stringify({
                       event_id: eventId,
                     });
-                  } catch { }
+                  } catch {
+                    // ignore
+                  }
                 }
-                trackPixelEvent('AddToCart', {
-                  content_type: 'product',
-                  content_ids: mappedId ? [mappedId] : undefined,
-                  contents: mappedId
-                    ? [{ id: mappedId, quantity: quantity || 1 }]
-                    : undefined,
-                  eventID: eventId,
-                });
+                trackPixelEvent(
+                  'AddToCart',
+                  {
+                    content_type: 'product',
+                    content_ids: mappedId ? [mappedId] : undefined,
+                    contents: mappedId
+                      ? [{ id: mappedId, quantity: quantity || 1 }]
+                      : undefined,
+                    value,
+                    currency,
+                  },
+                  eventId,
+                );
                 onClick?.();
               }}
               disabled={disabled ?? isSubmitting}

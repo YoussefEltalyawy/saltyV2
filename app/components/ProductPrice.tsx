@@ -26,16 +26,16 @@ export function ProductPrice({
         <div className="product-price-on-sale flex items-center gap-2">
           {price ? (
             <span className={`${textSizeClass} font-medium text-black`}>
-              <Money data={price} />
+              <Money data={price} as="span" />
             </span>
           ) : null}
           <s className={`${textSizeClass} text-gray-500`}>
-            <Money data={compareAtPrice} />
+            <Money data={compareAtPrice} as="span" />
           </s>
         </div>
       ) : price ? (
         <span className={`${textSizeClass} font-medium text-black`}>
-          <Money data={price} />
+          <Money data={price} as="span" />
         </span>
       ) : (
         <span>&nbsp;</span>

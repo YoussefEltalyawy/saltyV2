@@ -42,10 +42,11 @@ export default function SearchPage() {
   if (type === 'predictive') return null;
   useEffect(() => {
     if (term) {
-      trackPixelEvent('Search', {
-        search_string: term,
-        eventID: generateEventId(),
-      });
+      trackPixelEvent(
+        'Search',
+        { search_string: term },
+        generateEventId(),
+      );
     }
   }, [term]);
 

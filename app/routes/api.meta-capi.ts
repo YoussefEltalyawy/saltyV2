@@ -46,7 +46,7 @@ export async function action({ request, context }: LoaderFunctionArgs) {
     const pixelId =
       (context.env as any).META_PIXEL_ID ||
       (context.env as any).PUBLIC_META_PIXEL_ID ||
-      '1023189219674873';
+      '1269815641476314';
     const accessToken = (context.env as any).META_CAPI_ACCESS_TOKEN;
     const testEventCode = body.test_event_code || (context.env as any).META_CAPI_TEST_EVENT_CODE;
 
