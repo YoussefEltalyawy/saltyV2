@@ -28,6 +28,7 @@ import { NewsletterPopup } from '~/components/NewsletterPopup';
 import { NewsletterPopupProvider } from '~/components/NewsletterPopupContext';
 import { useNewsletterPopup } from '~/hooks/useNewsletterPopup';
 import { MetaPixel } from '~/components/MetaPixel';
+import { ShopifyAnalyticsCookies } from '~/components/ShopifyAnalyticsCookies';
 import { normalizeCheckoutDomain } from '~/lib/checkoutDomain';
 
 export type RootLoader = typeof loader;
@@ -315,7 +316,13 @@ export function Layout({ children }: { children?: React.ReactNode }) {
         {metaPixelId ? (
           <>
             <meta name="facebook-pixel-id" content={metaPixelId} />
-            <script src="/meta-pixel.js?v=6" nonce={nonce} />
+            <script
+              src="/meta-pixel.js?v=6"
+              nonce={nonce}
+              // React strips the nonce attribute from the DOM before hydrating,
+              // so it always looks like an extra server attribute.
+              suppressHydrationWarning
+            />
           </>
         ) : null}
         <link rel="stylesheet" href={tailwindCss}></link>
@@ -346,6 +353,10 @@ export function Layout({ children }: { children?: React.ReactNode }) {
                 shop={data.shop}
                 consent={data.consent}
               >
+                {/* Restores the Shopify visitor/visit cookies that Hydrogen
+                    scopes to a domain the browser rejects on custom domains
+                    and preview environments. */}
+                <ShopifyAnalyticsCookies />
                 <PageLayout {...data}>{children}</PageLayout>
               </Analytics.Provider>
             ) : (
