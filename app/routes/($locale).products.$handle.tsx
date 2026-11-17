@@ -23,6 +23,7 @@ import type {
 import type { MappedProductOptions } from '@shopify/hydrogen';
 import UpsellSection from '~/components/UpsellSection';
 import { YouMayAlsoLike } from '~/components/YouMayAlsoLike';
+import { ProductTagBadges } from '~/components/ProductTagBadges';
 import { createBundleDataService } from '~/lib/bundleDataService';
 import { getProductUpsells, BUNDLE_COLLECTIONS } from '~/lib/bundleConfig';
 
@@ -629,7 +630,6 @@ export default function Product() {
   });
 
   const { title, descriptionHtml, handle } = product;
-  const isLimited = (product as any).tags?.some?.((tag: string) => tag.toUpperCase() === 'LIMITED');
 
   const lastViewContentKey = useRef<string | null>(null);
 
@@ -786,11 +786,10 @@ export default function Product() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Product Image Carousel */}
         <div className="product-image-section relative">
-          {isLimited && (
-            <div className="absolute top-4 left-4 z-20 bg-black/90 text-white text-[10px] font-bold tracking-[0.2em] uppercase px-3 py-1.5 backdrop-blur-sm pointer-events-none">
-              LIMITED
-            </div>
-          )}
+          <ProductTagBadges
+            tags={(product as any).tags}
+            className="absolute top-4 left-4 z-20"
+          />
           <ProductImageCarousel
             product={product}
             selectedVariant={selectedVariant}

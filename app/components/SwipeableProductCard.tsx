@@ -3,6 +3,7 @@ import {Link} from 'react-router';
 import {Image, Money} from '@shopify/hydrogen';
 import type {ProductItemFullFragment} from 'storefrontapi.generated';
 import {ProductPrice} from './ProductPrice';
+import {ProductTagBadges} from './ProductTagBadges';
 
 function ColorSwatch({
   color,
@@ -226,9 +227,6 @@ export function SwipeableProductCard({product}: SwipeableProductCardProps) {
     }
   }, [isDragging, currentX, startX]);
 
-  // Check for LIMITED tag
-  const isLimited = (product as any).tags?.some?.((tag: string) => tag.toUpperCase() === 'LIMITED');
-
   return (
     <Link
       className="block bg-white transition-shadow group"
@@ -245,6 +243,10 @@ export function SwipeableProductCard({product}: SwipeableProductCardProps) {
         onMouseLeave={handleMouseLeave}
         style={{cursor: images.length > 1 ? 'grab' : 'pointer'}}
       >
+        <ProductTagBadges
+          tags={(product as any).tags}
+          className="absolute top-3 left-3 z-10"
+        />
         <div
           className={`flex ${isTransitioning ? 'transition-transform duration-300 ease-out' : ''}`}
           style={{
@@ -256,11 +258,6 @@ export function SwipeableProductCard({product}: SwipeableProductCardProps) {
               key={`${image?.id || 'img'}-${index}`}
               className="w-full flex-shrink-0 relative"
             >
-              {isLimited && (
-                <div className="absolute top-3 left-3 z-10 bg-black/90 text-white text-[10px] font-bold tracking-[0.2em] uppercase px-3 py-1.5 backdrop-blur-sm pointer-events-none">
-                  LIMITED
-                </div>
-              )}
               <Image
                 alt={image?.altText || product.title}
                 aspectRatio="3/4"

@@ -6,6 +6,7 @@ import type {
   RecommendedProductFragment,
 } from 'storefrontapi.generated';
 import {useVariantUrl} from '~/lib/variants';
+import {ProductTagBadges} from './ProductTagBadges';
 
 export function ProductItem({
   product,
@@ -19,7 +20,6 @@ export function ProductItem({
 }) {
   const variantUrl = useVariantUrl(product.handle);
   const image = product.featuredImage;
-  const isLimited = (product as any).tags?.some?.((tag: string) => tag.toUpperCase() === 'LIMITED');
 
   return (
     <Link
@@ -28,11 +28,10 @@ export function ProductItem({
       prefetch="intent"
       to={variantUrl}
     >
-      {isLimited && (
-        <div className="absolute top-2 left-2 z-10 bg-black/90 text-white text-[10px] font-bold tracking-[0.2em] uppercase px-3 py-1.5 backdrop-blur-sm pointer-events-none">
-          LIMITED
-        </div>
-      )}
+      <ProductTagBadges
+        tags={(product as any).tags}
+        className="absolute top-2 left-2 z-10"
+      />
       {image && (
         <Image
           alt={image.altText || product.title}

@@ -8,6 +8,7 @@ import { AddToCartButton } from '~/components/AddToCartButton';
 import { getProductOptions } from '@shopify/hydrogen';
 import { useAside } from '~/components/Aside';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ProductTagBadges } from '~/components/ProductTagBadges';
 
 interface FeaturedProductsCarouselProps {
   products: ProductItemFragment[];
@@ -219,15 +220,21 @@ export function FeaturedProductsCarousel({ products }: FeaturedProductsCarouselP
                     key={product.id}
                   >
                     <Link to={"/products/" + product.handle} className="block w-full">
-                      {displayImage && (
-                        <Image
-                          data={displayImage}
-                          className="w-full object-cover mb-4"
-                          aspectRatio="3/4"
-                          sizes="(min-width: 45em) 400px, 100vw"
-                          alt={displayImage.altText || product.featuredImage?.altText || product.title}
+                      <div className="relative">
+                        {displayImage && (
+                          <Image
+                            data={displayImage}
+                            className="w-full object-cover mb-4"
+                            aspectRatio="3/4"
+                            sizes="(min-width: 45em) 400px, 100vw"
+                            alt={displayImage.altText || product.featuredImage?.altText || product.title}
+                          />
+                        )}
+                        <ProductTagBadges
+                          tags={product.tags}
+                          className="absolute top-2 left-2 z-10"
                         />
-                      )}
+                      </div>
                       <div className="flex items-baseline justify-between gap-2 mb-2">
                         <h3 className="text-lg text-black uppercase tracking-tight font-medium whitespace-nowrap overflow-hidden text-ellipsis">{product.title}</h3>
                         <span className="text-base text-black opacity-70">
