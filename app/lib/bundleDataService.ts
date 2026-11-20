@@ -1,8 +1,19 @@
-import { BUNDLE_COLLECTIONS, BUNDLE_DEFINITIONS, BUNDLE_TYPES, type BundleDefinition, applyMetaobjectToggles, getBundleStatuses, getAllEnabledBundles } from './bundleConfig';
+import {
+  getAllEnabledBundles,
+  getBundleDefinitions,
+  resolveSlots,
+  setBundleDefinitions,
+  type BundleDefinition,
+} from './bundleConfig';
+import {
+  BUNDLE_METAOBJECT_QUERY,
+  BUNDLE_METAOBJECT_TYPE,
+  buildBundleDefinitions,
+} from './bundleMetaobject';
 
 const SALTY_CLUB_COLLECTION_HANDLE = 'salty-club';
+const DEFINITIONS_TTL_MS = 60_000;
 
-// ─── Shared GraphQL fragment for a full product ───────────────────────────────
 const PRODUCT_FIELDS = `
   id
   title
@@ -24,336 +35,420 @@ const PRODUCT_FIELDS = `
   }
 `;
 
-// ─── Class ────────────────────────────────────────────────────────────────────
+/** Everything a card needs for one picker. */
+export type BundleSlotData = {
+  /** Stable key for React lists; derived from the slot source and position. */
+  id: string;
+  label: string;
+  products: any[];
+  free: boolean;
+};
+
+type DefinitionsResult = {
+  at: number;
+  source: 'metaobject' | 'empty';
+  definitions: Record<string, BundleDefinition>;
+};
+
+type Resources = {
+  collections: Map<string, { handle: string; title: string; products: any[] }>;
+  products: Map<string, any>;
+};
+
+type ProductContext = {
+  handle: string;
+  id: string;
+  collectionHandles: string[];
+  collectionIds: string[];
+};
+
+// ─── Small helpers ────────────────────────────────────────────────────────────
+
+function shortId(value: any): string {
+  return String(value ?? '').split('/').pop() ?? '';
+}
+
+function isNumeric(value: string): boolean {
+  return /^\d+$/.test(value);
+}
+
+function isIdLike(value: string): boolean {
+  return isNumeric(value) || value.startsWith('gid://');
+}
+
+function dedupe(products: any[]): any[] {
+  const seen = new Set<string>();
+  const out: any[] = [];
+  for (const product of products) {
+    const id = String(product?.id ?? product?.handle ?? '');
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(product);
+  }
+  return out;
+}
+
+function matchesSlot(
+  slot: { collection?: string; productHandles?: string[]; productIds?: string[] },
+  ctx: ProductContext,
+): boolean {
+  if (slot.productHandles?.includes(ctx.handle)) return true;
+  if (ctx.id && slot.productIds?.includes(ctx.id)) return true;
+
+  if (slot.collection) {
+    const ref = slot.collection;
+    const id = shortId(ref);
+    if (
+      ctx.collectionHandles.includes(ref) ||
+      ctx.collectionIds.includes(ref) ||
+      (id && ctx.collectionIds.includes(id))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// ─── Cache ────────────────────────────────────────────────────────────────────
+
+let definitionsCache: DefinitionsResult | null = null;
+let definitionsInFlight: Promise<DefinitionsResult> | null = null;
+
+// ─── Service ──────────────────────────────────────────────────────────────────
+
 export class BundleDataService {
   private storefront: any;
-  private cache: Map<string, any> = new Map();
+  private cache = new Map<string, any>();
 
   constructor(storefront: any) {
     this.storefront = storefront;
   }
 
-  // ── Cached store queries ────────────────────────────────────────────────────
+  // ── Bundle definitions ──────────────────────────────────────────────────────
 
-  async fetchCollectionProducts(collectionHandle: string): Promise<any[]> {
-    const key = `col_${collectionHandle}`;
-    if (this.cache.has(key)) return this.cache.get(key);
+  /**
+   * Load definitions from the `salty_bundle` metaobject. The metaobjects are
+   * the only source: when none are readable the registry is empty, so the
+   * storefront shows no bundles rather than stale code-defined ones. Cached for
+   * 60 seconds.
+   */
+  async fetchBundleDefinitions(): Promise<DefinitionsResult> {
+    const now = Date.now();
+    if (definitionsCache && now - definitionsCache.at < DEFINITIONS_TTL_MS) {
+      setBundleDefinitions(definitionsCache.definitions);
+      return definitionsCache;
+    }
+
+    if (definitionsInFlight) return definitionsInFlight;
+
+    definitionsInFlight = (async (): Promise<DefinitionsResult> => {
+      let definitions: Record<string, BundleDefinition> = {};
+      let source: 'metaobject' | 'empty' = 'empty';
+
+      try {
+        const result = await this.storefront.query(BUNDLE_METAOBJECT_QUERY, {
+          variables: { type: BUNDLE_METAOBJECT_TYPE, first: 50 },
+          // The 60s cache above controls refresh; don't let the CDN keep
+          // admin edits stale for longer than that.
+          cache: this.storefront.CacheNone?.(),
+        });
+
+        const entries = result?.metaobjects?.nodes ?? [];
+        if (entries.length) {
+          definitions = buildBundleDefinitions(entries);
+          source = 'metaobject';
+        }
+      } catch {
+        // Leave the registry empty; the storefront hides the bundle sections.
+      }
+
+      const result: DefinitionsResult = { at: Date.now(), source, definitions };
+      definitionsCache = result;
+      setBundleDefinitions(definitions);
+      return result;
+    })();
 
     try {
-      const result = await this.storefront.query(`
-        query GetCollectionProducts($handle: String!) {
-          collection(handle: $handle) {
-            products(first: 50) { nodes { ${PRODUCT_FIELDS} } }
-          }
-        }
-      `, { variables: { handle: collectionHandle } });
-
-      const products = result?.collection?.products?.nodes ?? [];
-      this.cache.set(key, products);
-      return products;
-    } catch {
-      return [];
+      return await definitionsInFlight;
+    } finally {
+      definitionsInFlight = null;
     }
   }
 
-  async fetchProduct(handle: string): Promise<any> {
-    const key = `prod_${handle}`;
+  // ── Store queries ───────────────────────────────────────────────────────────
+
+  private async fetchCollection(ref: string) {
+    const key = `collection:${ref}`;
     if (this.cache.has(key)) return this.cache.get(key);
 
     try {
-      const result = await this.storefront.query(`
-        query GetProduct($handle: String!) {
-          product(handle: $handle) { ${PRODUCT_FIELDS} }
-        }
-      `, { variables: { handle } });
+      const query = isIdLike(ref)
+        ? `query CollectionById($id: ID!) {
+            collection(id: $id) {
+              handle
+              title
+              products(first: 50) { nodes { ${PRODUCT_FIELDS} } }
+            }
+          }`
+        : `query CollectionByHandle($handle: String!) {
+            collection(handle: $handle) {
+              handle
+              title
+              products(first: 50) { nodes { ${PRODUCT_FIELDS} } }
+            }
+          }`;
 
+      const variables = isIdLike(ref)
+        ? { id: ref.startsWith('gid://') ? ref : `gid://shopify/Collection/${ref}` }
+        : { handle: ref };
+
+      const result = await this.storefront.query(query, { variables });
+      const collection = result?.collection;
+      const value = collection
+        ? {
+            handle: collection.handle,
+            title: collection.title,
+            products: collection.products?.nodes ?? [],
+          }
+        : null;
+
+      this.cache.set(key, value);
+      if (value?.handle) this.cache.set(`collection:${value.handle}`, value);
+      if (collection?.id) this.cache.set(`collection:${shortId(collection.id)}`, value);
+      return value;
+    } catch {
+      return null;
+    }
+  }
+
+  private async fetchProduct(ref: string) {
+    const key = `product:${ref}`;
+    if (this.cache.has(key)) return this.cache.get(key);
+
+    try {
+      const query = isIdLike(ref)
+        ? `query ProductById($id: ID!) { product(id: $id) { ${PRODUCT_FIELDS} } }`
+        : `query ProductByHandle($handle: String!) { product(handle: $handle) { ${PRODUCT_FIELDS} } }`;
+
+      const variables = isIdLike(ref)
+        ? { id: ref.startsWith('gid://') ? ref : `gid://shopify/Product/${ref}` }
+        : { handle: ref };
+
+      const result = await this.storefront.query(query, { variables });
       const product = result?.product ?? null;
+
       this.cache.set(key, product);
+      if (product) {
+        if (product.handle) this.cache.set(`product:${product.handle}`, product);
+        const id = shortId(product.id);
+        if (id) this.cache.set(`product:${id}`, product);
+      }
       return product;
     } catch {
       return null;
     }
   }
 
-  async fetchProductsByIds(ids: string[]): Promise<any[]> {
-    const products: any[] = [];
-    for (const id of ids) {
-      const key = `prodid_${id}`;
-      if (this.cache.has(key)) { products.push(this.cache.get(key)); continue; }
-
-      try {
-        const gid = id.startsWith('gid://') ? id : `gid://shopify/Product/${id}`;
-        const result = await this.storefront.query(`
-          query GetProductById($id: ID!) {
-            product(id: $id) { ${PRODUCT_FIELDS} }
-          }
-        `, { variables: { id: gid } });
-
-        const product = result?.product ?? null;
-        if (product) { this.cache.set(key, product); products.push(product); }
-      } catch { /* skip */ }
-    }
-    return products;
-  }
-
-  async fetchCollectionById(id: string): Promise<any> {
-    const key = `colid_${id}`;
+  private async fetchProductCollections(handle: string) {
+    const key = `product-collections:${handle}`;
     if (this.cache.has(key)) return this.cache.get(key);
 
     try {
-      const gid = id.startsWith('gid://') ? id : `gid://shopify/Collection/${id}`;
-      const result = await this.storefront.query(`
-        query GetCollectionById($id: ID!) {
-          collection(id: $id) {
-            id title handle description
-            products(first: 50) { nodes { ${PRODUCT_FIELDS} } }
-          }
-        }
-      `, { variables: { id: gid } });
-
-      const collection = result?.collection ?? null;
-      this.cache.set(key, collection);
-      return collection;
-    } catch {
-      return null;
-    }
-  }
-
-  async fetchProductCollectionHandles(productHandle: string): Promise<string[]> {
-    const key = `pcolhandles_${productHandle}`;
-    if (this.cache.has(key)) return this.cache.get(key);
-
-    try {
-      const result = await this.storefront.query(`
-        query ProductCollections($handle: String!) {
+      const result = await this.storefront.query(
+        `query ProductCollections($handle: String!) {
           product(handle: $handle) {
-            collections(first: 10) { nodes { handle id } }
+            collections(first: 50) { nodes { handle id } }
           }
-        }
-      `, { variables: { handle: productHandle } });
+        }`,
+        { variables: { handle } },
+      );
 
       const nodes = result?.product?.collections?.nodes ?? [];
-      // include both handle strings AND numeric collection IDs for eligibility checks
-      const all = [
-        ...nodes.map((c: any) => c.handle),
-        ...nodes.map((c: any) => c.id?.split('/').pop()),
-      ].filter(Boolean);
+      const value = {
+        handles: nodes.map((node: any) => node.handle).filter(Boolean) as string[],
+        ids: nodes.map((node: any) => shortId(node.id)).filter(Boolean) as string[],
+      };
 
-      this.cache.set(key, all);
-      return all;
+      this.cache.set(key, value);
+      return value;
     } catch {
-      return [];
+      return { handles: [], ids: [] };
     }
   }
 
-  /**
-   * Fetches the 'bundles' metaobject and updates bundle enablement status.
-   */
-  async fetchMetaobjectToggles() {
-    try {
-      const result = await this.storefront.query(`
-        query GetBundleToggles {
-          metaobject(handle: { handle: "bundles", type: "bundles" }) {
-            fields {
-              key
-              value
-            }
-          }
-        }
-      `);
+  // ── Resolution ──────────────────────────────────────────────────────────────
 
-      const fields = result?.metaobject?.fields ?? [];
-      if (fields.length) {
-        applyMetaobjectToggles(fields);
+  private async loadResources(defs: BundleDefinition[]) {
+    const collections = new Set<string>();
+    const products = new Set<string>();
+
+    for (const def of defs) {
+      for (const slot of resolveSlots(def)) {
+        if (slot.collection) collections.add(slot.collection);
+        slot.productHandles?.forEach((handle) => products.add(handle));
+        slot.productIds?.forEach((id) => products.add(id));
       }
-    } catch (e) {
-      // Failed to fetch toggles, fallback to build defaults
     }
+
+    const resources: Resources = { collections: new Map(), products: new Map() };
+
+    await Promise.all([
+      ...[...collections].map(async (ref) => {
+        const collection = await this.fetchCollection(ref);
+        if (collection) resources.collections.set(ref, collection);
+      }),
+      ...[...products].map(async (ref) => {
+        const product = await this.fetchProduct(ref);
+        if (product) resources.products.set(ref, product);
+      }),
+    ]);
+
+    return resources;
   }
 
-  // ── Product-page data ───────────────────────────────────────────────────────
-  /**
-   * Fetches all data the product page needs to render applicable bundles.
-   * Derived entirely from BUNDLE_DEFINITIONS – no hardcoded IDs here.
-   */
+  private resolveDefinition(
+    def: BundleDefinition,
+    resources: Resources,
+    currentProduct?: any,
+  ): BundleSlotData[] | null {
+    const slots = resolveSlots(def);
+    const resolved: BundleSlotData[] = [];
+
+    for (let index = 0; index < slots.length; index++) {
+      const slot = slots[index];
+      const pool: any[] = [];
+
+      if (slot.collection) {
+        pool.push(...(resources.collections.get(slot.collection)?.products ?? []));
+      }
+
+      slot.productHandles?.forEach((handle) => {
+        const product = resources.products.get(handle);
+        if (product) pool.push(product);
+      });
+
+      slot.productIds?.forEach((id) => {
+        const product = resources.products.get(id);
+        if (product) pool.push(product);
+      });
+
+      const products = dedupe(pool);
+      if (!products.length) return null;
+
+      // On a product page, put the viewed product first so it is preselected.
+      if (currentProduct) {
+        const position = products.findIndex(
+          (product) => product.handle === currentProduct.handle,
+        );
+        if (position > 0) {
+          products.unshift(...products.splice(position, 1));
+        }
+      }
+
+      const label =
+        slot.label ||
+        (slot.collection ? resources.collections.get(slot.collection)?.title : '') ||
+        products[0]?.title ||
+        'Option';
+      const numbered =
+        slot.groupSize && slot.groupSize > 1
+          ? `${label} ${(slot.groupIndex ?? 0) + 1}`
+          : label;
+
+      const source =
+        slot.collection ??
+        slot.productHandles?.join('+') ??
+        slot.productIds?.join('+') ??
+        'slot';
+
+      resolved.push({
+        id: `${index}:${source}:${slot.groupIndex ?? 0}`,
+        label: numbered,
+        products,
+        free: slot.free,
+      });
+    }
+
+    return resolved.length ? resolved : null;
+  }
+
+  private definitionApplies(def: BundleDefinition, ctx: ProductContext) {
+    if (!def.enabled) return false;
+    return resolveSlots(def).some((slot) => matchesSlot(slot, ctx));
+  }
+
+  // ── Public API ──────────────────────────────────────────────────────────────
+
+  /** Data for the product page: applicable bundles + resolved pickers. */
   async fetchProductPageBundleData(productHandle: string) {
-    await this.fetchMetaobjectToggles();
-    const collectionHandles = await this.fetchProductCollectionHandles(productHandle);
+    await this.fetchBundleDefinitions();
 
-    const isInDenim   = collectionHandles.includes(BUNDLE_COLLECTIONS.DENIM);
-    const isInPolo    = collectionHandles.includes(BUNDLE_COLLECTIONS.POLO);
-    const isInCaps    = collectionHandles.includes(BUNDLE_COLLECTIONS.CAPS);
-    const isInTops    = collectionHandles.includes(BUNDLE_COLLECTIONS.TOPS);
-    const isInSaltyClub = collectionHandles.includes(SALTY_CLUB_COLLECTION_HANDLE);
-
-    const isLinenShirt  = productHandle === 'linen-shirt';
-    const isLinenPants  = productHandle === 'linen-pants';
-
-    // ── Collect all productIds needed by MIXED bundles from config ────────────
-    // Resolve the current product's numeric ID for MIXED-bundle eligibility
+    const definitions = getBundleDefinitions();
     const currentProduct = await this.fetchProduct(productHandle);
-    const currentProductNumericId = currentProduct?.id?.split('/').pop() ?? '';
+    const membership = await this.fetchProductCollections(productHandle);
 
-    // Gather unique slots from all enabled MIXED bundle definitions
-    const allMixedIds = new Set<string>();
-    const allComplementaryIds = new Set<string>();
+    const ctx: ProductContext = {
+      handle: productHandle,
+      id: shortId(currentProduct?.id),
+      collectionHandles: membership.handles,
+      collectionIds: membership.ids,
+    };
 
-    for (const def of Object.values(BUNDLE_DEFINITIONS)) {
-      if (!def.enabled || def.type !== BUNDLE_TYPES.MIXED) continue;
-      def.productIds?.forEach((id) => allMixedIds.add(id));
-      def.complementaryProductIds?.forEach((id) => allComplementaryIds.add(id));
-    }
+    const enabled = getAllEnabledBundles();
+    const applicable = enabled.filter(({ def }) => this.definitionApplies(def, ctx));
+    const resources = await this.loadResources(applicable.map(({ def }) => def));
 
-    // Determine which MIXED bundles this product participates in
-    const activeMixedBundleKeys = Object.entries(BUNDLE_DEFINITIONS)
-      .filter(([, def]) => def.enabled && def.type === BUNDLE_TYPES.MIXED)
-      .filter(([, def]) =>
-        def.productIds?.includes(currentProductNumericId) ||
-        def.complementaryProductIds?.includes(currentProductNumericId),
-      )
-      .map(([key]) => key);
+    const bundleSlots: Record<string, BundleSlotData[]> = {};
+    const order: string[] = [];
 
-    // Build set of IDs to pre-fetch for active mixed bundles
-    const idsToFetch = new Set<string>();
-    for (const key of activeMixedBundleKeys) {
-      const def = BUNDLE_DEFINITIONS[key];
-      def.productIds?.forEach((id) => idsToFetch.add(id));
-      def.complementaryProductIds?.forEach((id) => idsToFetch.add(id));
-    }
-
-    // ── Parallel fetches ─────────────────────────────────────────────────────
-    const [
-      polos,
-      caps,
-      tops,
-      linenShirt,
-      linenPants,
-      complementaryProducts,
-      mixedBundleProducts,
-      // Collection-3-items bundle: only when product's collection matches
-      collectionBundle3Products,
-    ] = await Promise.all([
-      this.fetchCollectionProducts(BUNDLE_COLLECTIONS.POLO),
-      this.fetchCollectionProducts(BUNDLE_COLLECTIONS.CAPS),
-      this.fetchCollectionProducts(BUNDLE_COLLECTIONS.TOPS),
-      (isLinenShirt || isLinenPants) ? this.fetchProduct('linen-shirt') : Promise.resolve(null),
-      (isLinenShirt || isLinenPants) ? this.fetchProduct('linen-pants') : Promise.resolve(null),
-      (isInDenim || isInPolo)
-        ? this.fetchCollectionProducts(isInDenim ? BUNDLE_COLLECTIONS.POLO : BUNDLE_COLLECTIONS.DENIM)
-        : Promise.resolve([]),
-      idsToFetch.size > 0 ? this.fetchProductsByIds([...idsToFetch]) : Promise.resolve([]),
-      // For collection-3-items: check if product is in collection
-      collectionHandles.includes('619384013005')
-        ? this.fetchCollectionById('619384013005')
-        : Promise.resolve(null),
-    ]);
-
-    // ── Build per-bundle product maps consumed by UpsellSection ──────────────
-    // Keyed by bundle definition key → array of products for each slot group
-    const mixedBundleProductMap: Record<string, { slotProducts: any[][]; }> = {};
-    for (const key of activeMixedBundleKeys) {
-      const def = BUNDLE_DEFINITIONS[key];
-      const slot1 = mixedBundleProducts.filter((p: any) =>
-        def.productIds?.includes(p.id?.split('/').pop()),
-      );
-      const slot2 = mixedBundleProducts.filter((p: any) =>
-        def.complementaryProductIds?.includes(p.id?.split('/').pop()),
-      );
-      mixedBundleProductMap[key] = { slotProducts: [slot1, slot2] };
+    for (const { key, def } of applicable) {
+      const slots = this.resolveDefinition(def, resources, currentProduct);
+      if (slots) {
+        bundleSlots[key] = slots;
+        order.push(key);
+      }
     }
 
     return {
-      // Collection membership flags
-      isInDenim,
-      isInPolo,
-      isInCaps,
-      isInTops,
-      isInSaltyClub,
-      isLinenShirt,
-      isLinenPants,
-
-      // Product pools
-      polos,
-      caps,
-      tops,
-      linenShirt,
-      linenPants,
-      complementaryProducts,
-
-      // Mixed bundle data: { [bundleKey]: { slotProducts: any[][] } }
-      mixedBundleProductMap,
-      activeMixedBundleKeys,
-
-      // Collection-3-items bundle
-      collectionBundle3Products,
-      isInCollection619384013005: collectionHandles.includes('619384013005'),
-
-      // Current bundle statuses (synced from metaobject on server)
-      bundleStatuses: getBundleStatuses(),
+      activeBundleKeys: order,
+      bundleSlots,
+      bundleDefinitions: definitions,
+      isInSaltyClub: ctx.collectionHandles.includes(SALTY_CLUB_COLLECTION_HANDLE),
     };
   }
 
-  // ── Bundles page: fetch ALL data ─────────────────────────────────────────────
+  /** Data for /bundles: every enabled bundle with resolved pickers. */
   async fetchAllBundleData() {
-    await this.fetchMetaobjectToggles();
-    // Collect all unique numeric IDs needed by MIXED bundles
-    const allIds = new Set<string>();
-    for (const def of Object.values(BUNDLE_DEFINITIONS)) {
-      if (!def.enabled || def.type !== BUNDLE_TYPES.MIXED) continue;
-      def.productIds?.forEach((id) => allIds.add(id));
-      def.complementaryProductIds?.forEach((id) => allIds.add(id));
+    await this.fetchBundleDefinitions();
+
+    const enabled = getAllEnabledBundles();
+    const resources = await this.loadResources(enabled.map(({ def }) => def));
+
+    const bundleSlots: Record<string, BundleSlotData[]> = {};
+    const bundles: Array<{ key: string; def: BundleDefinition }> = [];
+
+    for (const entry of enabled) {
+      const slots = this.resolveDefinition(entry.def, resources);
+      if (!slots) continue;
+      bundleSlots[entry.key] = slots;
+      bundles.push(entry);
     }
 
-    const [
-      polos,
-      denims,
-      caps,
-      tops,
-      linenShirt,
-      linenPants,
-      mixedProducts,
-      collectionBundle3Products,
-    ] = await Promise.all([
-      this.fetchCollectionProducts(BUNDLE_COLLECTIONS.POLO),
-      this.fetchCollectionProducts(BUNDLE_COLLECTIONS.DENIM),
-      this.fetchCollectionProducts(BUNDLE_COLLECTIONS.CAPS),
-      this.fetchCollectionProducts(BUNDLE_COLLECTIONS.TOPS),
-      this.fetchProduct('linen-shirt'),
-      this.fetchProduct('linen-pants'),
-      allIds.size > 0 ? this.fetchProductsByIds([...allIds]) : Promise.resolve([]),
-      this.fetchCollectionById('619384013005'),
-    ]);
-
-    // Build per-bundle slot product maps
-    const mixedBundleProductMap: Record<string, { slotProducts: any[][] }> = {};
-    for (const [key, def] of Object.entries(BUNDLE_DEFINITIONS)) {
-      if (!def.enabled || def.type !== BUNDLE_TYPES.MIXED) continue;
-      const slot1 = mixedProducts.filter((p: any) =>
-        def.productIds?.includes(p.id?.split('/').pop()),
-      );
-      const slot2 = mixedProducts.filter((p: any) =>
-        def.complementaryProductIds?.includes(p.id?.split('/').pop()),
-      );
-      mixedBundleProductMap[key] = { slotProducts: [slot1, slot2] };
-    }
-
-    return {
-      polos,
-      denims,
-      caps,
-      tops,
-      linenShirt,
-      linenPants,
-      mixedBundleProductMap,
-      collectionBundle3Products,
-      enabledBundles: getAllEnabledBundles(),
-    };
+    return { bundles, bundleSlots };
   }
 
-  clearCache() { this.cache.clear(); }
-  getCacheSize() { return this.cache.size; }
+  clearCache() {
+    this.cache.clear();
+  }
 }
 
-export function createBundleDataService(storefront: any): BundleDataService {
+export function createBundleDataService(storefront: any) {
   return new BundleDataService(storefront);
+}
+
+/** Clear the module-level metaobject cache (useful after admin edits). */
+export function clearBundleDefinitionsCache() {
+  definitionsCache = null;
+  definitionsInFlight = null;
 }

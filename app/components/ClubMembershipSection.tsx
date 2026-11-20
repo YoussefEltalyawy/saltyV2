@@ -1,7 +1,8 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {Link, useFetcher} from 'react-router';
 import {CheckCircle} from 'lucide-react';
 import {safeLocalStorage} from '~/lib/utils';
+import {useHeaderColorSection} from '~/components/HeaderColorContext';
 import {
   CLUB_DEFAULTS,
   type ClubMembershipContent,
@@ -26,6 +27,10 @@ export function ClubMembershipSection({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const sectionRef = useRef<HTMLElement>(null);
+  // White section needs a dark site header — same scroll-spy handoff the
+  // footer uses. Only mounted on the homepage, so always enabled.
+  useHeaderColorSection(sectionRef, 'black', true);
   const fetcher = useFetcher();
   const actionData = fetcher.data as
     | {success?: boolean; error?: string; message?: string}
@@ -60,7 +65,7 @@ export function ClubMembershipSection({
     ].join(' ');
 
   return (
-    <section className="w-full border-t border-black/10 bg-white">
+    <section ref={sectionRef} className="w-full border-t border-black/10 bg-white">
       <div className="mx-auto w-full max-w-2xl px-5 py-16 sm:px-8 sm:py-24">
         <h2 className="text-xl font-bold tracking-tight text-balance text-black sm:text-2xl">
           {title}

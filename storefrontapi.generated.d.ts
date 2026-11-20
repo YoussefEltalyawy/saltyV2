@@ -3,6 +3,235 @@
 /* eslint-disable */
 import type * as StorefrontAPI from '@shopify/hydrogen/storefront-api-types';
 
+export type BundleDefinitionsQueryVariables = StorefrontAPI.Exact<{
+  type: StorefrontAPI.Scalars['String']['input'];
+  first: StorefrontAPI.Scalars['Int']['input'];
+}>;
+
+export type BundleDefinitionsQuery = {
+  metaobjects: {
+    nodes: Array<
+      Pick<StorefrontAPI.Metaobject, 'handle'> & {
+        fields: Array<
+          Pick<StorefrontAPI.MetaobjectField, 'key' | 'value'> & {
+            references?: StorefrontAPI.Maybe<{
+              nodes: Array<
+                | ({__typename: 'Collection'} & Pick<
+                    StorefrontAPI.Collection,
+                    'id' | 'handle' | 'title'
+                  >)
+                | {
+                    __typename:
+                      | 'GenericFile'
+                      | 'MediaImage'
+                      | 'Model3d'
+                      | 'Page'
+                      | 'ProductVariant'
+                      | 'Video';
+                  }
+                | ({__typename: 'Metaobject'} & Pick<
+                    StorefrontAPI.Metaobject,
+                    'handle' | 'type'
+                  > & {
+                      fields: Array<
+                        Pick<StorefrontAPI.MetaobjectField, 'key' | 'value'> & {
+                          references?: StorefrontAPI.Maybe<{
+                            nodes: Array<
+                              | ({__typename: 'Collection'} & Pick<
+                                  StorefrontAPI.Collection,
+                                  'id' | 'handle' | 'title'
+                                >)
+                              | {
+                                  __typename:
+                                    | 'GenericFile'
+                                    | 'MediaImage'
+                                    | 'Metaobject'
+                                    | 'Model3d'
+                                    | 'Page'
+                                    | 'ProductVariant'
+                                    | 'Video';
+                                }
+                              | ({__typename: 'Product'} & Pick<
+                                  StorefrontAPI.Product,
+                                  'id' | 'handle' | 'title'
+                                >)
+                            >;
+                          }>;
+                        }
+                      >;
+                    })
+                | ({__typename: 'Product'} & Pick<
+                    StorefrontAPI.Product,
+                    'id' | 'handle' | 'title'
+                  >)
+              >;
+            }>;
+          }
+        >;
+      }
+    >;
+  };
+};
+
+export type CartDiscountCodesUpdateMutationVariables = StorefrontAPI.Exact<{
+  cartId: StorefrontAPI.Scalars['ID']['input'];
+  discountCodes:
+    | Array<StorefrontAPI.Scalars['String']['input']>
+    | StorefrontAPI.Scalars['String']['input'];
+  numCartLines?: StorefrontAPI.InputMaybe<
+    StorefrontAPI.Scalars['Int']['input']
+  >;
+  country?: StorefrontAPI.InputMaybe<StorefrontAPI.CountryCode>;
+  language?: StorefrontAPI.InputMaybe<StorefrontAPI.LanguageCode>;
+}>;
+
+export type CartDiscountCodesUpdateMutation = {
+  cartDiscountCodesUpdate?: StorefrontAPI.Maybe<{
+    cart?: StorefrontAPI.Maybe<
+      Pick<
+        StorefrontAPI.Cart,
+        'updatedAt' | 'id' | 'checkoutUrl' | 'totalQuantity' | 'note'
+      > & {
+        appliedGiftCards: Array<
+          Pick<StorefrontAPI.AppliedGiftCard, 'lastCharacters'> & {
+            amountUsed: Pick<StorefrontAPI.MoneyV2, 'currencyCode' | 'amount'>;
+          }
+        >;
+        buyerIdentity: Pick<
+          StorefrontAPI.CartBuyerIdentity,
+          'countryCode' | 'email' | 'phone'
+        > & {
+          customer?: StorefrontAPI.Maybe<
+            Pick<
+              StorefrontAPI.Customer,
+              'id' | 'email' | 'firstName' | 'lastName' | 'displayName'
+            >
+          >;
+        };
+        lines: {
+          nodes: Array<
+            | (Pick<StorefrontAPI.CartLine, 'id' | 'quantity'> & {
+                attributes: Array<
+                  Pick<StorefrontAPI.Attribute, 'key' | 'value'>
+                >;
+                cost: {
+                  totalAmount: Pick<
+                    StorefrontAPI.MoneyV2,
+                    'currencyCode' | 'amount'
+                  >;
+                  amountPerQuantity: Pick<
+                    StorefrontAPI.MoneyV2,
+                    'currencyCode' | 'amount'
+                  >;
+                  compareAtAmountPerQuantity?: StorefrontAPI.Maybe<
+                    Pick<StorefrontAPI.MoneyV2, 'currencyCode' | 'amount'>
+                  >;
+                };
+                merchandise: Pick<
+                  StorefrontAPI.ProductVariant,
+                  'id' | 'availableForSale' | 'requiresShipping' | 'title'
+                > & {
+                  compareAtPrice?: StorefrontAPI.Maybe<
+                    Pick<StorefrontAPI.MoneyV2, 'currencyCode' | 'amount'>
+                  >;
+                  price: Pick<StorefrontAPI.MoneyV2, 'currencyCode' | 'amount'>;
+                  image?: StorefrontAPI.Maybe<
+                    Pick<
+                      StorefrontAPI.Image,
+                      'id' | 'url' | 'altText' | 'width' | 'height'
+                    >
+                  >;
+                  product: Pick<
+                    StorefrontAPI.Product,
+                    'handle' | 'title' | 'id' | 'vendor'
+                  > & {
+                    collections: {
+                      nodes: Array<
+                        Pick<StorefrontAPI.Collection, 'handle' | 'id'>
+                      >;
+                    };
+                  };
+                  selectedOptions: Array<
+                    Pick<StorefrontAPI.SelectedOption, 'name' | 'value'>
+                  >;
+                };
+              })
+            | (Pick<
+                StorefrontAPI.ComponentizableCartLine,
+                'id' | 'quantity'
+              > & {
+                attributes: Array<
+                  Pick<StorefrontAPI.Attribute, 'key' | 'value'>
+                >;
+                cost: {
+                  totalAmount: Pick<
+                    StorefrontAPI.MoneyV2,
+                    'currencyCode' | 'amount'
+                  >;
+                  amountPerQuantity: Pick<
+                    StorefrontAPI.MoneyV2,
+                    'currencyCode' | 'amount'
+                  >;
+                  compareAtAmountPerQuantity?: StorefrontAPI.Maybe<
+                    Pick<StorefrontAPI.MoneyV2, 'currencyCode' | 'amount'>
+                  >;
+                };
+                merchandise: Pick<
+                  StorefrontAPI.ProductVariant,
+                  'id' | 'availableForSale' | 'requiresShipping' | 'title'
+                > & {
+                  compareAtPrice?: StorefrontAPI.Maybe<
+                    Pick<StorefrontAPI.MoneyV2, 'currencyCode' | 'amount'>
+                  >;
+                  price: Pick<StorefrontAPI.MoneyV2, 'currencyCode' | 'amount'>;
+                  image?: StorefrontAPI.Maybe<
+                    Pick<
+                      StorefrontAPI.Image,
+                      'id' | 'url' | 'altText' | 'width' | 'height'
+                    >
+                  >;
+                  product: Pick<
+                    StorefrontAPI.Product,
+                    'handle' | 'title' | 'id' | 'vendor'
+                  > & {
+                    collections: {
+                      nodes: Array<
+                        Pick<StorefrontAPI.Collection, 'handle' | 'id'>
+                      >;
+                    };
+                  };
+                  selectedOptions: Array<
+                    Pick<StorefrontAPI.SelectedOption, 'name' | 'value'>
+                  >;
+                };
+              })
+          >;
+        };
+        cost: {
+          subtotalAmount: Pick<
+            StorefrontAPI.MoneyV2,
+            'currencyCode' | 'amount'
+          >;
+          totalAmount: Pick<StorefrontAPI.MoneyV2, 'currencyCode' | 'amount'>;
+          totalDutyAmount?: StorefrontAPI.Maybe<
+            Pick<StorefrontAPI.MoneyV2, 'currencyCode' | 'amount'>
+          >;
+          totalTaxAmount?: StorefrontAPI.Maybe<
+            Pick<StorefrontAPI.MoneyV2, 'currencyCode' | 'amount'>
+          >;
+        };
+        attributes: Array<Pick<StorefrontAPI.Attribute, 'key' | 'value'>>;
+        discountCodes: Array<
+          Pick<StorefrontAPI.CartDiscountCode, 'code' | 'applicable'>
+        >;
+      }
+    >;
+    userErrors: Array<
+      Pick<StorefrontAPI.CartUserError, 'code' | 'field' | 'message'>
+    >;
+  }>;
+};
+
 export type MoneyFragment = Pick<
   StorefrontAPI.MoneyV2,
   'currencyCode' | 'amount'
@@ -31,7 +260,14 @@ export type CartLineFragment = Pick<
     image?: StorefrontAPI.Maybe<
       Pick<StorefrontAPI.Image, 'id' | 'url' | 'altText' | 'width' | 'height'>
     >;
-    product: Pick<StorefrontAPI.Product, 'handle' | 'title' | 'id' | 'vendor'>;
+    product: Pick<
+      StorefrontAPI.Product,
+      'handle' | 'title' | 'id' | 'vendor'
+    > & {
+      collections: {
+        nodes: Array<Pick<StorefrontAPI.Collection, 'handle' | 'id'>>;
+      };
+    };
     selectedOptions: Array<
       Pick<StorefrontAPI.SelectedOption, 'name' | 'value'>
     >;
@@ -61,7 +297,14 @@ export type CartLineComponentFragment = Pick<
     image?: StorefrontAPI.Maybe<
       Pick<StorefrontAPI.Image, 'id' | 'url' | 'altText' | 'width' | 'height'>
     >;
-    product: Pick<StorefrontAPI.Product, 'handle' | 'title' | 'id' | 'vendor'>;
+    product: Pick<
+      StorefrontAPI.Product,
+      'handle' | 'title' | 'id' | 'vendor'
+    > & {
+      collections: {
+        nodes: Array<Pick<StorefrontAPI.Collection, 'handle' | 'id'>>;
+      };
+    };
     selectedOptions: Array<
       Pick<StorefrontAPI.SelectedOption, 'name' | 'value'>
     >;
@@ -119,7 +362,11 @@ export type CartApiQueryFragment = Pick<
             product: Pick<
               StorefrontAPI.Product,
               'handle' | 'title' | 'id' | 'vendor'
-            >;
+            > & {
+              collections: {
+                nodes: Array<Pick<StorefrontAPI.Collection, 'handle' | 'id'>>;
+              };
+            };
             selectedOptions: Array<
               Pick<StorefrontAPI.SelectedOption, 'name' | 'value'>
             >;
@@ -154,7 +401,11 @@ export type CartApiQueryFragment = Pick<
             product: Pick<
               StorefrontAPI.Product,
               'handle' | 'title' | 'id' | 'vendor'
-            >;
+            > & {
+              collections: {
+                nodes: Array<Pick<StorefrontAPI.Collection, 'handle' | 'id'>>;
+              };
+            };
             selectedOptions: Array<
               Pick<StorefrontAPI.SelectedOption, 'name' | 'value'>
             >;
@@ -1961,18 +2212,6 @@ export type ProductQuery = {
   >;
 };
 
-export type ProductCollectionsQueryVariables = StorefrontAPI.Exact<{
-  handle: StorefrontAPI.Scalars['String']['input'];
-}>;
-
-export type ProductCollectionsQuery = {
-  product?: StorefrontAPI.Maybe<{
-    collections: {
-      nodes: Array<Pick<StorefrontAPI.Collection, 'id' | 'title' | 'handle'>>;
-    };
-  }>;
-};
-
 export type CollectionProductsQueryVariables = StorefrontAPI.Exact<{
   handle: StorefrontAPI.Scalars['String']['input'];
   first: StorefrontAPI.Scalars['Int']['input'];
@@ -2398,6 +2637,10 @@ export type StoreRobotsQueryVariables = StorefrontAPI.Exact<{
 export type StoreRobotsQuery = {shop: Pick<StorefrontAPI.Shop, 'id'>};
 
 interface GeneratedQueryTypes {
+  '#graphql\n  query BundleDefinitions($type: String!, $first: Int!) {\n    metaobjects(type: $type, first: $first) {\n      nodes {\n        handle\n        fields {\n          key\n          value\n          references(first: 20) {\n            nodes {\n              __typename\n              ... on Product {\n                id\n                handle\n                title\n              }\n              ... on Collection {\n                id\n                handle\n                title\n              }\n              ... on Metaobject {\n                handle\n                type\n                fields {\n                  key\n                  value\n                  references(first: 20) {\n                    nodes {\n                      __typename\n                      ... on Product {\n                        id\n                        handle\n                        title\n                      }\n                      ... on Collection {\n                        id\n                        handle\n                        title\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n': {
+    return: BundleDefinitionsQuery;
+    variables: BundleDefinitionsQueryVariables;
+  };
   '#graphql\n  fragment Shop on Shop {\n    id\n    name\n    description\n    primaryDomain {\n      url\n    }\n    brand {\n      logo {\n        image {\n          url\n        }\n      }\n    }\n  }\n  query Header(\n    $country: CountryCode\n    $headerMenuHandle: String!\n    $language: LanguageCode\n  ) @inContext(language: $language, country: $country) {\n    shop {\n      ...Shop\n    }\n    menu(handle: $headerMenuHandle) {\n      ...Menu\n    }\n  }\n  #graphql\n  fragment MenuItem on MenuItem {\n    id\n    resourceId\n    tags\n    title\n    type\n    url\n  }\n  fragment ChildMenuItem on MenuItem {\n    ...MenuItem\n  }\n  fragment ParentMenuItem on MenuItem {\n    ...MenuItem\n    items {\n      ...ChildMenuItem\n    }\n  }\n  fragment Menu on Menu {\n    id\n    items {\n      ...ParentMenuItem\n    }\n  }\n\n': {
     return: HeaderQuery;
     variables: HeaderQueryVariables;
@@ -2482,10 +2725,6 @@ interface GeneratedQueryTypes {
     return: ProductQuery;
     variables: ProductQueryVariables;
   };
-  '#graphql\n  query ProductCollections($handle: String!) {\n    product(handle: $handle) {\n      collections(first: 10) {\n        nodes {\n          id\n          title\n          handle\n        }\n      }\n    }\n  }\n': {
-    return: ProductCollectionsQuery;
-    variables: ProductCollectionsQueryVariables;
-  };
   '#graphql\n  query CollectionProducts($handle: String!, $first: Int!) {\n    collection(handle: $handle) {\n      products(first: $first) {\n        nodes {\n          id\n          title\n          handle\n          tags\n          description\n          featuredImage {\n            url\n            altText\n            width\n            height\n          }\n          priceRange {\n            minVariantPrice {\n              amount\n              currencyCode\n            }\n          }\n          variants(first: 1) {\n            nodes {\n              id\n              availableForSale\n              price {\n                amount\n                currencyCode\n              }\n              selectedOptions {\n                name\n                value\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n': {
     return: CollectionProductsQuery;
     variables: CollectionProductsQueryVariables;
@@ -2508,7 +2747,12 @@ interface GeneratedQueryTypes {
   };
 }
 
-interface GeneratedMutationTypes {}
+interface GeneratedMutationTypes {
+  '#graphql\n  mutation cartDiscountCodesUpdate(\n    $cartId: ID!\n    $discountCodes: [String!]!\n    $numCartLines: Int = 250\n    $country: CountryCode = ZZ\n    $language: LanguageCode\n  ) @inContext(country: $country, language: $language) {\n    cartDiscountCodesUpdate(cartId: $cartId, discountCodes: $discountCodes) {\n      cart {\n        ...CartApiQuery\n      }\n      userErrors {\n        code\n        field\n        message\n      }\n    }\n  }\n  #graphql\n  fragment Money on MoneyV2 {\n    currencyCode\n    amount\n  }\n  fragment CartLine on CartLine {\n    id\n    quantity\n    attributes {\n      key\n      value\n    }\n    cost {\n      totalAmount {\n        ...Money\n      }\n      amountPerQuantity {\n        ...Money\n      }\n      compareAtAmountPerQuantity {\n        ...Money\n      }\n    }\n    merchandise {\n      ... on ProductVariant {\n        id\n        availableForSale\n        compareAtPrice {\n          ...Money\n        }\n        price {\n          ...Money\n        }\n        requiresShipping\n        title\n        image {\n          id\n          url\n          altText\n          width\n          height\n\n        }\n        product {\n          handle\n          title\n          id\n          vendor\n          collections(first: 10) {\n            nodes {\n              handle\n              id\n            }\n          }\n        }\n        selectedOptions {\n          name\n          value\n        }\n      }\n    }\n  }\n  fragment CartLineComponent on ComponentizableCartLine {\n    id\n    quantity\n    attributes {\n      key\n      value\n    }\n    cost {\n      totalAmount {\n        ...Money\n      }\n      amountPerQuantity {\n        ...Money\n      }\n      compareAtAmountPerQuantity {\n        ...Money\n      }\n    }\n    merchandise {\n      ... on ProductVariant {\n        id\n        availableForSale\n        compareAtPrice {\n          ...Money\n        }\n        price {\n          ...Money\n        }\n        requiresShipping\n        title\n        image {\n          id\n          url\n          altText\n          width\n          height\n        }\n        product {\n          handle\n          title\n          id\n          vendor\n          collections(first: 10) {\n            nodes {\n              handle\n              id\n            }\n          }\n        }\n        selectedOptions {\n          name\n          value\n        }\n      }\n    }\n  }\n  fragment CartApiQuery on Cart {\n    updatedAt\n    id\n    appliedGiftCards {\n      lastCharacters\n      amountUsed {\n        ...Money\n      }\n    }\n    checkoutUrl\n    totalQuantity\n    buyerIdentity {\n      countryCode\n      customer {\n        id\n        email\n        firstName\n        lastName\n        displayName\n      }\n      email\n      phone\n    }\n    lines(first: $numCartLines) {\n      nodes {\n        ...CartLine\n      }\n      nodes {\n        ...CartLineComponent\n      }\n    }\n    cost {\n      subtotalAmount {\n        ...Money\n      }\n      totalAmount {\n        ...Money\n      }\n      totalDutyAmount {\n        ...Money\n      }\n      totalTaxAmount {\n        ...Money\n      }\n    }\n    note\n    attributes {\n      key\n      value\n    }\n    discountCodes {\n      code\n      applicable\n    }\n  }\n\n': {
+    return: CartDiscountCodesUpdateMutation;
+    variables: CartDiscountCodesUpdateMutationVariables;
+  };
+}
 
 declare module '@shopify/hydrogen' {
   interface StorefrontQueries extends GeneratedQueryTypes {}

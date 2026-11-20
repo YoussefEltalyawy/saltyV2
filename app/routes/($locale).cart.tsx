@@ -10,6 +10,12 @@ import {
 import { CartMain } from '~/components/CartMain';
 import { Analytics } from '@shopify/hydrogen';
 import { toMetaContentId } from '~/lib/meta';
+import {
+  getBundleDefinitions,
+} from '~/lib/bundleConfig';
+import { resolveCartDiscountCodes } from '~/lib/bundleDiscounts';
+import { createBundleDataService } from '~/lib/bundleDataService';
+import { updateCartDiscountCodes } from '~/lib/cartDiscountCodes';
 
 export const meta: MetaFunction = () => {
   return [{ title: `SALTY | Cart` }];
@@ -17,59 +23,63 @@ export const meta: MetaFunction = () => {
 
 export const headers: HeadersFunction = ({ actionHeaders }) => actionHeaders;
 
-// Helper function to update bundle discount codes based on cart contents
-async function updateBundleDiscountCodes(cart: any, cartResult: any) {
-  if (!cartResult.cart || !cartResult.cart.lines || cartResult.cart.lines.nodes.length === 0) {
-    // Cart is empty, remove all discount codes
-    return await cart.updateDiscountCodes([]);
-  }
-
-  // Check what items remain in the cart
-  const remainingItems = cartResult.cart.lines.nodes;
-
-  // Check if cart still qualifies for bundle discounts
-  const applicableDiscountCodes: string[] = [];
-
-  // Check for 2 tops bundle (needs 2+ tops)
-  const topsInCart = remainingItems.filter((line: any) =>
-    line.merchandise?.product?.handle?.includes('top') ||
-    line.merchandise?.product?.collections?.nodes?.some((collection: any) =>
-      collection.handle === 'tops'
-    )
+/**
+ * Keep bundle discount codes in sync with what is actually in the cart.
+ * Manual codes the customer entered are preserved; only bundle-owned codes
+ * are added/removed here.
+ */
+function sameCodes(a: string[], b: string[]): boolean {
+  const left = new Set(a);
+  const right = new Set(b);
+  return (
+    left.size === right.size && [...left].every((code) => right.has(code))
   );
-  if (topsInCart.length >= 2) {
-    applicableDiscountCodes.push('2TOPS10');
+}
+
+async function updateBundleDiscountCodes(
+  cart: any,
+  storefront: any,
+  cartResult: any,
+  extraCodes: string[] = [],
+) {
+  // The mutation already returns the full cart (see CART_MUTATION_FRAGMENT).
+  // Use those lines rather than calling cart.get() again: a second read can
+  // return an older snapshot when two cart actions overlap, which makes us
+  // compute codes from the wrong lines (and can bring back removed items).
+  let current = cartResult?.cart;
+  if (!current?.lines) {
+    current = await cart.get();
   }
 
-  // Check for 3 tops bundle (needs 3+ tops)
-  if (topsInCart.length >= 3) {
-    applicableDiscountCodes.push('3TOPS15');
+  const lines = current?.lines?.nodes ?? [];
+  const currentCodes = (current?.discountCodes ?? [])
+    .map((entry: any) => entry?.code)
+    .filter(Boolean) as string[];
+
+  const desiredCodes = resolveCartDiscountCodes(getBundleDefinitions(), lines, [
+    ...currentCodes,
+    ...extraCodes,
+  ]);
+
+  if (!current?.id || sameCodes(desiredCodes, currentCodes)) {
+    return cartResult;
   }
 
-  // Check for polo bundles
-  const polosInCart = remainingItems.filter((line: any) =>
-    line.merchandise?.product?.collections?.nodes?.some((collection: any) =>
-      collection.handle === 'oversized-polos'
-    )
-  );
-  if (polosInCart.length >= 2) {
-    applicableDiscountCodes.push('POLO2BUNDLE10');
-  }
-  if (polosInCart.length >= 3) {
-    applicableDiscountCodes.push('POLO3BUNDLE15');
-  }
-
-  // Update discount codes based on remaining items
-  if (applicableDiscountCodes.length > 0) {
-    return await cart.updateDiscountCodes(applicableDiscountCodes);
-  } else {
-    // Remove all bundle discount codes if no bundles qualify
-    return await cart.updateDiscountCodes([]);
-  }
+  return await updateCartDiscountCodes(storefront, current.id, desiredCodes);
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const { cart } = context;
+
+  // Load the active bundle definitions (cached for 60s) so cart discount
+  // handling follows the current Shopify metaobject configuration.
+  try {
+    const bundleDataService = createBundleDataService(context.storefront);
+    await bundleDataService.fetchBundleDefinitions();
+  } catch {
+    // Bundles could not be read this request; the registry keeps whatever was
+    // loaded last (empty on a cold start), so cart lines stay untouched.
+  }
 
   const formData = await request.formData();
 
@@ -123,22 +133,37 @@ export async function action({ request, context }: ActionFunctionArgs) {
           }).catch(() => { }),
         );
       } catch { }
-      if (inputs.discountCode) {
-        const discountCodes = [inputs.discountCode] as string[];
-        discountCodes.push(...((inputs.discountCodes || []) as string[]));
-        result = await cart.updateDiscountCodes(discountCodes);
-      }
+      // Apply any code the form asked for, and sync the codes the cart's
+      // current contents qualify for (bundles) in one write.
+      const requestedCodes: string[] = [
+        ...(inputs.discountCode ? [inputs.discountCode as string] : []),
+        ...((inputs.discountCodes || []) as string[]),
+      ];
+      result = await updateBundleDiscountCodes(
+        cart,
+        context.storefront,
+        result,
+        requestedCodes,
+      );
       break;
     }
     case CartForm.ACTIONS.LinesUpdate:
       result = await cart.updateLines(inputs.lines);
       // Update bundle discount codes based on remaining cart contents
-      result = await updateBundleDiscountCodes(cart, result);
+      result = await updateBundleDiscountCodes(
+        cart,
+        context.storefront,
+        result,
+      );
       break;
     case CartForm.ACTIONS.LinesRemove:
       result = await cart.removeLines(inputs.lineIds);
       // Update bundle discount codes based on remaining cart contents
-      result = await updateBundleDiscountCodes(cart, result);
+      result = await updateBundleDiscountCodes(
+        cart,
+        context.storefront,
+        result,
+      );
       break;
     case CartForm.ACTIONS.DiscountCodesUpdate: {
       const formDiscountCode = inputs.discountCode;
@@ -151,7 +176,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
       // Combine discount codes already applied on cart
       discountCodes.push(...inputs.discountCodes);
 
-      result = await cart.updateDiscountCodes(discountCodes);
+      const cartId = cart.getCartId();
+      result = cartId
+        ? await updateCartDiscountCodes(context.storefront, cartId, discountCodes)
+        : await cart.create({discountCodes});
       break;
     }
     case CartForm.ACTIONS.GiftCardCodesUpdate: {

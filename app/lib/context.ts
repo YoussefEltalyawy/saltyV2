@@ -1,6 +1,6 @@
 import {createHydrogenContext} from '@shopify/hydrogen';
 import {AppSession} from '~/lib/session';
-import {CART_QUERY_FRAGMENT} from '~/lib/fragments';
+import {CART_MUTATION_FRAGMENT, CART_QUERY_FRAGMENT} from '~/lib/fragments';
 import {getLocaleFromRequest} from '~/lib/i18n';
 
 /**
@@ -34,6 +34,9 @@ export async function createAppLoadContext(
     i18n: getLocaleFromRequest(request),
     cart: {
       queryFragment: CART_QUERY_FRAGMENT,
+      // Return the whole cart from every mutation. The cart action uses those
+      // lines to sync bundle codes instead of issuing a second, racy cart.get().
+      mutateFragment: CART_MUTATION_FRAGMENT,
     },
   });
 

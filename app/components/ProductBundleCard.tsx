@@ -1,78 +1,70 @@
 import { useState } from 'react';
-import { getVariant, getVariantIdFromOptions } from '~/lib/bundleUtils';
+import {
+  getFirstAvailableVariant,
+  getFirstVariant,
+  getVariantById,
+  hasVariantChoices,
+  variantLabel,
+} from '~/lib/bundleUtils';
 
 interface ProductBundleCardProps {
   products: any[];
   initialProduct: any;
+  initialVariantId?: string;
   title: string;
-  onChange: (product: any, color: string, size: string) => void;
-  initialColor?: string;
-  initialSize?: string;
+  onChange: (product: any, variantId: string) => void;
 }
 
 /**
  * Single slot card used inside BundlesPageBundleCard.
  * Design matches the site aesthetic: 3/4 portrait image, Manrope font, minimal black/white.
+ *
+ * Variants are selected by id from the product's real variant list, so this
+ * works for products with Color + Size, only Color, only Size, no options at
+ * all, or entirely custom option names.
  */
 export default function ProductBundleCard({
   products,
   initialProduct,
+  initialVariantId,
   title,
   onChange,
-  initialColor,
-  initialSize,
 }: ProductBundleCardProps) {
-
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  function firstAvailColor(product: any): string {
-    const v = product?.variants?.nodes?.find((v: any) => v.availableForSale);
-    return v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'color')?.value ?? '';
-  }
-  function firstAvailSize(product: any): string {
-    const v = product?.variants?.nodes?.find((v: any) => v.availableForSale);
-    return v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'size')?.value ?? '';
-  }
-
   // ── State ─────────────────────────────────────────────────────────────────
   const [selectedProduct, setSelectedProduct] = useState(initialProduct);
-  const [selectedColor, setSelectedColor] = useState(initialColor || firstAvailColor(initialProduct));
-  const [selectedSize,  setSelectedSize]  = useState(initialSize  || firstAvailSize(initialProduct));
+  const [selectedVariantId, setSelectedVariantId] = useState(
+    initialVariantId ?? getFirstAvailableVariant(initialProduct)?.id ?? '',
+  );
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   function handleProductChange(handle: string) {
-    const prod = products.find((p) => p.handle === handle);
-    if (!prod) return;
-    const c = firstAvailColor(prod);
-    const s = firstAvailSize(prod);
-    setSelectedProduct(prod);
-    setSelectedColor(c);
-    setSelectedSize(s);
-    onChange(prod, c, s);
+    const product = products.find((candidate) => candidate.handle === handle);
+    if (!product) return;
+
+    const variant = getFirstAvailableVariant(product);
+    setSelectedProduct(product);
+    setSelectedVariantId(variant?.id ?? '');
+    onChange(product, variant?.id ?? '');
   }
 
-  function handleVariantChange(val: string) {
-    if (!val) return;
-    const [c, s] = val.split('/');
-    if (!c || !s) return;
-    setSelectedColor(c);
-    setSelectedSize(s);
-    onChange(selectedProduct, c, s);
+  function handleVariantChange(variantId: string) {
+    if (!variantId) return;
+    setSelectedVariantId(variantId);
+    onChange(selectedProduct, variantId);
   }
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const variantOptions = (selectedProduct?.variants?.nodes ?? []).map((v: any) => {
-    const c = v.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'color')?.value ?? '';
-    const s = v.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'size')?.value ?? '';
-    return { value: `${c}/${s}`, label: `${c} / ${s}`, available: v.availableForSale };
-  }).filter((o: any) => o.value !== '/');
+  const currentVariant =
+    getVariantById(selectedProduct, selectedVariantId) ??
+    getFirstVariant(selectedProduct);
 
-  const currentVariant = getVariant(selectedProduct, selectedColor, selectedSize);
-  const currentVariantValue = `${selectedColor}/${selectedSize}`;
-  const image = currentVariant?.image?.url || selectedProduct?.featuredImage?.url;
+  const image =
+    currentVariant?.image?.url || selectedProduct?.featuredImage?.url;
   const price = currentVariant?.price;
   const compareAtPrice = currentVariant?.compareAtPrice;
-  const hasDiscount = compareAtPrice && parseFloat(compareAtPrice.amount) > parseFloat(price?.amount ?? '0');
-  const isOutOfStock = !selectedColor || !selectedSize;
+  const hasDiscount =
+    compareAtPrice &&
+    parseFloat(compareAtPrice.amount) > parseFloat(price?.amount ?? '0');
 
   return (
     <div className="flex flex-col">
@@ -89,8 +81,10 @@ export default function ProductBundleCard({
           value={selectedProduct?.handle || ''}
           onChange={(e) => handleProductChange(e.target.value)}
         >
-          {products.map((p) => (
-            <option key={p.handle} value={p.handle}>{p.title}</option>
+          {products.map((product) => (
+            <option key={product.handle} value={product.handle}>
+              {product.title}
+            </option>
           ))}
         </select>
       ) : (
@@ -100,7 +94,10 @@ export default function ProductBundleCard({
       )}
 
       {/* Image — 3/4 portrait ratio matching site product cards */}
-      <div className="w-full bg-[#f5f3f0] overflow-hidden" style={{ aspectRatio: '3/4' }}>
+      <div
+        className="w-full bg-[#f5f3f0] overflow-hidden"
+        style={{ aspectRatio: '3/4' }}
+      >
         {image ? (
           <img
             src={image}
@@ -109,32 +106,41 @@ export default function ProductBundleCard({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <span className="text-gray-300 text-xs tracking-wider uppercase">No image</span>
+            <span className="text-gray-300 text-xs tracking-wider uppercase">
+              No image
+            </span>
           </div>
         )}
       </div>
 
-      {/* Variant selector */}
+      {/* Variant selector — one option per real variant, whatever the options are */}
       <div className="mt-3">
-        <select
-          className="w-full bg-white border border-gray-200 text-xs tracking-wide px-3 py-2.5 focus:outline-none focus:border-black appearance-none cursor-pointer transition-colors"
-          style={{ WebkitAppearance: 'none' }}
-          value={currentVariantValue}
-          onChange={(e) => handleVariantChange(e.target.value)}
-        >
-          {(selectedColor === '' || selectedSize === '') && (
-            <option value="">Select size…</option>
-          )}
-          {variantOptions.map((opt: any) => (
-            <option
-              key={opt.value}
-              value={opt.value}
-              disabled={!opt.available}
-            >
-              {opt.label}{!opt.available ? ' — Sold Out' : ''}
-            </option>
-          ))}
-        </select>
+        {hasVariantChoices(selectedProduct) ? (
+          <select
+            className="w-full bg-white border border-gray-200 text-xs tracking-wide px-3 py-2.5 focus:outline-none focus:border-black appearance-none cursor-pointer transition-colors"
+            style={{ WebkitAppearance: 'none' }}
+            value={selectedVariantId}
+            onChange={(e) => handleVariantChange(e.target.value)}
+          >
+            {selectedVariantId === '' && (
+              <option value="">Select an option…</option>
+            )}
+            {selectedProduct?.variants?.nodes?.map((variant: any) => (
+              <option
+                key={variant.id}
+                value={variant.id}
+                disabled={!variant.availableForSale}
+              >
+                {variantLabel(variant)}
+                {variant.availableForSale ? '' : ' — Sold Out'}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-xs text-gray-500 tracking-wide">
+            {currentVariant ? variantLabel(currentVariant) : 'Sold out'}
+          </p>
+        )}
       </div>
 
       {/* Price */}

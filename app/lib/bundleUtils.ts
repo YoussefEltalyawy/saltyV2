@@ -1,214 +1,66 @@
-import { BUNDLE_COLLECTIONS } from './bundleConfig';
+// Shared helpers for the bundle pickers.
+//
+// Products do not have a standard set of options. Some have Color + Size, some
+// only Color, some only Size, some a single "Default Title" variant, and some
+// have options with entirely different names. Everything here works from the
+// product's actual variants instead of assuming Color and Size exist.
 
-// Common utility functions for bundles
+/** All variants for a bundled product (empty when the product has none). */
+export function getVariants(product: any): any[] {
+  const nodes = product?.variants?.nodes;
+  return Array.isArray(nodes) ? nodes : [];
+}
 
-/**
- * Get the color of the first IN-STOCK variant.
- * Returns '' if the product has no available variants.
- */
-export function getFirstColor(product: any): string {
-  const v = product?.variants?.nodes?.find((v: any) => v.availableForSale);
-  return v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'color')?.value ?? '';
+/** First variant that is in stock, falling back to the first one. */
+export function getFirstVariant(product: any): any | undefined {
+  const variants = getVariants(product);
+  return variants.find((variant) => variant?.availableForSale) ?? variants[0];
 }
 
 /**
- * Get the size of the first IN-STOCK variant.
- * Returns '' if the product has no available variants.
+ * First variant that is actually in stock. Returns undefined when everything
+ * is sold out, so the card can disable its add-to-cart button instead of
+ * silently adding an unavailable variant.
  */
-export function getFirstSize(product: any): string {
-  const v = product?.variants?.nodes?.find((v: any) => v.availableForSale);
-  return v?.selectedOptions?.find((o: any) => o.name.toLowerCase() === 'size')?.value ?? '';
+export function getFirstAvailableVariant(product: any): any | undefined {
+  return getVariants(product).find((variant) => variant?.availableForSale);
 }
 
-/**
- * Find a variant based on color and size options
- */
-export function getVariant(product: any, color: string, size: string): any {
-  return product?.variants?.nodes?.find(
-    (v: any) =>
-      v.selectedOptions.some(
-        (o: any) => o.name.toLowerCase() === 'color' && o.value === color,
-      ) &&
-      v.selectedOptions.some(
-        (o: any) => o.name.toLowerCase() === 'size' && o.value === size,
-      ),
-  );
-}
-
-/**
- * Get swatch color for a specific color option
- */
-export function getSwatchColor(product: any, color: string): string | undefined {
-  const colorOpt = product?.options?.find(
-    (o: any) => o.name.toLowerCase() === 'color',
-  );
-  const value = colorOpt?.optionValues?.find((v: any) => v.name === color);
-  return value?.swatch?.color;
-}
-
-/**
- * Get color options from a product
- */
-export function getColorOptions(product: any): string[] {
-  return product?.options
-    ?.find((o: any) => o.name.toLowerCase() === 'color')
-    ?.optionValues?.map((v: any) => v.name) || [];
-}
-
-/**
- * Get size options from a product
- */
-export function getSizeOptions(product: any): string[] {
-  return product?.options
-    ?.find((o: any) => o.name.toLowerCase() === 'size')
-    ?.optionValues?.map((v: any) => v.name) || [];
-}
-
-/**
- * Find a variant by ID
- */
-export function getVariantById(product: any, variantId: string): any {
-  return product?.variants?.nodes?.find((v: any) => v.id === variantId);
-}
-
-/**
- * Get price information from a variant
- */
-export function getPriceInfo(variant: any): {
-  price: number;
-  compareAt: number | null;
-  currency: string;
-} {
-  if (!variant) return { price: 0, compareAt: 0, currency: 'USD' };
-  return {
-    price: parseFloat(variant.price?.amount || '0'),
-    compareAt: variant.compareAtPrice
-      ? parseFloat(variant.compareAtPrice.amount)
-      : null,
-    currency: variant.price?.currencyCode || 'USD',
-  };
-}
-
-/**
- * Calculate bundle price with discount
- */
-export function calculateBundlePrice(
-  variants: any[],
-  discountValue: number,
-  currency: string = 'USD'
-): {
-  original: number;
-  discounted: number;
-  currency: string;
-} {
-  const prices = variants
-    .filter(v => v)
-    .map(v => parseFloat(v?.price?.amount || '0'));
-
-  const originalTotal = prices.reduce((sum, price) => sum + price, 0);
-  const discountedTotal = originalTotal * (1 - discountValue / 100);
-
-  return {
-    original: originalTotal,
-    discounted: discountedTotal,
-    currency,
-  };
-}
-
-/**
- * Get variant ID from product, color, and size
- */
-export function getVariantIdFromOptions(
+/** The variant matching an exact variant id. */
+export function getVariantById(
   product: any,
-  color: string,
-  size: string
-): string {
-  const variant = getVariant(product, color, size);
-  return variant?.id || '';
+  variantId: string | undefined,
+): any | undefined {
+  if (!variantId) return undefined;
+  return getVariants(product).find((variant) => variant?.id === variantId);
 }
 
 /**
- * Check if a product belongs to a specific collection
+ * Human label for a variant, e.g. "Black / M" or "One size (adjustable)".
+ * Shopify's placeholder value for products without real options is hidden.
  */
-export function isProductInCollection(
-  product: any,
-  collectionHandle: string
-): boolean {
-  return product?.collections?.nodes?.some(
-    (c: any) => c.handle === collectionHandle
-  ) || false;
+export function variantLabel(variant: any): string {
+  const values = (variant?.selectedOptions ?? [])
+    .map((option: any) => String(option?.value ?? '').trim())
+    .filter((value: string) => value && value.toLowerCase() !== 'default title');
+
+  return values.length ? values.join(' / ') : 'Default';
+}
+
+/** True when there is more than one variant for the customer to choose from. */
+export function hasVariantChoices(product: any): boolean {
+  return getVariants(product).length > 1;
 }
 
 /**
- * Get collection handles from a product
+ * Default product for a bundle slot: the first one that can actually be bought
+ * right now. Falls back to the first product when every option is sold out, so
+ * the card still renders (and shows why it cannot be added).
  */
-export function getProductCollectionHandles(product: any): string[] {
-  return product?.collections?.nodes?.map((c: any) => c.handle) || [];
-}
-
-/**
- * Check if a product is in the denim collection
- */
-export function isDenimProduct(product: any): boolean {
-  return isProductInCollection(product, BUNDLE_COLLECTIONS.DENIM);
-}
-
-/**
- * Check if a product is in the polo collection
- */
-export function isPoloProduct(product: any): boolean {
-  return isProductInCollection(product, BUNDLE_COLLECTIONS.POLO);
-}
-
-/**
- * Check if a product is in the tops collection
- */
-export function isTopsProduct(product: any): boolean {
-  return isProductInCollection(product, BUNDLE_COLLECTIONS.TOPS);
-}
-
-/**
- * Check if a product is in the caps collection
- */
-export function isCapsProduct(product: any): boolean {
-  return isProductInCollection(product, BUNDLE_COLLECTIONS.CAPS);
-}
-
-/**
- * Check if a product is a linen product
- */
-export function isLinenProduct(product: any): boolean {
-  return product?.handle === 'linen-shirt' || product?.handle === 'linen-pants';
-}
-
-/**
- * Get available products for a collection
- */
-export function getCollectionProducts(
-  collectionData: any,
-  collectionHandle: string
-): any[] {
-  return collectionData?.[collectionHandle] || [];
-}
-
-/**
- * Initialize product selections for bundles
- */
-export function initializeProductSelections(
-  products: any[],
-  count: number
-): any[] {
-  if (products.length === 0) return Array(count).fill(null);
-  return Array(count).fill(products[0]);
-}
-
-/**
- * Initialize variant selections for bundles
- */
-export function initializeVariantSelections(
-  products: any[],
-  count: number
-): string[] {
-  if (products.length === 0) return Array(count).fill('');
-  return Array(count).fill(products[0]?.variants?.nodes?.[0]?.id || '');
+export function getDefaultProduct(products: any[]): any | undefined {
+  if (!Array.isArray(products) || !products.length) return undefined;
+  return (
+    products.find((product) => Boolean(getFirstAvailableVariant(product))) ??
+    products[0]
+  );
 }

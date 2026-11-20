@@ -47,6 +47,12 @@ export const CART_QUERY_FRAGMENT = `#graphql
           title
           id
           vendor
+          collections(first: 10) {
+            nodes {
+              handle
+              id
+            }
+          }
         }
         selectedOptions {
           name
@@ -97,6 +103,12 @@ export const CART_QUERY_FRAGMENT = `#graphql
           title
           id
           vendor
+          collections(first: 10) {
+            nodes {
+              handle
+              id
+            }
+          }
         }
         selectedOptions {
           name
@@ -161,6 +173,18 @@ export const CART_QUERY_FRAGMENT = `#graphql
     }
   }
 ` as const;
+
+/**
+ * Cart mutations default to a minimal fragment (id/totalQuantity/checkoutUrl),
+ * which forces the cart action to re-read the cart with `cart.get()` just to
+ * see the lines. That extra read can race with overlapping mutations and
+ * return an older snapshot, so we ask mutations for the full cart instead.
+ * Hydrogen names the mutation fragment `CartApiMutation` and mutations don't
+ * declare `$numCartLines`, hence the rename and the fixed line count.
+ */
+export const CART_MUTATION_FRAGMENT = CART_QUERY_FRAGMENT
+  .replace('fragment CartApiQuery on Cart', 'fragment CartApiMutation on Cart')
+  .replace('lines(first: $numCartLines)', 'lines(first: 250)');
 
 const MENU_FRAGMENT = `#graphql
   fragment MenuItem on MenuItem {

@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAside } from './Aside';
 import { AddToCartButton } from './AddToCartButton';
 import ProductBundleCard from './ProductBundleCard';
 import {
-  getFirstColor,
-  getFirstSize,
-  getVariantIdFromOptions,
+  getDefaultProduct,
+  getFirstAvailableVariant,
 } from '~/lib/bundleUtils';
+import { useBundleQuote } from '~/lib/useBundleQuote';
 
 interface SlotConfig {
+  /** Stable key for React lists. */
+  id?: string;
   /** Title shown above the card */
   title: string;
   /** Products available for this slot */
@@ -21,7 +23,6 @@ interface BundlesPageBundleCardProps {
     description: string;
     discountValue: number;
     discountCode?: string;
-    minQuantity?: number;
   };
   /**
    * One entry per slot. Each slot gets its own product pool and title.
@@ -37,63 +38,69 @@ interface BundlesPageBundleCardProps {
 export default function BundlesPageBundleCard({ def, slots }: BundlesPageBundleCardProps) {
   const { open } = useAside();
   const { title, description, discountValue, discountCode } = def;
-  const minQuantity = def.minQuantity ?? slots.length;
 
   // Track selected products + variant IDs per slot
   const [selectedProducts, setSelectedProducts] = useState<any[]>(() =>
-    slots.map((s) => s.products[0] ?? null),
+    slots.map((s) => getDefaultProduct(s.products) ?? null),
   );
   const [variantIds, setVariantIds] = useState<string[]>(() =>
-    slots.map((s) => {
-      const p = s.products[0];
-      if (!p?.variants?.nodes?.length) return '';
-      const firstAvail = p.variants.nodes.find((v: any) => v.availableForSale);
-      return firstAvail?.id ?? '';
-    }),
+    slots.map(
+      (s) => getFirstAvailableVariant(getDefaultProduct(s.products))?.id ?? '',
+    ),
   );
 
-  // Reset if slots change (e.g. async data load)
-  useEffect(() => {
-    setSelectedProducts(slots.map((s) => s.products[0] ?? null));
-    setVariantIds(
-      slots.map((s) => {
-        const p = s.products[0];
-        if (!p?.variants?.nodes?.length) return '';
-        const firstAvail = p.variants.nodes.find((v: any) => v.availableForSale);
-        return firstAvail?.id ?? '';
-      }),
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slots.length]);
+  // Product pools are rebuilt by the loader. Reset when their contents change,
+  // not just when the slot count changes, so pickers never point at a product
+  // that has been removed from the bundle.
+  const signature = useMemo(
+    () => slots.map((s) => s.products.map((p: any) => p.id).join(',')).join('|'),
+    [slots],
+  );
 
-  // Pricing
-  function calcPrice() {
+  useEffect(() => {
+    setSelectedProducts(slots.map((s) => getDefaultProduct(s.products) ?? null));
+    setVariantIds(
+      slots.map(
+        (s) => getFirstAvailableVariant(getDefaultProduct(s.products))?.id ?? '',
+      ),
+    );
+  // `signature` captures the product pools; `slots` is rebuilt on each render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature]);
+
+  // Fallback estimate until the live Shopify quote arrives (or if it fails).
+  function estimatePrice() {
     let total = 0;
-    let currency = 'EGP'; // Defaulting to EGP if not found, usually fetched from variant
+    let currency = 'EGP';
     selectedProducts.forEach((prod, i) => {
-      if (!prod || !variantIds[i]) return;
-      const variant = prod.variants?.nodes?.find((v: any) => v.id === variantIds[i]);
+      const variant = prod?.variants?.nodes?.find((v: any) => v.id === variantIds[i]);
       if (variant?.price?.amount) {
-        total += parseFloat(variant.price.amount);
+        total += Number.parseFloat(variant.price.amount);
         currency = variant.price.currencyCode ?? currency;
       }
     });
     return { original: total, discounted: total * (1 - discountValue / 100), currency };
   }
 
-  const price = calcPrice();
   const cartLines = variantIds
     .filter((id) => id)
     .map((id) => ({ merchandiseId: id, quantity: 1 }));
-  const isReady = cartLines.length === minQuantity;
+  const isReady = slots.length > 0 && cartLines.length === slots.length;
+
+  // Shopify's own price for this exact selection (BXGY, free gifts, automatic
+  // discounts, ...), with the simple estimate as a fallback.
+  const livePrice = useBundleQuote(cartLines, discountCode, isReady);
+  const price = livePrice ?? estimatePrice();
 
   // Grid columns based on slot count
   const gridCols =
-    slots.length === 2
-      ? 'grid-cols-2'
-      : slots.length === 3
-        ? 'grid-cols-2 md:grid-cols-3'
-        : 'grid-cols-2 lg:grid-cols-4';
+    slots.length === 1
+      ? 'grid-cols-1 max-w-xs'
+      : slots.length === 2
+        ? 'grid-cols-2'
+        : slots.length === 3
+          ? 'grid-cols-2 md:grid-cols-3'
+          : 'grid-cols-2 lg:grid-cols-4';
 
   return (
     <div className="mb-12">
@@ -109,20 +116,21 @@ export default function BundlesPageBundleCard({ def, slots }: BundlesPageBundleC
       <div className={`grid ${gridCols} gap-x-4 gap-y-8 sm:gap-6 md:gap-8`}>
         {slots.map((slot, idx) => (
           <ProductBundleCard
-            key={idx}
+            key={`${slot.id ?? slot.title}:${slot.products
+              .map((p: any) => p.id)
+              .join(',')}`}
             products={slot.products}
-            initialProduct={slot.products[0]}
+            initialProduct={getDefaultProduct(slot.products)}
+            initialVariantId={variantIds[idx]}
             title={slot.title}
-            onChange={(prod, color, size) => {
+            onChange={(product, variantId) => {
               const newProducts = [...selectedProducts];
               const newIds = [...variantIds];
-              newProducts[idx] = prod;
-              newIds[idx] = getVariantIdFromOptions(prod, color, size);
+              newProducts[idx] = product;
+              newIds[idx] = variantId;
               setSelectedProducts(newProducts);
               setVariantIds(newIds);
             }}
-            initialColor={getFirstColor(slot.products[0])}
-            initialSize={getFirstSize(slot.products[0])}
           />
         ))}
       </div>
@@ -158,11 +166,6 @@ export default function BundlesPageBundleCard({ def, slots }: BundlesPageBundleC
                 {isReady ? 'Add Bundle to Cart' : 'Select all options'}
               </span>
             </AddToCartButton>
-            <p className="text-[9px] text-gray-400 mt-2 text-center uppercase tracking-widest font-medium">
-              {discountCode
-                ? `Discount code ${discountCode} applied`
-                : 'Discount auto-applied at checkout'}
-            </p>
           </div>
         </div>
       </div>
